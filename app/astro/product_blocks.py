@@ -203,6 +203,82 @@ def _sign_detail(report: PartnerReport, key: str) -> str:
     return "Точный знак уточняет личный оттенок проявления."
 
 
+def _current_moon_variant(report: PartnerReport) -> dict[str, object]:
+    moon = _placement(report, "moon")
+    return {
+        "sign_key": moon.get("sign_key", ""),
+        "sign_ru": moon.get("sign_ru", "не определён"),
+        "element": moon.get("element", report.emotional_language),
+        "element_ru": moon.get("element_ru", ""),
+    }
+
+
+def _moon_variants(report: PartnerReport) -> list[dict[str, object]]:
+    variants = report.moon_variants if isinstance(report.moon_variants, list) else []
+    if report.moon_status == "changed_during_day" and variants:
+        result: list[dict[str, object]] = []
+        seen: set[tuple[str, str]] = set()
+        for item in variants:
+            if not isinstance(item, dict):
+                continue
+            key = (str(item.get("sign_key", "")), str(item.get("element", "")))
+            if key in seen:
+                continue
+            seen.add(key)
+            result.append(item)
+        return result or [_current_moon_variant(report)]
+    return [_current_moon_variant(report)]
+
+
+def _variant_sign_ru(variant: dict[str, object]) -> str:
+    return str(variant.get("sign_ru", "не определён"))
+
+
+def _variant_element(variant: dict[str, object]) -> str:
+    return str(variant.get("element", ""))
+
+
+def _variant_element_ru(variant: dict[str, object]) -> str:
+    return str(variant.get("element_ru", ""))
+
+
+def _variant_basis(man_variant: dict[str, object], woman_variant: dict[str, object]) -> str:
+    return (
+        f"его Луна в {_variant_sign_ru(man_variant)}, {_variant_element_ru(man_variant)}; "
+        f"ваша Луна в {_variant_sign_ru(woman_variant)}, {_variant_element_ru(woman_variant)}"
+    )
+
+
+def _alternate_moon_bridge_block(man_report: PartnerReport, woman_report: PartnerReport) -> str:
+    if man_report.moon_status != "changed_during_day" and woman_report.moon_status != "changed_during_day":
+        return ""
+    lines = [
+        "Возможные варианты описания без точного времени рождения:",
+        "Ниже не один окончательный вывод, а развилка по Луне. Выберите вариант, который больше похож на реальное поведение и эмоциональный ритм.",
+    ]
+    seen: set[tuple[str, str, str, str]] = set()
+    for man_variant in _moon_variants(man_report):
+        for woman_variant in _moon_variants(woman_report):
+            left = _variant_element(man_variant)
+            right = _variant_element(woman_variant)
+            key = (str(man_variant.get("sign_key", "")), left, str(woman_variant.get("sign_key", "")), right)
+            if key in seen:
+                continue
+            seen.add(key)
+            title, tension, bridge = _bridge_for(left, right)
+            strength, loss, soft_key = _diagnostics_for(left, right)
+            basis = _variant_basis(man_variant, woman_variant)
+            lines.append(
+                f"\nЕсли {basis}:\n"
+                f"{title}\n"
+                f"Сильная сторона: {strength}\n"
+                f"Где может теряться контакт: {loss}\n"
+                f"Мягкий ключ: {soft_key}\n"
+                f"{bridge}"
+            )
+    return "\n\n".join(lines).strip()
+
+
 def _profile_integral(report: PartnerReport) -> str:
     moon = f"Луна в {_sign_ru(report, 'moon')} — {_element_ru(report, 'moon')}"
     venus = f"Венера в {_sign_ru(report, 'venus')} — {_element_ru(report, 'venus')}"
@@ -257,6 +333,22 @@ def format_moon_detail(report: PartnerReport) -> str:
     precision_note = format_moon_precision_note(report)
     precision_block = f"\n\n{precision_note}" if precision_note else ""
     moon_basis = _basis(report, "moon", "Луна")
+    alternate = ""
+    if report.moon_status == "changed_during_day":
+        variant_lines = []
+        for variant in _moon_variants(report):
+            sign_key = str(variant.get("sign_key", ""))
+            element = str(variant.get("element", report.emotional_language))
+            sign_ru = _variant_sign_ru(variant)
+            element_ru = _variant_element_ru(variant)
+            meaning_variant = MOON_MEANINGS.get(element, meaning)
+            sign_detail = MOON_SIGN_DETAILS.get(sign_key, "Этот вариант Луны уточняет, какой эмоциональный ритм человеку ближе.")
+            variant_lines.append(
+                f"Если Луна в {sign_ru}, {element_ru}:\n"
+                f"Стихийный ритм: {meaning_variant.needs}\n"
+                f"Точный оттенок: {sign_detail}"
+            )
+        alternate = "\n\nВозможные варианты Луны без точного времени рождения:\n" + "\n\n".join(variant_lines)
     return f"""
 🌙 Его эмоциональный ритм: {report.partner_name} {moon_basis}
 
@@ -265,7 +357,7 @@ def format_moon_detail(report: PartnerReport) -> str:
 {_rhythm_for_man(report.emotional_language, moon_basis)}
 
 Точный оттенок Луны в {_sign_ru(report, "moon")}:
-{_sign_detail(report, "moon")}
+{_sign_detail(report, "moon")}{alternate}
 
 Что может сбивать контакт {moon_basis}:
 {meaning.what_not_to_do}
@@ -344,6 +436,8 @@ def format_couple_moon_bridge(man_report: PartnerReport, woman_report: PartnerRe
     precision_note = _pair_precision_note(man_report, woman_report)
     precision_block = f"\n\n{precision_note}" if precision_note else ""
     moon_basis = _couple_basis(man_report, woman_report, "moon", "Луна")
+    alternate_block = _alternate_moon_bridge_block(man_report, woman_report)
+    alternate_text = f"\n\n{alternate_block}" if alternate_block else ""
     return f"""
 💞 Ваш эмоциональный мост
 
@@ -365,7 +459,7 @@ def format_couple_moon_bridge(man_report: PartnerReport, woman_report: PartnerRe
 Ваш мягкий ключ {moon_basis}:
 {key}
 
-{bridge}
+{bridge}{alternate_text}
 
 Гармония здесь не в том, чтобы кто-то стал удобнее. Она в том, чтобы увидеть два разных входа в близость и найти между ними живой, тёплый проход.
 """.strip()
@@ -380,6 +474,8 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
     venus_basis = _couple_basis(man_report, woman_report, "venus", "Венера")
     mercury_basis = _couple_basis(man_report, woman_report, "mercury", "Меркурий")
     mars_basis = _couple_basis(man_report, woman_report, "mars", "Марс")
+    alternate_block = _alternate_moon_bridge_block(man_report, woman_report)
+    alternate_text = f"\n\n{alternate_block}" if alternate_block else ""
     return f"""
 📖 Карта гармонии пары: {man_report.partner_name} + {woman_report.partner_name}
 
@@ -410,7 +506,7 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
 Ваш мягкий ключ {moon_basis}:
 {key}
 
-{bridge}
+{bridge}{alternate_text}
 
 💗 Тепло и притяжение {venus_basis}
 Его Венера: {_sign_ru(man_report, "venus")}, стихия {_element_ru(man_report, "venus")}
