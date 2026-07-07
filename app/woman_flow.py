@@ -71,6 +71,13 @@ async def _deny(update: Update) -> None:
         await update.effective_message.reply_text("Доступ закрыт. Добавь Telegram ID в AUTHORIZED_TELEGRAM_IDS.")
 
 
+def _state_lost_text() -> str:
+    return (
+        "Я не вижу активного шага разбора. Возможно, бот перезапустился после обновления или это старая кнопка. "
+        "Начни заново через /start или нажми «Начать разбор пары»."
+    )
+
+
 def _save_report(context: ContextTypes.DEFAULT_TYPE, key: str, report: PartnerReport) -> None:
     context.user_data[key] = report.to_dict()
 
@@ -119,6 +126,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
+        try:
+            await update.callback_query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
     if not _is_authorized(update):
         await _deny(update)
         return ConversationHandler.END
@@ -179,7 +190,7 @@ async def start_self(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
     if _load_report(context, LAST_MAN_REPORT) is None:
-        await update.effective_message.reply_text("Сначала сделай бесплатный разбор мужчины.", reply_markup=menu())
+        await update.effective_message.reply_text(_state_lost_text(), reply_markup=menu())
         return ConversationHandler.END
     await update.effective_message.reply_text("Как вас назвать в разборе? Например: я, Анна, любимая.", reply_markup=cancel_keyboard())
     return ASK_WOMAN_NAME
@@ -198,7 +209,7 @@ async def ask_woman_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def build_bridge(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     man_report = _load_report(context, LAST_MAN_REPORT)
     if man_report is None:
-        await update.effective_message.reply_text("Сначала сделай разбор мужчины.", reply_markup=menu())
+        await update.effective_message.reply_text(_state_lost_text(), reply_markup=menu())
         return ConversationHandler.END
     message = update.effective_message
     try:
@@ -244,7 +255,7 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.callback_query.answer()
     man_report = _load_report(context, LAST_MAN_REPORT)
     if man_report is None:
-        await update.effective_message.reply_text("Сначала сделай бесплатный разбор мужчины.", reply_markup=menu())
+        await update.effective_message.reply_text(_state_lost_text(), reply_markup=menu())
         return
     woman_report = _load_report(context, LAST_WOMAN_REPORT)
     if woman_report is None:
@@ -267,7 +278,7 @@ async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.callback_query.answer()
     report = _load_report(context, LAST_MAN_REPORT)
     if report is None:
-        await update.effective_message.reply_text("Сначала сделай разбор мужчины.", reply_markup=menu())
+        await update.effective_message.reply_text(_state_lost_text(), reply_markup=menu())
         return
     if _load_report(context, LAST_WOMAN_REPORT) is None:
         await update.effective_message.reply_text("Сначала добавьте вашу дату рождения и посмотрите эмоциональный мост. После этого я соберу варианты сообщения уже в контексте пары.", reply_markup=after_free_keyboard())
@@ -279,6 +290,28 @@ async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     except Exception:
         pass
     await update.effective_message.reply_text(text, reply_markup=after_bridge_keyboard())
+
+
+async def unknown_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_authorized(update):
+        await _deny(update)
+        return
+    text = (update.effective_message.text or "").strip()
+    try:
+        parse_birth_date(text)
+        await update.effective_message.reply_text(
+            "Похоже, ты отправил дату, но я сейчас не вижу активного шага разбора. "
+            "После обновления бот мог потерять состояние. Начни заново через /start.",
+            reply_markup=menu(),
+        )
+        return
+    except ValueError:
+        pass
+    await update.effective_message.reply_text(
+        "Я сейчас не жду обычный текст. Начни разбор через /start и нажми «Начать разбор пары». "
+        "Если бот только что обновлялся, старый шаг мог сброситься. Да, память у серверов иногда как у золотой рыбки после кофе.",
+        reply_markup=menu(),
+    )
 
 
 def build_application() -> Application:
@@ -293,6 +326,7 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(history, pattern=r"^history$"))
     app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|full)$"))
     app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^message$"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_text))
     return app
 
 
