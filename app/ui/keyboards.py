@@ -6,7 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 def main_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🔑 Понять партнёра", callback_data="partner:start")],
+            [InlineKeyboardButton("💞 Понять мужчину", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],
             [InlineKeyboardButton("ℹ️ Что это?", callback_data="help:about")],
         ]
@@ -16,8 +16,19 @@ def main_menu() -> InlineKeyboardMarkup:
 def report_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
+            [InlineKeyboardButton("🔍 Показать глубже", callback_data="report:details")],
             [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
-            [InlineKeyboardButton("🔑 Разобрать другого", callback_data="partner:start")],
+            [InlineKeyboardButton("💞 Разобрать другого", callback_data="partner:start")],
+            [InlineKeyboardButton("🗂 История", callback_data="history:show")],
+        ]
+    )
+
+
+def after_details_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
+            [InlineKeyboardButton("💞 Разобрать другого", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],
         ]
     )
