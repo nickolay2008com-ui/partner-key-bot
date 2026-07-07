@@ -16,7 +16,12 @@ def main_menu() -> InlineKeyboardMarkup:
 def report_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🔍 Показать глубже", callback_data="report:details")],
+            [InlineKeyboardButton("🌙 Точная Луна мужчины", callback_data="report:moon")],
+            [InlineKeyboardButton("💞 Добавить мою дату", callback_data="self:start")],
+            [InlineKeyboardButton("💗 Венера: где ему приятно", callback_data="report:venus")],
+            [InlineKeyboardButton("🗣 Меркурий: как с ним говорить", callback_data="report:mercury")],
+            [InlineKeyboardButton("🔥 Марс: как поддержать", callback_data="report:mars")],
+            [InlineKeyboardButton("📖 Весь разбор", callback_data="report:details")],
             [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
             [InlineKeyboardButton("💞 Разобрать другого", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],
@@ -27,6 +32,7 @@ def report_keyboard() -> InlineKeyboardMarkup:
 def after_details_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
+            [InlineKeyboardButton("💞 Добавить мою дату", callback_data="self:start")],
             [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
             [InlineKeyboardButton("💞 Разобрать другого", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],
