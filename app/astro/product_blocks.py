@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.astro.meanings import MARS_MEANINGS, MERCURY_MEANINGS, MOON_MEANINGS, MOON_SIGN_DETAILS, VENUS_MEANINGS
-from app.astro.report import PartnerReport
+from app.astro.report import PartnerReport, format_moon_precision_note
 
 
 ELEMENT_KEYWORDS = {
@@ -100,6 +100,10 @@ def _element_ru(report: PartnerReport, key: str) -> str:
     return str(_placement(report, key).get("element_ru", ""))
 
 
+def _element_name(element: str) -> str:
+    return {"fire": "Огонь", "earth": "Земля", "air": "Воздух", "water": "Вода"}.get(element, "свой ритм")
+
+
 def _rhythm_for_man(element: str) -> str:
     keywords = ELEMENT_KEYWORDS.get(element, "свой ритм, близость, спокойствие, контакт")
     text = ELEMENT_TEXT.get(element, "Такому человеку легче раскрываться в атмосфере, где его не давят и не торопят.")
@@ -112,21 +116,27 @@ def _rhythm_for_you(element: str) -> str:
     return f"Ваш эмоциональный ритм — {_element_name(element)}: {keywords}.\n\n{text}"
 
 
-def _element_name(element: str) -> str:
-    return {"fire": "Огонь", "earth": "Земля", "air": "Воздух", "water": "Вода"}.get(element, "свой ритм")
-
-
 def _bridge_for(left: str, right: str) -> tuple[str, str, str]:
     return BRIDGE_MAP.get((left, right), ("Общий ритм", "Между вами встречаются два способа искать тепло и близость.", "Мост между вами — не делать друг друга одинаковыми, а найти ритм, где обоим легче быть рядом."))
+
+
+def _pair_precision_note(man_report: PartnerReport, woman_report: PartnerReport) -> str:
+    notes = [format_moon_precision_note(item) for item in (man_report, woman_report)]
+    notes = [item for item in notes if item]
+    if not notes:
+        return ""
+    return "\n\n".join(notes)
 
 
 def format_moon_detail(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
     sign_text = MOON_SIGN_DETAILS.get(_sign_key(report, "moon"), "Точный знак уточняет, какой именно формат внутреннего спокойствия человеку ближе.")
+    precision_note = format_moon_precision_note(report)
+    precision_block = f"\n\n{precision_note}" if precision_note else ""
     return f"""
 🌙 Его эмоциональный ритм: {report.partner_name}
 
-Луна: {_sign_ru(report, "moon")}, стихия {_element_ru(report, "moon")}
+Луна: {_sign_ru(report, "moon")}, стихия {_element_ru(report, "moon")}{precision_block}
 
 {_rhythm_for_man(report.emotional_language)}
 
@@ -191,10 +201,12 @@ def format_mars_detail(report: PartnerReport) -> str:
 
 def format_couple_moon_bridge(man_report: PartnerReport, woman_report: PartnerReport) -> str:
     title, tension, bridge = _bridge_for(man_report.emotional_language, woman_report.emotional_language)
+    precision_note = _pair_precision_note(man_report, woman_report)
+    precision_block = f"\n\n{precision_note}" if precision_note else ""
     return f"""
 💞 Ваш эмоциональный мост
 
-{title}
+{title}{precision_block}
 
 {_rhythm_for_man(man_report.emotional_language)}
 
@@ -217,13 +229,15 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
     woman_mercury = MERCURY_MEANINGS.get(_element(woman_report, "mercury"), "Вам легче через спокойный и ясный разговор.")
     man_mars = MARS_MEANINGS.get(_element(man_report, "mars"), "В напряжении лучше вернуть спокойствие и ясность.")
     woman_mars = MARS_MEANINGS.get(_element(woman_report, "mars"), "В напряжении вам помогает ясность и уважение к темпу.")
+    precision_note = _pair_precision_note(man_report, woman_report)
+    precision_block = f"\n\nТочность Луны:\n{precision_note}" if precision_note else ""
     return f"""
 📖 Карта гармонии пары: {man_report.partner_name} + {woman_report.partner_name}
 
 Эта карта не говорит, подходите вы друг другу или нет. Она показывает, какой эмоциональный ритм возникает между вами и где в нём можно найти больше тепла, ясности и доверия.
 
 Ваш главный ритм:
-{title}
+{title}{precision_block}
 
 {_rhythm_for_man(man_report.emotional_language)}
 
