@@ -19,8 +19,9 @@ from telegram.ext import (
 )
 
 from app.astro.calculator import calculate_partner_chart, parse_birth_date
-from app.astro.report import PartnerReport, build_partner_report, format_message_templates
+from app.astro.report import PartnerReport, build_partner_report
 from app.config import settings
+from app.services.openai_client import build_partner_message_with_ai
 from app.storage import ReportsStore, format_history
 from app.ui.keyboards import cancel_keyboard, main_menu, report_keyboard
 
@@ -251,7 +252,15 @@ async def on_report_message_button(update: Update, context: ContextTypes.DEFAULT
     if report is None:
         await update.effective_message.reply_text("Последний разбор не найден. Нажми /partner и сделай разбор заново.", reply_markup=main_menu())
         return
-    await update.effective_message.reply_text(format_message_templates(report), disable_web_page_preview=True, reply_markup=report_keyboard())
+
+    wait = await update.effective_message.reply_text("Собираю мягкие варианты сообщения…")
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    text = await asyncio.to_thread(build_partner_message_with_ai, report)
+    try:
+        await wait.delete()
+    except Exception:
+        pass
+    await update.effective_message.reply_text(text, disable_web_page_preview=True, reply_markup=report_keyboard())
 
 
 def build_application() -> Application:
