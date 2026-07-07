@@ -58,6 +58,28 @@ def _variant_label(variant: dict[str, object]) -> str:
     return f"{sign} ({element})"
 
 
+def _report_placement(report: PartnerReport, key: str) -> dict[str, object]:
+    value = report.placements.get(key)
+    return value if isinstance(value, dict) else {}
+
+
+def _report_basis(report: PartnerReport, key: str, label: str) -> str:
+    placement = _report_placement(report, key)
+    sign = str(placement.get("sign_ru", "знак не определён"))
+    element = str(placement.get("element_ru", "стихия не определена"))
+    return f"{label} в {sign}, {element}"
+
+
+def _rhythm_with_basis(report: PartnerReport, meaning_core: str) -> str:
+    rhythm = MOON_RHYTHM.get(report.emotional_language, meaning_core)
+    basis = _report_basis(report, "moon", "Луна")
+    marker = f"Его эмоциональный ритм — {report.emotional_language_title}:"
+    replacement = f"Его эмоциональный ритм — {report.emotional_language_title} ({basis}):"
+    if marker in rhythm:
+        return rhythm.replace(marker, replacement, 1)
+    return f"{rhythm}\n\nОснование: ({basis})"
+
+
 def format_moon_precision_note(report: PartnerReport) -> str:
     if report.moon_status != "changed_during_day":
         return ""
@@ -97,11 +119,11 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 
 Дата рождения: {chart.birth_date:%d.%m.%Y}
 
-Главный вывод:
+Главный вывод ({_placement_line("Луна", moon)}):
 {name} легче раскрывается через язык: {moon.element_ru}.
 {moon_meaning.core}{moon_note}
 
-1. Эмоциональный язык
+1. Эмоциональный язык ({_placement_line("Луна", moon)})
 {moon_meaning.title}
 
 Что человеку нужно:
@@ -116,19 +138,16 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 Что лучше не делать:
 {moon_meaning.what_not_to_do}
 
-2. Как проявляется симпатия
-{_placement_line("Венера", venus)}
+2. Как проявляется симпатия ({_placement_line("Венера", venus)})
 {venus_text}
 
-3. Как говорить, чтобы вас услышали
-{_placement_line("Меркурий", mercury)}
+3. Как говорить, чтобы вас услышали ({_placement_line("Меркурий", mercury)})
 {mercury_text}
 
-4. Как человек действует в напряжении
-{_placement_line("Марс", mars)}
+4. Как человек действует в напряжении ({_placement_line("Марс", mars)})
 {mars_text}
 
-5. Как сделать хорошо обоим
+5. Как сделать хорошо обоим ({_placement_line("Луна", moon)})
 {moon_meaning.bridge}
 
 Первый шаг:
@@ -156,18 +175,21 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 
 def format_free_preview(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
-    rhythm = MOON_RHYTHM.get(report.emotional_language, meaning.core)
+    rhythm = _rhythm_with_basis(report, meaning.core)
     precision_note = format_moon_precision_note(report)
     precision_block = f"\n\n{precision_note}" if precision_note else ""
+    basis = _report_basis(report, "moon", "Луна")
     return f"""
 💞 Эмоциональный ритм мужчины: {report.partner_name}
 
 {rhythm}{precision_block}
 
-Что может сбивать контакт:
+Основание описания: ({basis}).
+
+Что может сбивать контакт ({basis}):
 {meaning.what_not_to_do}
 
-Мягкий ключ:
+Мягкий ключ ({basis}):
 {meaning.first_step}
 
 Это не инструкция, как стать удобной. Это первый перевод его эмоционального ритма: в какой атмосфере ему легче расслабиться, доверять и быть ближе.
