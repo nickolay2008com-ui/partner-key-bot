@@ -61,7 +61,6 @@ def after_free_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("💞 Добавить мою дату и увидеть мост", callback_data="add_me")],
-            [InlineKeyboardButton("🌙 Открыть точную Луну мужчины", callback_data="p:moon")],
             [InlineKeyboardButton("✍️ Что написать?", callback_data="message")],
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
         ]
