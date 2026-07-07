@@ -40,8 +40,6 @@ def _placement_line(label: str, placement: Placement) -> str:
 
 
 def _main_moon_placement(chart: PartnerChart) -> Placement:
-    # For a changed Moon day, the noon value remains the report's practical baseline.
-    # The report also prints both variants so the user can recognize the partner manually.
     return chart.placements["moon"]
 
 
@@ -64,7 +62,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
         moon_note = (
             "\n\n⚠️ Луна в этот день могла менять знак. "
             f"Возможные варианты: {variants}. Ниже я беру практическую середину дня, "
-            "а точнее можно выбрать по описанию поведения. Да, данные рождения снова решили устроить нам квест."
+            "а точнее можно выбрать по описанию поведения."
         )
 
     text = f"""
@@ -130,26 +128,24 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 
 def format_free_preview(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
-    name = report.partner_name
-    moon_line = report.emotional_language_title
     return f"""
-🔑 Ключ к партнёру: {name}
+💞 Эмоциональный язык мужчины: {report.partner_name}
 
-Эмоциональный язык: {moon_line}
+Его базовый язык: {meaning.title}
 
-Главный смысл:
+Что это значит:
 {meaning.core}
 
-Что важно:
+Что помогает ему быть спокойнее и открытее:
 {meaning.needs}
 
-Не делать:
+Что может закрывать контакт:
 {meaning.what_not_to_do}
 
-Первый шаг:
+Мягкий первый шаг:
 {meaning.first_step}
 
-Дальше можно открыть глубину по Луне, Венере, Меркурию и Марсу или получить готовые тексты сообщения.
+Это не инструкция, как подстроиться под человека. Это первая подсказка, какой эмоциональный ритм ему ближе. Следующий шаг — добавить вашу дату и увидеть общий мост пары.
 """.strip()
 
 
@@ -158,5 +154,5 @@ def format_message_templates(report: PartnerReport) -> str:
     for index, template in enumerate(report.message_templates, start=1):
         lines.append(f"Вариант {index}:\n{template}")
         lines.append("")
-    lines.append("Смысл не в том, чтобы манипулировать человеком. Смысл в том, чтобы говорить на языке, который ему легче услышать. Удивительно, но это иногда работает лучше, чем драматично молчать.")
+    lines.append("Смысл не в том, чтобы давить. Смысл в том, чтобы говорить на языке, который человеку легче услышать.")
     return "\n".join(lines).strip()
