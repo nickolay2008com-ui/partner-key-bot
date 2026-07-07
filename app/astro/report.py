@@ -22,6 +22,14 @@ class PartnerReport:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class ReportContext:
+    moon: Placement
+    venus: Placement
+    mercury: Placement
+    mars: Placement
+
+
 def _safe_name(name: str | None) -> str:
     cleaned = (name or "Партнёр").strip()
     return cleaned[:60] if cleaned else "Партнёр"
@@ -60,7 +68,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
         )
 
     text = f"""
-🔑 Ключ к партнёру: {name}
+🔑 Глубокий ключ к партнёру: {name}
 
 Дата рождения: {chart.birth_date:%d.%m.%Y}
 
@@ -118,6 +126,31 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
         text=text,
         message_templates=templates,
     )
+
+
+def format_free_preview(report: PartnerReport) -> str:
+    meaning = MOON_MEANINGS[report.emotional_language]
+    name = report.partner_name
+    moon_line = report.emotional_language_title
+    return f"""
+🔑 Ключ к партнёру: {name}
+
+Эмоциональный язык: {moon_line}
+
+Главный смысл:
+{meaning.core}
+
+Что важно:
+{meaning.needs}
+
+Не делать:
+{meaning.what_not_to_do}
+
+Первый шаг:
+{meaning.first_step}
+
+Дальше можно открыть глубину по Луне, Венере, Меркурию и Марсу или получить готовые тексты сообщения.
+""".strip()
 
 
 def format_message_templates(report: PartnerReport) -> str:
