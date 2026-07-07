@@ -166,6 +166,54 @@ def _pair_precision_note(man_report: PartnerReport, woman_report: PartnerReport)
     return "\n\n".join(notes)
 
 
+def _planet_text(report: PartnerReport, key: str) -> str:
+    element = _element(report, key)
+    if key == "venus":
+        return VENUS_MEANINGS.get(element, "Тепло появляется через внимание, приятность и естественный контакт.")
+    if key == "mercury":
+        return MERCURY_MEANINGS.get(element, "Слова лучше слышатся, когда в них есть спокойствие и ясность.")
+    if key == "mars":
+        return MARS_MEANINGS.get(element, "В напряжении помогает вернуть ясность и уважение к темпу.")
+    return MOON_MEANINGS.get(report.emotional_language).needs
+
+
+def _profile_integral(report: PartnerReport) -> str:
+    moon = f"Луна — {_element_ru(report, 'moon')}"
+    venus = f"Венера — {_element_ru(report, 'venus')}"
+    mercury = f"Меркурий — {_element_ru(report, 'mercury')}"
+    mars = f"Марс — {_element_ru(report, 'mars')}"
+    return (
+        f"Связка карты: {moon}, {venus}, {mercury}, {mars}. "
+        "Поэтому человека лучше понимать не по одному признаку, а по сочетанию: что даёт внутреннее спокойствие, "
+        "где появляется приятность, как проходят слова и что включается в напряжении."
+    )
+
+
+def _person_deep_profile(report: PartnerReport, title: str) -> str:
+    moon_meaning = MOON_MEANINGS[report.emotional_language]
+    return f"""
+{title}: подробнее
+
+🌙 Эмоциональный комфорт {_basis(report, "moon", "Луна")}:
+{moon_meaning.needs}
+
+Как это может проявляться:
+{moon_meaning.how_it_shows}
+
+💗 Тепло и приятность {_basis(report, "venus", "Венера")}:
+{_planet_text(report, "venus")}
+
+🗣 Слова и понимание {_basis(report, "mercury", "Меркурий")}:
+{_planet_text(report, "mercury")}
+
+🔥 Действие и напряжение {_basis(report, "mars", "Марс")}:
+{_planet_text(report, "mars")}
+
+Итог:
+{_profile_integral(report)}
+""".strip()
+
+
 def format_moon_detail(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
     sign_text = MOON_SIGN_DETAILS.get(_sign_key(report, "moon"), "Точный знак уточняет, какой именно формат внутреннего спокойствия человеку ближе.")
@@ -309,6 +357,12 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
 {_rhythm_for_man(man_report.emotional_language, _basis(man_report, "moon", "Луна"))}
 
 {_rhythm_for_you(woman_report.emotional_language, _basis(woman_report, "moon", "Луна"))}
+
+👤 Он подробнее
+{_person_deep_profile(man_report, man_report.partner_name)}
+
+👤 Она / вы подробнее
+{_person_deep_profile(woman_report, woman_report.partner_name)}
 
 Сильная сторона вашей пары {moon_basis}:
 {strength}
