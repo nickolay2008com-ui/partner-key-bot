@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, time
-from typing import Iterable
+from datetime import date
 
 import swisseph as swe
 
-from app.astro.zodiac import PLANET_NAMES_RU, angular_distance, sign_info
+from app.astro.zodiac import PLANET_NAMES_RU, sign_info
 
+MIN_SUPPORTED_YEAR = 1900
+MAX_SUPPORTED_YEAR = 2100
+CALC_FLAGS = swe.FLG_MOSEPH
 
 PLANET_IDS: dict[str, int] = {
     "moon": swe.MOON,
@@ -76,8 +78,13 @@ def parse_birth_date(text: str) -> date:
         if not match:
             continue
         parts = {key: int(value) for key, value in match.groupdict().items()}
+        year = parts["year"]
+        if year < MIN_SUPPORTED_YEAR or year > MAX_SUPPORTED_YEAR:
+            raise ValueError(
+                f"Проверь год рождения. Сейчас поддерживается диапазон {MIN_SUPPORTED_YEAR}–{MAX_SUPPORTED_YEAR}. Формат: 12.04.1993"
+            )
         try:
-            return date(parts["year"], parts["month"], parts["day"])
+            return date(year, parts["month"], parts["day"])
         except ValueError as exc:
             raise ValueError("Дата выглядит неверно. Формат: 12.04.1993") from exc
     raise ValueError("Не увидел дату. Напиши так: 12.04.1993")
@@ -91,7 +98,12 @@ def calculate_placement(day: date, planet: str, hour_utc: float = 12.0) -> Place
     if planet not in PLANET_IDS:
         raise ValueError(f"Неизвестная планета: {planet}")
     jd = _julian_day(day, hour_utc)
-    result, _flags = swe.calc_ut(jd, PLANET_IDS[planet])
+    try:
+        result, _flags = swe.calc_ut(jd, PLANET_IDS[planet], CALC_FLAGS)
+    except Exception as exc:
+        raise RuntimeError(
+            "Не удалось посчитать карту. Попробуй другую дату или повтори чуть позже. Внутренняя ошибка расчёта уже спрятана, потому что пользователю не надо видеть кишки эфемерид."
+        ) from exc
     longitude = float(result[0])
     sign = sign_info(longitude)
     return Placement(
@@ -106,9 +118,6 @@ def calculate_placement(day: date, planet: str, hour_utc: float = 12.0) -> Place
 
 
 def calculate_moon_confidence(day: date) -> MoonConfidence:
-    # Without birth time and place we cannot know the exact Moon sign near sign changes.
-    # The safe trick: compare the Moon around the beginning and end of the UTC day.
-    # If both signs match, the result is stable for the whole date in a practical MVP sense.
     start = calculate_placement(day, "moon", hour_utc=0.0)
     end = calculate_placement(day, "moon", hour_utc=23.999)
     noon = calculate_placement(day, "moon", hour_utc=12.0)
