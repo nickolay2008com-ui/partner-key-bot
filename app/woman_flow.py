@@ -44,7 +44,7 @@ def after_free_keyboard() -> InlineKeyboardMarkup:
 
 def after_bridge_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🌙 Луна мужчины: эмоциональный ритм", callback_data="p:moon")],
+        [InlineKeyboardButton("🌙 Луна мужчины: подробнее про эмоциональный комфорт", callback_data="p:moon")],
         [InlineKeyboardButton("💗 Венера: где появляется приятность", callback_data="p:venus")],
         [InlineKeyboardButton("🗣 Меркурий: как говорить мягче", callback_data="p:mercury")],
         [InlineKeyboardButton("🔥 Марс: как собирается сила", callback_data="p:mars")],
