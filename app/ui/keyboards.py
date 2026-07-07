@@ -3,10 +3,21 @@ from __future__ import annotations
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
+V2_PRODUCT_BUTTONS = [
+    [InlineKeyboardButton("🌙 Точная Луна мужчины", callback_data="v2:moon_detail")],
+    [InlineKeyboardButton("💞 Как сделать хорошо обоим", callback_data="v2:couple_moon")],
+    [InlineKeyboardButton("💗 Где ему приятно: Венера", callback_data="v2:venus")],
+    [InlineKeyboardButton("🗣 Как с ним говорить: Меркурий", callback_data="v2:mercury")],
+    [InlineKeyboardButton("🔥 Как поддержать его силу: Марс", callback_data="v2:mars")],
+    [InlineKeyboardButton("📖 Весь разбор пары", callback_data="v2:full_report")],
+]
+
+
 def main_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("💞 Понять мужчину", callback_data="partner:start")],
+            [InlineKeyboardButton("💞 Понять мужчину", callback_data="v2:man:start")],
+            [InlineKeyboardButton("🔑 Быстрый ключ", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],
             [InlineKeyboardButton("ℹ️ Что это?", callback_data="help:about")],
         ]
@@ -20,6 +31,27 @@ def report_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
             [InlineKeyboardButton("💞 Разобрать другого", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],
+        ]
+    )
+
+
+def v2_report_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            *V2_PRODUCT_BUTTONS,
+            [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
+            [InlineKeyboardButton("💞 Разобрать другого", callback_data="v2:man:start")],
+            [InlineKeyboardButton("🗂 История", callback_data="history:show")],
+        ]
+    )
+
+
+def v2_after_teaser_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            *V2_PRODUCT_BUTTONS,
+            [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
+            [InlineKeyboardButton("💞 Новый разбор", callback_data="v2:man:start")],
         ]
     )
 
