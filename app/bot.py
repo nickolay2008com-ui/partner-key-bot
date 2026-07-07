@@ -40,7 +40,8 @@ WELCOME_TEXT = """
 
 Команды:
 /start — меню
-/partner — понять мужчину
+/man — понять мужчину
+/partner — быстрый ключ
 /history — история разборов
 /whoami — твой Telegram ID
 """.strip()
@@ -207,12 +208,13 @@ async def build_report_from_birth_date(update: Update, context: ContextTypes.DEF
         except Exception:
             pass
         await _send_long_text(update, format_free_preview(report), reply_markup=report_keyboard())
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to build partner report")
+        safe_text = "Не получилось посчитать разбор. Проверь дату рождения в формате 12.04.1993 и попробуй ещё раз."
         try:
-            await wait.edit_text(f"Ошибка расчёта: {type(exc).__name__}: {exc}")
+            await wait.edit_text(safe_text)
         except Exception:
-            await message.reply_text(f"Ошибка расчёта: {type(exc).__name__}: {exc}")
+            await message.reply_text(safe_text)
 
     return ConversationHandler.END
 
@@ -281,7 +283,12 @@ def build_application() -> Application:
     app = ApplicationBuilder().token(settings.telegram_bot_token).build()
 
     partner_flow = ConversationHandler(
-        entry_points=[CommandHandler("partner", partner_start), CallbackQueryHandler(partner_start, pattern=r"^partner:start$")],
+        entry_points=[
+            CommandHandler("partner", partner_start),
+            CommandHandler("man", partner_start),
+            CallbackQueryHandler(partner_start, pattern=r"^partner:start$"),
+            CallbackQueryHandler(partner_start, pattern=r"^v2:man:start$"),
+        ],
         states={
             ASK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_birth_date)],
             ASK_BIRTH_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_report_from_birth_date)],
