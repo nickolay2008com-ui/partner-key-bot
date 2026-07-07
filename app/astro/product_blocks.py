@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from app.astro.meanings import MARS_MEANINGS, MERCURY_MEANINGS, MOON_MEANINGS, MOON_SIGN_DETAILS, VENUS_MEANINGS
+from app.astro.meanings import (
+    MARS_MEANINGS,
+    MARS_SIGN_DETAILS,
+    MERCURY_MEANINGS,
+    MERCURY_SIGN_DETAILS,
+    MOON_MEANINGS,
+    MOON_SIGN_DETAILS,
+    VENUS_MEANINGS,
+    VENUS_SIGN_DETAILS,
+)
 from app.astro.report import PartnerReport, format_moon_precision_note
 
 
@@ -128,8 +137,12 @@ def _basis(report: PartnerReport, key: str, label: str) -> str:
     return f"({label} в {_sign_ru(report, key)}, {_element_ru(report, key)})"
 
 
+def _your_word(label: str) -> str:
+    return "ваша" if label in {"Луна", "Венера"} else "ваш"
+
+
 def _couple_basis(man_report: PartnerReport, woman_report: PartnerReport, key: str, label: str) -> str:
-    return f"(его {label} в {_sign_ru(man_report, key)}, {_element_ru(man_report, key)}; ваша {label} в {_sign_ru(woman_report, key)}, {_element_ru(woman_report, key)})"
+    return f"(его {label} в {_sign_ru(man_report, key)}, {_element_ru(man_report, key)}; {_your_word(label)} {label} в {_sign_ru(woman_report, key)}, {_element_ru(woman_report, key)})"
 
 
 def _rhythm_for_man(element: str, basis: str = "") -> str:
@@ -166,7 +179,7 @@ def _pair_precision_note(man_report: PartnerReport, woman_report: PartnerReport)
     return "\n\n".join(notes)
 
 
-def _planet_text(report: PartnerReport, key: str) -> str:
+def _element_text(report: PartnerReport, key: str) -> str:
     element = _element(report, key)
     if key == "venus":
         return VENUS_MEANINGS.get(element, "Тепло появляется через внимание, приятность и естественный контакт.")
@@ -174,16 +187,29 @@ def _planet_text(report: PartnerReport, key: str) -> str:
         return MERCURY_MEANINGS.get(element, "Слова лучше слышатся, когда в них есть спокойствие и ясность.")
     if key == "mars":
         return MARS_MEANINGS.get(element, "В напряжении помогает вернуть ясность и уважение к темпу.")
-    return MOON_MEANINGS.get(report.emotional_language).needs
+    return MOON_MEANINGS[report.emotional_language].needs
+
+
+def _sign_detail(report: PartnerReport, key: str) -> str:
+    sign = _sign_key(report, key)
+    if key == "moon":
+        return MOON_SIGN_DETAILS.get(sign, "Точный знак Луны уточняет, какой формат эмоционального спокойствия человеку ближе.")
+    if key == "venus":
+        return VENUS_SIGN_DETAILS.get(sign, "Точный знак Венеры уточняет, где человеку становится приятно и тепло в контакте.")
+    if key == "mercury":
+        return MERCURY_SIGN_DETAILS.get(sign, "Точный знак Меркурия уточняет, как человеку легче слышать слова и входить в диалог.")
+    if key == "mars":
+        return MARS_SIGN_DETAILS.get(sign, "Точный знак Марса уточняет, как человек действует и защищается в напряжении.")
+    return "Точный знак уточняет личный оттенок проявления."
 
 
 def _profile_integral(report: PartnerReport) -> str:
-    moon = f"Луна — {_element_ru(report, 'moon')}"
-    venus = f"Венера — {_element_ru(report, 'venus')}"
-    mercury = f"Меркурий — {_element_ru(report, 'mercury')}"
-    mars = f"Марс — {_element_ru(report, 'mars')}"
+    moon = f"Луна в {_sign_ru(report, 'moon')} — {_element_ru(report, 'moon')}"
+    venus = f"Венера в {_sign_ru(report, 'venus')} — {_element_ru(report, 'venus')}"
+    mercury = f"Меркурий в {_sign_ru(report, 'mercury')} — {_element_ru(report, 'mercury')}"
+    mars = f"Марс в {_sign_ru(report, 'mars')} — {_element_ru(report, 'mars')}"
     return (
-        f"Связка карты: {moon}, {venus}, {mercury}, {mars}. "
+        f"Связка карты: {moon}; {venus}; {mercury}; {mars}. "
         "Поэтому человека лучше понимать не по одному признаку, а по сочетанию: что даёт внутреннее спокойствие, "
         "где появляется приятность, как проходят слова и что включается в напряжении."
     )
@@ -195,19 +221,31 @@ def _person_deep_profile(report: PartnerReport, title: str) -> str:
 {title}: подробнее
 
 🌙 Эмоциональный комфорт {_basis(report, "moon", "Луна")}:
-{moon_meaning.needs}
+Стихийная база: {moon_meaning.needs}
+
+Точный оттенок Луны в {_sign_ru(report, "moon")}:
+{_sign_detail(report, "moon")}
 
 Как это может проявляться:
 {moon_meaning.how_it_shows}
 
 💗 Тепло и приятность {_basis(report, "venus", "Венера")}:
-{_planet_text(report, "venus")}
+Стихийная база: {_element_text(report, "venus")}
+
+Точный оттенок Венеры в {_sign_ru(report, "venus")}:
+{_sign_detail(report, "venus")}
 
 🗣 Слова и понимание {_basis(report, "mercury", "Меркурий")}:
-{_planet_text(report, "mercury")}
+Стихийная база: {_element_text(report, "mercury")}
+
+Точный оттенок Меркурия в {_sign_ru(report, "mercury")}:
+{_sign_detail(report, "mercury")}
 
 🔥 Действие и напряжение {_basis(report, "mars", "Марс")}:
-{_planet_text(report, "mars")}
+Стихийная база: {_element_text(report, "mars")}
+
+Точный оттенок Марса в {_sign_ru(report, "mars")}:
+{_sign_detail(report, "mars")}
 
 Итог:
 {_profile_integral(report)}
@@ -216,7 +254,6 @@ def _person_deep_profile(report: PartnerReport, title: str) -> str:
 
 def format_moon_detail(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
-    sign_text = MOON_SIGN_DETAILS.get(_sign_key(report, "moon"), "Точный знак уточняет, какой именно формат внутреннего спокойствия человеку ближе.")
     precision_note = format_moon_precision_note(report)
     precision_block = f"\n\n{precision_note}" if precision_note else ""
     moon_basis = _basis(report, "moon", "Луна")
@@ -227,8 +264,8 @@ def format_moon_detail(report: PartnerReport) -> str:
 
 {_rhythm_for_man(report.emotional_language, moon_basis)}
 
-Точный оттенок Луны {moon_basis}:
-{sign_text}
+Точный оттенок Луны в {_sign_ru(report, "moon")}:
+{_sign_detail(report, "moon")}
 
 Что может сбивать контакт {moon_basis}:
 {meaning.what_not_to_do}
@@ -239,19 +276,20 @@ def format_moon_detail(report: PartnerReport) -> str:
 
 
 def format_venus_detail(report: PartnerReport) -> str:
-    element = _element(report, "venus")
     venus_basis = _basis(report, "venus", "Венера")
     return f"""
 💗 Его Венера: где появляется приятность {venus_basis}
 
 Венера: {_sign_ru(report, "venus")}, стихия {_element_ru(report, "venus")}
 
-Венера показывает, в какой атмосфере человеку становится приятно задержаться в контакте: где появляется симпатия, вкус, мягкое притяжение.
+Стихийная база:
+{_element_text(report, "venus")}
 
-{VENUS_MEANINGS.get(element, "Ему важны приятность, внимание и тёплый контакт.")}
+Точный оттенок Венеры в {_sign_ru(report, "venus")}:
+{_sign_detail(report, "venus")}
 
-Глубже {venus_basis}:
-это не про то, что нужно играть роль. Это про оттенок приятности, через который человеку легче почувствовать интерес без внутреннего сопротивления.
+Что особенно работает:
+искренний формат приятности, который совпадает не только со стихией, но и с конкретным знаком Венеры.
 
 Мягкий ключ:
 не стараться любой ценой понравиться, а дать контакту тот оттенок, через который тепло ощущается естественнее.
@@ -259,19 +297,20 @@ def format_venus_detail(report: PartnerReport) -> str:
 
 
 def format_mercury_detail(report: PartnerReport) -> str:
-    element = _element(report, "mercury")
     mercury_basis = _basis(report, "mercury", "Меркурий")
     return f"""
 🗣 Его Меркурий: как слова доходят мягче {mercury_basis}
 
 Меркурий: {_sign_ru(report, "mercury")}, стихия {_element_ru(report, "mercury")}
 
-Меркурий показывает, как человеку легче слышать: через ясность, тон, лёгкость, конкретность или чувство. Это не кнопка управления, а способ не ставить между вами лишнюю защиту.
+Стихийная база:
+{_element_text(report, "mercury")}
 
-{MERCURY_MEANINGS.get(element, "Лучше говорить спокойно, ясно и без нажима.")}
+Точный оттенок Меркурия в {_sign_ru(report, "mercury")}:
+{_sign_detail(report, "mercury")}
 
-Глубже {mercury_basis}:
-здесь важно не только что сказать, но и каким способом входить в разговор: быстро или мягко, прямо или через атмосферу, фактами или через чувство.
+Что особенно важно:
+не только подобрать правильные слова, но и попасть в способ восприятия: темп, тон, прямоту, мягкость или структуру.
 
 Мягкий ключ:
 начинать не с давления, а с намерения: «Я хочу понять нас, а не победить в разговоре».
@@ -279,18 +318,19 @@ def format_mercury_detail(report: PartnerReport) -> str:
 
 
 def format_mars_detail(report: PartnerReport) -> str:
-    element = _element(report, "mars")
     mars_basis = _basis(report, "mars", "Марс")
     return f"""
 🔥 Его Марс: как собирается сила {mars_basis}
 
 Марс: {_sign_ru(report, "mars")}, стихия {_element_ru(report, "mars")}
 
-Марс показывает, как человек действует, сопротивляется, спорит, защищается и идёт вперёд. Это его внутренний двигатель, особенно когда становится напряжённо.
+Стихийная база:
+{_element_text(report, "mars")}
 
-{MARS_MEANINGS.get(element, "В напряжении лучше вернуть спокойствие и ясность.")}
+Точный оттенок Марса в {_sign_ru(report, "mars")}:
+{_sign_detail(report, "mars")}
 
-Глубже {mars_basis}:
+Что особенно важно:
 в напряжении человек часто показывает не только характер, но и способ защищать свою силу. Если это понимать, конфликт легче перевести из борьбы в понятный следующий шаг.
 
 Мягкий ключ:
@@ -334,12 +374,6 @@ def format_couple_moon_bridge(man_report: PartnerReport, woman_report: PartnerRe
 def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerReport) -> str:
     title, tension, bridge = _bridge_for(man_report.emotional_language, woman_report.emotional_language)
     strength, loss, key = _diagnostics_for(man_report.emotional_language, woman_report.emotional_language)
-    man_venus = VENUS_MEANINGS.get(_element(man_report, "venus"), "Ему важны внимание, приятность и тёплый контакт.")
-    woman_venus = VENUS_MEANINGS.get(_element(woman_report, "venus"), "Вам важны внимание, приятность и тёплый контакт.")
-    man_mercury = MERCURY_MEANINGS.get(_element(man_report, "mercury"), "Лучше говорить спокойно и ясно.")
-    woman_mercury = MERCURY_MEANINGS.get(_element(woman_report, "mercury"), "Вам легче через спокойный и ясный разговор.")
-    man_mars = MARS_MEANINGS.get(_element(man_report, "mars"), "В напряжении лучше вернуть спокойствие и ясность.")
-    woman_mars = MARS_MEANINGS.get(_element(woman_report, "mars"), "В напряжении вам помогает ясность и уважение к темпу.")
     precision_note = _pair_precision_note(man_report, woman_report)
     precision_block = f"\n\nТочность Луны:\n{precision_note}" if precision_note else ""
     moon_basis = _couple_basis(man_report, woman_report, "moon", "Луна")
@@ -380,28 +414,40 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
 
 💗 Тепло и притяжение {venus_basis}
 Его Венера: {_sign_ru(man_report, "venus")}, стихия {_element_ru(man_report, "venus")}
-{man_venus}
+Стихийная база: {_element_text(man_report, "venus")}
+Точный оттенок его Венеры в {_sign_ru(man_report, "venus")}:
+{_sign_detail(man_report, "venus")}
 
 Ваша Венера: {_sign_ru(woman_report, "venus")}, стихия {_element_ru(woman_report, "venus")}
-{woman_venus}
+Стихийная база: {_element_text(woman_report, "venus")}
+Точный оттенок вашей Венеры в {_sign_ru(woman_report, "venus")}:
+{_sign_detail(woman_report, "venus")}
 
 Здесь важно не копировать чужой способ любить, а почувствовать, где у каждого появляется приятность.
 
 🗣 Слова и понимание {mercury_basis}
 Его Меркурий: {_sign_ru(man_report, "mercury")}, стихия {_element_ru(man_report, "mercury")}
-{man_mercury}
+Стихийная база: {_element_text(man_report, "mercury")}
+Точный оттенок его Меркурия в {_sign_ru(man_report, "mercury")}:
+{_sign_detail(man_report, "mercury")}
 
 Ваш Меркурий: {_sign_ru(woman_report, "mercury")}, стихия {_element_ru(woman_report, "mercury")}
-{woman_mercury}
+Стихийная база: {_element_text(woman_report, "mercury")}
+Точный оттенок вашего Меркурия в {_sign_ru(woman_report, "mercury")}:
+{_sign_detail(woman_report, "mercury")}
 
 Слова становятся мостом, когда в них меньше попытки доказать и больше желания встретиться.
 
 🔥 Действие и напряжение {mars_basis}
 Его Марс: {_sign_ru(man_report, "mars")}, стихия {_element_ru(man_report, "mars")}
-{man_mars}
+Стихийная база: {_element_text(man_report, "mars")}
+Точный оттенок его Марса в {_sign_ru(man_report, "mars")}:
+{_sign_detail(man_report, "mars")}
 
 Ваш Марс: {_sign_ru(woman_report, "mars")}, стихия {_element_ru(woman_report, "mars")}
-{woman_mars}
+Стихийная база: {_element_text(woman_report, "mars")}
+Точный оттенок вашего Марса в {_sign_ru(woman_report, "mars")}:
+{_sign_detail(woman_report, "mars")}
 
 Напряжение не обязательно разрушает пару. Иногда оно просто показывает, что два ритма пока не нашли общий шаг.
 
