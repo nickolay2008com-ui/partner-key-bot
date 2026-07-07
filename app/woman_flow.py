@@ -2,43 +2,25 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from enum import Enum
 from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
-from telegram.ext import (
-    Application,
-    ApplicationBuilder,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
-)
+from telegram.ext import Application, ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 
 from app.astro.calculator import calculate_partner_chart, parse_birth_date
-from app.astro.product_blocks import format_couple_moon_bridge
+from app.astro.product_blocks import format_couple_moon_bridge, format_full_report_intro, format_mars_detail, format_mercury_detail, format_moon_detail, format_venus_detail
 from app.astro.report import PartnerReport, build_partner_report, format_free_preview
 from app.config import settings
 from app.services.openai_client import build_partner_message_with_ai
 from app.storage import ReportsStore, format_history
 
+logging.basicConfig(format="%(asctime)s | %(levelname)s | %(name)s | %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 ASK_MAN_NAME, ASK_MAN_DATE, ASK_WOMAN_NAME, ASK_WOMAN_DATE = range(4)
 LAST_MAN_REPORT = "last_man_report"
 LAST_WOMAN_REPORT = "last_woman_report"
 _store: ReportsStore | None = None
-
-
-class Product(Enum):
-    MOON = "moon"
-    VENUS = "venus"
-    MERCURY = "mercury"
-    MARS = "mars"
-    FULL = "full"
 
 
 def get_store() -> ReportsStore:
@@ -49,40 +31,27 @@ def get_store() -> ReportsStore:
 
 
 def menu() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("💞 Понять мужчину", callback_data="start_man")],
-            [InlineKeyboardButton("🗂 История", callback_data="history")],
-        ]
-    )
-
-
-def after_free_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("💞 Добавить мою дату и увидеть мост", callback_data="add_me")],
-            [InlineKeyboardButton("✍️ Что написать?", callback_data="message")],
-            [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
-        ]
-    )
-
-
-def after_bridge_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("🌙 Точная Луна мужчины", callback_data="p:moon")],
-            [InlineKeyboardButton("💗 Венера: где ему приятно", callback_data="p:venus")],
-            [InlineKeyboardButton("🗣 Меркурий: как говорить", callback_data="p:mercury")],
-            [InlineKeyboardButton("🔥 Марс: как поддержать силу", callback_data="p:mars")],
-            [InlineKeyboardButton("📖 Весь разбор пары", callback_data="p:full")],
-            [InlineKeyboardButton("✍️ Что написать?", callback_data="message")],
-            [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
-        ]
-    )
+    return InlineKeyboardMarkup([[InlineKeyboardButton("💞 Понять мужчину", callback_data="start_man")], [InlineKeyboardButton("🗂 История", callback_data="history")]])
 
 
 def cancel_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("Отмена", callback_data="cancel")]])
+
+
+def after_free_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[InlineKeyboardButton("💞 Добавить мою дату и увидеть мост", callback_data="add_me")], [InlineKeyboardButton("✍️ Что написать?", callback_data="message")], [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")]])
+
+
+def after_bridge_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🌙 Точная Луна мужчины", callback_data="p:moon")],
+        [InlineKeyboardButton("💗 Венера: где ему приятно", callback_data="p:venus")],
+        [InlineKeyboardButton("🗣 Меркурий: как говорить", callback_data="p:mercury")],
+        [InlineKeyboardButton("🔥 Марс: как поддержать силу", callback_data="p:mars")],
+        [InlineKeyboardButton("📖 Весь разбор пары", callback_data="p:full")],
+        [InlineKeyboardButton("✍️ Что написать?", callback_data="message")],
+        [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
+    ])
 
 
 def _user_id(update: Update) -> int | None:
@@ -120,30 +89,25 @@ async def _send_long(update: Update, text: str, **kwargs: Any) -> None:
     message = update.effective_message
     if not message:
         return
-    chunks: list[str] = []
     rest = text.strip()
+    parts: list[str] = []
     while len(rest) > 3900:
         cut = rest.rfind("\n", 0, 3900)
         if cut < 1000:
             cut = 3900
-        chunks.append(rest[:cut].strip())
+        parts.append(rest[:cut].strip())
         rest = rest[cut:].strip()
     if rest:
-        chunks.append(rest)
-    for index, chunk in enumerate(chunks):
-        await message.reply_text(chunk, disable_web_page_preview=True, **(kwargs if index == len(chunks) - 1 else {}))
+        parts.append(rest)
+    for i, part in enumerate(parts):
+        await message.reply_text(part, disable_web_page_preview=True, **(kwargs if i == len(parts) - 1 else {}))
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         await _deny(update)
         return
-    text = (
-        "💞 Ключ к мужчине\n\n"
-        "Сначала покажу его эмоциональный язык по Луне: где ему спокойно, где он меньше закрывается и куда ему легче возвращаться.\n\n"
-        "Потом можно добавить твою дату рождения и увидеть мост между вашими эмоциональными языками."
-    )
-    await update.effective_message.reply_text(text, reply_markup=menu())
+    await update.effective_message.reply_text("💞 Ключ к мужчине\n\nСначала покажу его эмоциональный язык по Луне. Потом можно добавить твою дату рождения и увидеть мост между вашими эмоциональными языками.", reply_markup=menu())
 
 
 async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -159,9 +123,6 @@ async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def ask_man_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if not _is_authorized(update):
-        await _deny(update)
-        return ConversationHandler.END
     name = (update.effective_message.text or "").strip()
     if not name:
         await update.effective_message.reply_text("Напиши имя текстом. Например: Андрей")
@@ -172,16 +133,12 @@ async def ask_man_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def build_man_free(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if not _is_authorized(update):
-        await _deny(update)
-        return ConversationHandler.END
     message = update.effective_message
     try:
         birth_date = parse_birth_date((message.text or "").strip())
     except ValueError as exc:
         await message.reply_text(str(exc))
         return ASK_MAN_DATE
-
     wait = await message.reply_text("Считаю его эмоциональный язык…")
     await context.bot.send_chat_action(chat_id=message.chat_id, action=ChatAction.TYPING)
     try:
@@ -196,12 +153,8 @@ async def build_man_free(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await wait.delete()
         except Exception:
             pass
-        teaser = (
-            f"{format_free_preview(report)}\n\n"
-            "💞 Хочешь понять, как сделать хорошо вам обоим?\n"
-            "Добавь свою дату рождения — я покажу мост между вашими эмоциональными языками."
-        )
-        await _send_long(update, teaser, reply_markup=after_free_keyboard())
+        text = f"{format_free_preview(report)}\n\n💞 Хочешь понять, как сделать хорошо вам обоим?\nДобавь свою дату рождения — я покажу мост между вашими эмоциональными языками."
+        await _send_long(update, text, reply_markup=after_free_keyboard())
     except Exception:
         logger.exception("Failed to build man report")
         await wait.edit_text("Не получилось посчитать. Проверь дату в формате 12.04.1993 и попробуй ещё раз.")
@@ -272,28 +225,20 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(format_history(get_store().recent(user_id, limit=10)), reply_markup=menu())
 
 
-async def product_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.callback_query:
         await update.callback_query.answer()
-    man_report = _load_report(context, LAST_MAN_REPORT)
-    if man_report is None:
+    report = _load_report(context, LAST_MAN_REPORT)
+    if report is None:
         await update.effective_message.reply_text("Сначала сделай бесплатный разбор мужчины.", reply_markup=menu())
         return
     code = (update.callback_query.data or "").replace("p:", "") if update.callback_query else ""
-    titles = {
-        "moon": "🌙 Точная Луна мужчины",
-        "venus": "💗 Венера: где ему приятно",
-        "mercury": "🗣 Меркурий: как с ним говорить",
-        "mars": "🔥 Марс: как поддержать его силу",
-        "full": "📖 Весь разбор пары",
-    }
-    title = titles.get(code, "Платный блок")
-    text = (
-        f"{title}\n\n"
-        "Это следующий платный продукт. Сейчас он открыт как предпросмотр механики.\n\n"
-        "Логика монетизации: бесплатная стихия Луны → мост ваших Лун → отдельные глубокие блоки по Луне, Венере, Меркурию, Марсу → полный отчёт пары."
-    )
-    await update.effective_message.reply_text(text, reply_markup=after_bridge_keyboard())
+    formatters = {"moon": format_moon_detail, "venus": format_venus_detail, "mercury": format_mercury_detail, "mars": format_mars_detail, "full": format_full_report_intro}
+    formatter = formatters.get(code)
+    if formatter is None:
+        await update.effective_message.reply_text("Этот блок пока не найден.", reply_markup=after_bridge_keyboard())
+        return
+    await _send_long(update, formatter(report), reply_markup=after_bridge_keyboard())
 
 
 async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -315,35 +260,18 @@ async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 def build_application() -> Application:
     settings.validate_runtime()
     app = ApplicationBuilder().token(settings.telegram_bot_token).build()
-    man_flow = ConversationHandler(
-        entry_points=[CommandHandler("start", start_man), CommandHandler("man", start_man), CommandHandler("partner", start_man), CallbackQueryHandler(start_man, pattern=r"^start_man$")],
-        states={
-            ASK_MAN_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_man_date)],
-            ASK_MAN_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_man_free)],
-        },
-        fallbacks=[CallbackQueryHandler(cancel, pattern=r"^cancel$"), CommandHandler("cancel", cancel)],
-        allow_reentry=True,
-    )
-    self_flow = ConversationHandler(
-        entry_points=[CallbackQueryHandler(start_self, pattern=r"^add_me$")],
-        states={
-            ASK_WOMAN_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_woman_date)],
-            ASK_WOMAN_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_bridge)],
-        },
-        fallbacks=[CallbackQueryHandler(cancel, pattern=r"^cancel$"), CommandHandler("cancel", cancel)],
-        allow_reentry=True,
-    )
+    man_flow = ConversationHandler(entry_points=[CommandHandler("start", start_man), CommandHandler("man", start_man), CommandHandler("partner", start_man), CallbackQueryHandler(start_man, pattern=r"^start_man$")], states={ASK_MAN_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_man_date)], ASK_MAN_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_man_free)]}, fallbacks=[CallbackQueryHandler(cancel, pattern=r"^cancel$"), CommandHandler("cancel", cancel)], allow_reentry=True)
+    self_flow = ConversationHandler(entry_points=[CallbackQueryHandler(start_self, pattern=r"^add_me$")], states={ASK_WOMAN_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_woman_date)], ASK_WOMAN_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_bridge)]}, fallbacks=[CallbackQueryHandler(cancel, pattern=r"^cancel$"), CommandHandler("cancel", cancel)], allow_reentry=True)
     app.add_handler(CommandHandler("menu", start))
     app.add_handler(man_flow)
     app.add_handler(self_flow)
     app.add_handler(CallbackQueryHandler(history, pattern=r"^history$"))
-    app.add_handler(CallbackQueryHandler(product_preview, pattern=r"^p:(moon|venus|mercury|mars|full)$"))
+    app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|full)$"))
     app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^message$"))
     return app
 
 
 def main() -> None:
-    logging.basicConfig(format="%(asctime)s | %(levelname)s | %(name)s | %(message)s", level=logging.INFO)
     logger.info("BOT_BOOT: starting woman flow")
     build_application().run_polling(allowed_updates=Update.ALL_TYPES)
 
