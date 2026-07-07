@@ -19,7 +19,7 @@ from telegram.ext import (
 )
 
 from app.astro.calculator import calculate_partner_chart, parse_birth_date
-from app.astro.report import PartnerReport, build_partner_report
+from app.astro.report import PartnerReport, build_partner_report, format_free_preview
 from app.config import settings
 from app.services.openai_client import build_partner_message_with_ai
 from app.storage import ReportsStore, format_history
@@ -210,7 +210,7 @@ async def build_report_from_birth_date(update: Update, context: ContextTypes.DEF
             await wait.delete()
         except Exception:
             pass
-        await _send_long_text(update, report.text, reply_markup=report_keyboard())
+        await _send_long_text(update, format_free_preview(report), reply_markup=report_keyboard())
     except Exception as exc:
         logger.exception("Failed to build partner report")
         try:
