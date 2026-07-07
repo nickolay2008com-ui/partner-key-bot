@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from app.astro.calculator import PartnerChart, Placement
 from app.astro.meanings import MARS_MEANINGS, MERCURY_MEANINGS, MESSAGE_TEMPLATES, MOON_MEANINGS, VENUS_MEANINGS
@@ -25,6 +25,7 @@ class PartnerReport:
     summary: str
     text: str
     message_templates: list[str]
+    moon_variants: list[dict[str, object]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -51,6 +52,23 @@ def _main_moon_placement(chart: PartnerChart) -> Placement:
     return chart.placements["moon"]
 
 
+def _variant_label(variant: dict[str, object]) -> str:
+    sign = str(variant.get("sign_ru", "знак не определён"))
+    element = str(variant.get("element_ru", "стихия не определена"))
+    return f"{sign} ({element})"
+
+
+def format_moon_precision_note(report: PartnerReport) -> str:
+    if report.moon_status != "changed_during_day":
+        return ""
+    variants = " / ".join(_variant_label(item) for item in report.moon_variants) or "два соседних знака Луны"
+    return (
+        "⚠️ Точность Луны: в этот день Луна могла менять знак. "
+        f"Возможные варианты: {variants}. Без времени рождения это ориентир по середине дня, "
+        "а не окончательный приговор небесной канцелярии."
+    )
+
+
 def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -> PartnerReport:
     name = _safe_name(partner_name)
     moon = _main_moon_placement(chart)
@@ -63,6 +81,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
     mercury_text = MERCURY_MEANINGS[mercury.element]
     mars_text = MARS_MEANINGS[mars.element]
     templates = MESSAGE_TEMPLATES[moon.element]
+    moon_variants = [item.to_dict() for item in chart.moon_confidence.variants]
 
     moon_note = ""
     if not chart.moon_confidence.is_exact_enough:
@@ -131,16 +150,19 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
         summary=summary,
         text=text,
         message_templates=templates,
+        moon_variants=moon_variants,
     )
 
 
 def format_free_preview(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
     rhythm = MOON_RHYTHM.get(report.emotional_language, meaning.core)
+    precision_note = format_moon_precision_note(report)
+    precision_block = f"\n\n{precision_note}" if precision_note else ""
     return f"""
 💞 Эмоциональный ритм мужчины: {report.partner_name}
 
-{rhythm}
+{rhythm}{precision_block}
 
 Что может сбивать контакт:
 {meaning.what_not_to_do}
