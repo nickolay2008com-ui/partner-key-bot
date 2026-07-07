@@ -16,7 +16,17 @@ def main_menu() -> InlineKeyboardMarkup:
 def report_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
+            [InlineKeyboardButton("🔍 Открыть глубокий ключ", callback_data="unlock:details")],
+            [InlineKeyboardButton("✍️ Открыть тексты сообщения", callback_data="unlock:message")],
+            [InlineKeyboardButton("🔑 Разобрать другого", callback_data="partner:start")],
+            [InlineKeyboardButton("🗂 История", callback_data="history:show")],
+        ]
+    )
+
+
+def paid_result_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
             [InlineKeyboardButton("🔑 Разобрать другого", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],
         ]
