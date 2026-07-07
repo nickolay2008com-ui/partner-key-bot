@@ -71,6 +71,11 @@ async def _deny(update: Update) -> None:
         await update.effective_message.reply_text("Доступ закрыт. Добавь Telegram ID в AUTHORIZED_TELEGRAM_IDS.")
 
 
+def _clear_flow_state(context: ContextTypes.DEFAULT_TYPE) -> None:
+    for key in ("man_name", "woman_name", LAST_MAN_REPORT, LAST_WOMAN_REPORT, "last_partner_report"):
+        context.user_data.pop(key, None)
+
+
 def _state_lost_text() -> str:
     return (
         "Я не вижу активного шага разбора. Возможно, бот перезапустился после обновления или это старая кнопка. "
@@ -110,17 +115,22 @@ async def _send_long(update: Update, text: str, **kwargs: Any) -> None:
         await message.reply_text(part, disable_web_page_preview=True, **(kwargs if i == len(parts) - 1 else {}))
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if update.callback_query:
+        await update.callback_query.answer()
     if not _is_authorized(update):
         await _deny(update)
-        return
+        return ConversationHandler.END
+    _clear_flow_state(context)
     text = (
         "💞 Карта гармонии пары\n\n"
-        "Поймите эмоциональный язык мужчины и ваш общий мост: где ему спокойнее, где хорошо вам, "
-        "как говорить без давления и какой ритм помогает отношениям становиться теплее.\n\n"
+        "Иногда люди любят по-разному.\n\n"
+        "Один ищет близость через спокойствие и надёжность. Другой — через слова, движение, чувство или живой отклик.\n\n"
+        "Бот покажет эмоциональный ритм мужчины, ваш ритм и мост между вами: где ему спокойнее, где вам теплее и как лучше понимать друг друга без давления.\n\n"
         "Это не проверка совместимости и не приговор. Это карта понимания."
     )
     await update.effective_message.reply_text(text, reply_markup=menu())
+    return ConversationHandler.END
 
 
 async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -133,11 +143,7 @@ async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not _is_authorized(update):
         await _deny(update)
         return ConversationHandler.END
-    context.user_data.pop("man_name", None)
-    context.user_data.pop("woman_name", None)
-    context.user_data.pop(LAST_MAN_REPORT, None)
-    context.user_data.pop(LAST_WOMAN_REPORT, None)
-    context.user_data.pop("last_partner_report", None)
+    _clear_flow_state(context)
     await update.effective_message.reply_text("Как зовут мужчину? Например: Андрей, муж, парень, партнёр.", reply_markup=cancel_keyboard())
     return ASK_MAN_NAME
 
@@ -237,7 +243,8 @@ async def build_bridge(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
-    await update.effective_message.reply_text("Ок, остановил.", reply_markup=menu())
+    _clear_flow_state(context)
+    await update.effective_message.reply_text("Ок, остановил. Начать заново можно через /start.", reply_markup=menu())
     return ConversationHandler.END
 
 
@@ -317,10 +324,19 @@ async def unknown_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 def build_application() -> Application:
     settings.validate_runtime()
     app = ApplicationBuilder().token(settings.telegram_bot_token).build()
-    man_flow = ConversationHandler(entry_points=[CommandHandler("man", start_man), CommandHandler("partner", start_man), CallbackQueryHandler(start_man, pattern=r"^start_man$")], states={ASK_MAN_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_man_date)], ASK_MAN_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_man_free)]}, fallbacks=[CallbackQueryHandler(cancel, pattern=r"^cancel$"), CommandHandler("cancel", cancel)], allow_reentry=True)
-    self_flow = ConversationHandler(entry_points=[CallbackQueryHandler(start_self, pattern=r"^add_me$")], states={ASK_WOMAN_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_woman_date)], ASK_WOMAN_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_bridge)]}, fallbacks=[CallbackQueryHandler(cancel, pattern=r"^cancel$"), CommandHandler("cancel", cancel)], allow_reentry=True)
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("menu", start))
+    reset_handlers = [CommandHandler("start", start), CommandHandler("menu", start), CommandHandler("reset", start)]
+    man_flow = ConversationHandler(
+        entry_points=[*reset_handlers, CommandHandler("man", start_man), CommandHandler("partner", start_man), CallbackQueryHandler(start_man, pattern=r"^start_man$")],
+        states={ASK_MAN_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_man_date)], ASK_MAN_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_man_free)]},
+        fallbacks=[*reset_handlers, CallbackQueryHandler(cancel, pattern=r"^cancel$"), CommandHandler("cancel", cancel)],
+        allow_reentry=True,
+    )
+    self_flow = ConversationHandler(
+        entry_points=[CallbackQueryHandler(start_self, pattern=r"^add_me$")],
+        states={ASK_WOMAN_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_woman_date)], ASK_WOMAN_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_bridge)]},
+        fallbacks=[*reset_handlers, CallbackQueryHandler(cancel, pattern=r"^cancel$"), CommandHandler("cancel", cancel)],
+        allow_reentry=True,
+    )
     app.add_handler(man_flow)
     app.add_handler(self_flow)
     app.add_handler(CallbackQueryHandler(history, pattern=r"^history$"))
