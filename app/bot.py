@@ -23,7 +23,7 @@ from app.astro.report import PartnerReport, build_partner_report, format_free_pr
 from app.config import settings
 from app.services.openai_client import build_partner_message_with_ai
 from app.storage import ReportsStore, format_history
-from app.ui.keyboards import cancel_keyboard, main_menu, report_keyboard
+from app.ui.keyboards import after_details_keyboard, cancel_keyboard, main_menu, report_keyboard
 
 logging.basicConfig(format="%(asctime)s | %(levelname)s | %(name)s | %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,15 +32,15 @@ ASK_NAME, ASK_BIRTH_DATE = range(2)
 LAST_REPORT_KEY = "last_partner_report"
 
 WELCOME_TEXT = """
-🔑 Ключ к партнёру
+💞 Ключ к мужчине
 
-Бот помогает понять эмоциональный язык человека по дате рождения: что даёт ему доверие, как он проявляет чувства и как с ним лучше говорить.
+Бот помогает женщине мягче понять мужчину по дате рождения: где ему эмоционально спокойно, как он проявляет чувства и как с ним говорить, чтобы обоим было хорошо.
 
-Это не проверка совместимости и не приговор отношениям. Это мягкий переводчик различий, потому что люди почему-то до сих пор не поставляются с инструкцией.
+Это не проверка совместимости и не приговор отношениям. Это карта понимания: как создать рядом состояние, куда человеку хочется возвращаться.
 
 Команды:
 /start — меню
-/partner — разобрать партнёра
+/partner — понять мужчину
 /history — история разборов
 /whoami — твой Telegram ID
 """.strip()
@@ -48,16 +48,12 @@ WELCOME_TEXT = """
 ABOUT_TEXT = """
 Что делает бот:
 
-1. Берёт дату рождения партнёра.
+1. Берёт дату рождения мужчины.
 2. Считает Луну, Венеру, Меркурий и Марс через Swiss Ephemeris.
-3. Переводит это в простой язык:
-— что человеку нужно для спокойствия;
-— как он/она проявляет чувства;
-— как говорить, чтобы вас услышали;
-— чего лучше не делать;
-— какой первый шаг выбрать.
+3. Сначала даёт короткий бесплатный ключ: эмоциональный язык и первый шаг.
+4. По кнопкам показывает глубину и помогает составить мягкое сообщение.
 
-Без синастрии, процентов любви и космического суда. Только практичное понимание человека.
+Без синастрии, процентов любви и космического суда. Только практичное понимание человека и отношений.
 """.strip()
 
 _store: ReportsStore | None = None
@@ -161,7 +157,7 @@ async def partner_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     context.user_data.pop("partner_name", None)
     await update.effective_message.reply_text(
-        "Кого разбираем? Напиши имя или коротко: партнёр, девушка, парень, Анна.\n\nЭто нужно только для красивой карточки, не для расчёта. Космосу всё равно, а интерфейсу приятно.",
+        "Кого разбираем? Напиши имя мужчины или коротко: парень, муж, партнёр, Андрей.\n\nИмя нужно только для красивой карточки. Космосу всё равно, а интерфейсу приятно.",
         reply_markup=cancel_keyboard(),
     )
     return ASK_NAME
@@ -173,11 +169,11 @@ async def ask_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
     text = (update.effective_message.text or "").strip()
     if not text:
-        await update.effective_message.reply_text("Напиши имя текстом. Например: Анна")
+        await update.effective_message.reply_text("Напиши имя текстом. Например: Андрей")
         return ASK_NAME
     context.user_data["partner_name"] = text[:60]
     await update.effective_message.reply_text(
-        "Теперь дата рождения.\n\nФормат: 12.04.1993\n\nВремя рождения пока не нужно. Если Луна в этот день меняла знак, бот честно покажет два варианта, без притворства астрологической всевидимости.",
+        "Теперь дата рождения мужчины.\n\nФормат: 12.04.1993\n\nВремя рождения пока не нужно. Если Луна в этот день меняла знак, бот честно покажет неоднозначность, без притворства астрологической всевидимости.",
         reply_markup=cancel_keyboard(),
     )
     return ASK_BIRTH_DATE
@@ -196,7 +192,7 @@ async def build_report_from_birth_date(update: Update, context: ContextTypes.DEF
         return ASK_BIRTH_DATE
 
     partner_name = context.user_data.get("partner_name", "Партнёр")
-    wait = await message.reply_text("Считаю эмоциональный язык партнёра…")
+    wait = await message.reply_text("Считаю эмоциональный язык…")
     await context.bot.send_chat_action(chat_id=message.chat_id, action=ChatAction.TYPING)
 
     try:
@@ -239,6 +235,20 @@ async def on_history_button(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if update.callback_query:
         await update.callback_query.answer()
     await history(update, context)
+
+
+async def on_report_details_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if query:
+        await query.answer()
+    if not _is_authorized(update):
+        await _deny(update)
+        return
+    report = _load_last_report(context)
+    if report is None:
+        await update.effective_message.reply_text("Последний разбор не найден. Нажми /partner и сделай разбор заново.", reply_markup=main_menu())
+        return
+    await _send_long_text(update, report.text, reply_markup=after_details_keyboard())
 
 
 async def on_report_message_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -286,6 +296,7 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("about", about))
     app.add_handler(CommandHandler("history", history))
     app.add_handler(partner_flow)
+    app.add_handler(CallbackQueryHandler(on_report_details_button, pattern=r"^report:details$"))
     app.add_handler(CallbackQueryHandler(on_report_message_button, pattern=r"^report:message$"))
     app.add_handler(CallbackQueryHandler(on_history_button, pattern=r"^history:show$"))
     app.add_handler(CallbackQueryHandler(on_help_button, pattern=r"^help:about$"))
