@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Any
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp, Update, WebAppInfo
 from telegram.constants import ChatAction
 from telegram.ext import Application, ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 
@@ -33,8 +33,16 @@ def get_store() -> ReportsStore:
     return _store
 
 
+def webapp_info() -> WebAppInfo:
+    return WebAppInfo(url=settings.webapp_url)
+
+
+def webapp_menu_button() -> MenuButtonWebApp:
+    return MenuButtonWebApp(text="Мои данные", web_app=webapp_info())
+
+
 def profile_button() -> InlineKeyboardButton:
-    return InlineKeyboardButton("👤 Мои данные", web_app=WebAppInfo(url=settings.webapp_url))
+    return InlineKeyboardButton("👤 Мои данные", web_app=webapp_info())
 
 
 def menu() -> InlineKeyboardMarkup:
@@ -110,6 +118,24 @@ def _is_authorized(update: Update) -> bool:
         return True
     user_id = _user_id(update)
     return bool(user_id and user_id in settings.authorized_telegram_ids)
+
+
+async def _set_global_menu_button(application: Application) -> None:
+    try:
+        await application.bot.set_chat_menu_button(menu_button=webapp_menu_button())
+        logger.info("WEBAPP_MENU_BUTTON: default menu button set to %s", settings.webapp_url)
+    except Exception:
+        logger.exception("WEBAPP_MENU_BUTTON_FAILED")
+
+
+async def _set_chat_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat = update.effective_chat
+    if chat is None:
+        return
+    try:
+        await context.bot.set_chat_menu_button(chat_id=chat.id, menu_button=webapp_menu_button())
+    except Exception:
+        logger.exception("WEBAPP_CHAT_MENU_BUTTON_FAILED: chat_id=%s", chat.id)
 
 
 async def _remember_user(update: Update) -> None:
@@ -318,13 +344,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await _deny(update)
         return ConversationHandler.END
     await _remember_user(update)
+    await _set_chat_menu_button(update, context)
     _clear_flow_state(context)
     text = (
         "💞 Карта гармонии пары\n\n"
         "Иногда люди любят по-разному.\n\n"
         "Один ищет близость через спокойствие и надёжность. Другой — через слова, движение, чувство или живой отклик.\n\n"
         "Бот покажет эмоциональный ритм мужчины, ваш ритм и мост между вами: где ему спокойнее, где вам теплее и как лучше понимать друг друга без давления.\n\n"
-        "Теперь можно сохранить свои данные и данные партнёра в разделе «👤 Мои данные», чтобы не вводить их каждый раз заново. Чудо цивилизации, почти холодильник с лампочкой."
+        "Теперь можно сохранить свои данные и данные партнёра через нижнюю кнопку «Мои данные», чтобы не вводить их каждый раз заново. Чудо цивилизации, почти холодильник с лампочкой."
     )
     await update.effective_message.reply_text(text, reply_markup=menu())
     return ConversationHandler.END
@@ -335,8 +362,9 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _deny(update)
         return
     await _remember_user(update)
+    await _set_chat_menu_button(update, context)
     await update.effective_message.reply_text(
-        "👤 Откройте мини-приложение и сохраните свои данные и данные партнёра. Потом бот сможет подтягивать их в разбор.",
+        "👤 Нижняя кнопка «Мои данные» открывает мини-приложение. Там можно сохранить свои данные и данные партнёра, чтобы бот подтягивал их в разбор.",
         reply_markup=profile_only_keyboard(),
     )
 
@@ -348,6 +376,7 @@ async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await _deny(update)
         return ConversationHandler.END
     await _remember_user(update)
+    await _set_chat_menu_button(update, context)
     await _clear_active_bot_messages(update, context)
     if update.callback_query:
         try:
@@ -369,7 +398,7 @@ async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await _tracked_reply_text(
             update,
             context,
-            "Как зовут мужчину? Например: Андрей, муж, парень, партнёр.\n\nДанные можно заранее сохранить в «👤 Мои данные», чтобы потом не вводить заново.",
+            "Как зовут мужчину? Например: Андрей, муж, парень, партнёр.\n\nДанные можно заранее сохранить через нижнюю кнопку «Мои данные», чтобы потом не вводить заново.",
             reply_markup=cancel_keyboard(),
         )
     return ASK_MAN_NAME
@@ -382,7 +411,7 @@ async def use_partner_profile(update: Update, context: ContextTypes.DEFAULT_TYPE
     name = profile_data.get("partner_name", "").strip()
     birth_date = profile_data.get("partner_birth_date", "").strip()
     if not name or not birth_date:
-        await _tracked_reply_text(update, context, "В профиле пока нет полных данных партнёра. Откройте «👤 Мои данные» и заполните имя и дату рождения.", reply_markup=profile_only_keyboard())
+        await _tracked_reply_text(update, context, "В профиле пока нет полных данных партнёра. Откройте «Мои данные» и заполните имя и дату рождения.", reply_markup=profile_only_keyboard())
         return ConversationHandler.END
     return await _build_man_report_from_date(update, context, name, birth_date)
 
@@ -407,6 +436,7 @@ async def start_self(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
     await _remember_user(update)
+    await _set_chat_menu_button(update, context)
     if _load_report(context, LAST_MAN_REPORT) is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
         return ConversationHandler.END
@@ -432,7 +462,7 @@ async def use_self_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     name = profile_data.get("self_name", "").strip()
     birth_date = profile_data.get("self_birth_date", "").strip()
     if not name or not birth_date:
-        await _tracked_reply_text(update, context, "В профиле пока нет ваших полных данных. Откройте «👤 Мои данные» и заполните имя и дату рождения.", reply_markup=profile_only_keyboard())
+        await _tracked_reply_text(update, context, "В профиле пока нет ваших полных данных. Откройте «Мои данные» и заполните имя и дату рождения.", reply_markup=profile_only_keyboard())
         return ConversationHandler.END
     return await _build_bridge_from_date(update, context, name, birth_date)
 
@@ -542,7 +572,7 @@ async def unknown_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 def build_application() -> Application:
     settings.validate_runtime()
-    app = ApplicationBuilder().token(settings.telegram_bot_token).build()
+    app = ApplicationBuilder().token(settings.telegram_bot_token).post_init(_set_global_menu_button).build()
     reset_handlers = [CommandHandler("start", start), CommandHandler("menu", start), CommandHandler("reset", start)]
     man_flow = ConversationHandler(
         entry_points=[*reset_handlers, CommandHandler("man", start_man), CommandHandler("partner", start_man), CallbackQueryHandler(start_man, pattern=r"^start_man$")],
