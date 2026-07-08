@@ -5,6 +5,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,14 @@ class SavedReport:
     birth_date: str
     emotional_language_title: str
     created_at: str
+
+
+DEFAULT_PROFILE: dict[str, str] = {
+    "self_name": "",
+    "self_birth_date": "",
+    "partner_name": "",
+    "partner_birth_date": "",
+}
 
 
 class ReportsStore:
@@ -62,6 +71,18 @@ class ReportsStore:
                     total INTEGER NOT NULL,
                     success INTEGER NOT NULL,
                     failed INTEGER NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS user_profiles (
+                    user_id INTEGER PRIMARY KEY,
+                    self_name TEXT NOT NULL DEFAULT '',
+                    self_birth_date TEXT NOT NULL DEFAULT '',
+                    partner_name TEXT NOT NULL DEFAULT '',
+                    partner_birth_date TEXT NOT NULL DEFAULT '',
+                    updated_at TEXT NOT NULL
                 )
                 """
             )
@@ -161,6 +182,56 @@ class ReportsStore:
                 """,
                 (broadcast_key, now, total, success, failed),
             )
+
+    def get_profile(self, user_id: int) -> dict[str, str]:
+        self.register_user(user_id)
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT self_name, self_birth_date, partner_name, partner_birth_date
+                FROM user_profiles
+                WHERE user_id = ?
+                """,
+                (user_id,),
+            ).fetchone()
+        if row is None:
+            return dict(DEFAULT_PROFILE)
+        return {
+            "self_name": str(row["self_name"] or ""),
+            "self_birth_date": str(row["self_birth_date"] or ""),
+            "partner_name": str(row["partner_name"] or ""),
+            "partner_birth_date": str(row["partner_birth_date"] or ""),
+        }
+
+    def save_profile(self, user_id: int, profile: dict[str, Any]) -> dict[str, str]:
+        self.register_user(user_id)
+        clean = {
+            key: str(profile.get(key, "") or "").strip()[:80]
+            for key in DEFAULT_PROFILE
+        }
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO user_profiles (user_id, self_name, self_birth_date, partner_name, partner_birth_date, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    self_name = excluded.self_name,
+                    self_birth_date = excluded.self_birth_date,
+                    partner_name = excluded.partner_name,
+                    partner_birth_date = excluded.partner_birth_date,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    user_id,
+                    clean["self_name"],
+                    clean["self_birth_date"],
+                    clean["partner_name"],
+                    clean["partner_birth_date"],
+                    now,
+                ),
+            )
+        return clean
 
 
 def format_history(items: list[SavedReport]) -> str:
