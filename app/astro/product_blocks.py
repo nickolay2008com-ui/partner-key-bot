@@ -11,7 +11,11 @@ from app.astro.meanings import (
     VENUS_SIGN_DETAILS,
 )
 from app.astro.report import PartnerReport, format_moon_precision_note
-from app.astro.sign_bridge import format_moon_pair_mechanic, format_moon_person_mechanic, format_moon_variant_pair
+from app.astro.sign_bridge import (
+    format_moon_pair_mechanic,
+    format_moon_person_mechanic,
+    format_moon_variant_pair,
+)
 
 
 ELEMENT_KEYWORDS = {
@@ -65,8 +69,12 @@ MARS_INTRO = (
     "Чтобы понять партнёра, Марс отвечает на вопрос: как он движется к желаемому, как берёт своё и как действует под давлением?"
 )
 
-MOON_SHORT = "Луна показывает, где человеку спокойно внутри и какая атмосфера помогает ему раскрыться без лишнего напряжения."
-VENUS_SHORT = "Венера показывает, где включаются краски жизни: ценность, вкус, притяжение, обмен и способность принимать лучшее."
+MOON_SHORT = (
+    "Луна показывает, где человеку спокойно внутри и какая атмосфера помогает ему раскрыться без лишнего напряжения."
+)
+VENUS_SHORT = (
+    "Венера показывает, где включаются краски жизни: ценность, вкус, притяжение, обмен и способность принимать лучшее."
+)
 MERCURY_SHORT = "Меркурий показывает, как человек мыслит, слышит, объясняет, ведёт переговоры и договаривается с миром."
 MARS_SHORT = "Марс показывает, как человек движется, хочет, действует, защищается, берёт своё и достигает."
 
@@ -111,7 +119,10 @@ def _couple_basis(man_report: PartnerReport, woman_report: PartnerReport, key: s
 def _element_text(report: PartnerReport, key: str) -> str:
     element = _element(report, key)
     if key == "venus":
-        return VENUS_MEANINGS.get(element, "Тепло появляется через внимание, ценность, вкус и естественное притяжение.")
+        return VENUS_MEANINGS.get(
+            element,
+            "Тепло появляется через внимание, ценность, вкус и естественное притяжение.",
+        )
     if key == "mercury":
         return MERCURY_MEANINGS.get(element, "Слова лучше слышатся, когда в них есть спокойствие и ясность.")
     if key == "mars":
@@ -122,13 +133,25 @@ def _element_text(report: PartnerReport, key: str) -> str:
 def _sign_detail(report: PartnerReport, key: str) -> str:
     sign = _sign_key(report, key)
     if key == "moon":
-        return MOON_SIGN_DETAILS.get(sign, "Точный знак Луны уточняет, какой формат эмоционального спокойствия человеку ближе.")
+        return MOON_SIGN_DETAILS.get(
+            sign,
+            "Точный знак Луны уточняет, какой формат эмоционального спокойствия человеку ближе.",
+        )
     if key == "venus":
-        return VENUS_SIGN_DETAILS.get(sign, "Точный знак Венеры уточняет, где у человека включаются ценность, вкус и притяжение.")
+        return VENUS_SIGN_DETAILS.get(
+            sign,
+            "Точный знак Венеры уточняет, где у человека включаются ценность, вкус и притяжение.",
+        )
     if key == "mercury":
-        return MERCURY_SIGN_DETAILS.get(sign, "Точный знак Меркурия уточняет, как человеку легче мыслить, слышать слова и входить в договорённость.")
+        return MERCURY_SIGN_DETAILS.get(
+            sign,
+            "Точный знак Меркурия уточняет, как человеку легче мыслить, слышать слова и входить в договорённость.",
+        )
     if key == "mars":
-        return MARS_SIGN_DETAILS.get(sign, "Точный знак Марса уточняет, как человек движется, действует и защищает своё направление.")
+        return MARS_SIGN_DETAILS.get(
+            sign,
+            "Точный знак Марса уточняет, как человек движется, действует и защищает своё направление.",
+        )
     return "Точный знак уточняет личный оттенок проявления."
 
 

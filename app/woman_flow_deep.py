@@ -38,7 +38,9 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     code = data.replace("p:", "")
     formatter = _formatter(code)
     if formatter is None:
-        await update.effective_message.reply_text("Этот блок пока не найден.", reply_markup=base.after_bridge_keyboard())
+        await update.effective_message.reply_text(
+            "Этот блок пока не найден.", reply_markup=base.after_bridge_keyboard()
+        )
         return
     await base._send_long(update, formatter(report), reply_markup=base.after_bridge_keyboard())
 
@@ -49,7 +51,10 @@ def build_application():
 
 
 def main() -> None:
-    logging.basicConfig(format="%(asctime)s | %(levelname)s | %(name)s | %(message)s", level=logging.INFO)
+    logging.basicConfig(
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        level=logging.INFO,
+    )
     logger.info("BOT_BOOT: starting deep woman flow")
     build_application().run_polling(allowed_updates=Update.ALL_TYPES)
 

@@ -205,10 +205,7 @@ class ReportsStore:
 
     def save_profile(self, user_id: int, profile: dict[str, Any]) -> dict[str, str]:
         self.register_user(user_id)
-        clean = {
-            key: str(profile.get(key, "") or "").strip()[:80]
-            for key in DEFAULT_PROFILE
-        }
+        clean = {key: str(profile.get(key, "") or "").strip()[:80] for key in DEFAULT_PROFILE}
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with self._connect() as conn:
             conn.execute(

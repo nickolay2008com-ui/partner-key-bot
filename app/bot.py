@@ -24,7 +24,12 @@ from app.astro.report import PartnerReport, build_partner_report, format_free_pr
 from app.config import settings
 from app.services.openai_client import build_partner_message_with_ai
 from app.storage import ReportsStore, format_history
-from app.ui.keyboards import after_details_keyboard, cancel_keyboard, main_menu, report_keyboard
+from app.ui.keyboards import (
+    after_details_keyboard,
+    cancel_keyboard,
+    main_menu,
+    report_keyboard,
+)
 
 logging.basicConfig(format="%(asctime)s | %(levelname)s | %(name)s | %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -133,7 +138,11 @@ async def _send_long_text(update: Update, text: str, **kwargs: Any) -> None:
         chunks.append(remaining)
 
     for index, chunk in enumerate(chunks):
-        await message.reply_text(chunk, disable_web_page_preview=True, **(kwargs if index == len(chunks) - 1 else {}))
+        await message.reply_text(
+            chunk,
+            disable_web_page_preview=True,
+            **(kwargs if index == len(chunks) - 1 else {}),
+        )
 
 
 def _save_last_report(context: ContextTypes.DEFAULT_TYPE, report: PartnerReport) -> None:
@@ -324,7 +333,10 @@ async def cancel_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         await update.callback_query.answer()
     await _remember_user(update)
     context.user_data.pop("partner_name", None)
-    await update.effective_message.reply_text("Ок, отменил. Отношения пока спасены от ещё одной формы ввода.", reply_markup=main_menu())
+    await update.effective_message.reply_text(
+        "Ок, отменил. Отношения пока спасены от ещё одной формы ввода.",
+        reply_markup=main_menu(),
+    )
     return ConversationHandler.END
 
 
@@ -350,7 +362,10 @@ async def on_report_details_button(update: Update, context: ContextTypes.DEFAULT
     await _remember_user(update)
     report = _load_last_report(context)
     if report is None:
-        await update.effective_message.reply_text("Последний разбор не найден. Нажми /partner и сделай разбор заново.", reply_markup=main_menu())
+        await update.effective_message.reply_text(
+            "Последний разбор не найден. Нажми /partner и сделай разбор заново.",
+            reply_markup=main_menu(),
+        )
         return
     await _send_long_text(update, report.text, reply_markup=after_details_keyboard())
 
@@ -365,7 +380,10 @@ async def on_report_message_button(update: Update, context: ContextTypes.DEFAULT
     await _remember_user(update)
     report = _load_last_report(context)
     if report is None:
-        await update.effective_message.reply_text("Последний разбор не найден. Нажми /partner и сделай разбор заново.", reply_markup=main_menu())
+        await update.effective_message.reply_text(
+            "Последний разбор не найден. Нажми /partner и сделай разбор заново.",
+            reply_markup=main_menu(),
+        )
         return
 
     wait = await update.effective_message.reply_text("Собираю мягкие варианты сообщения…")
@@ -396,7 +414,10 @@ def build_application() -> Application:
             ASK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_birth_date)],
             ASK_BIRTH_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_report_from_birth_date)],
         },
-        fallbacks=[CallbackQueryHandler(cancel_flow, pattern=r"^flow:cancel$"), CommandHandler("cancel", cancel_flow)],
+        fallbacks=[
+            CallbackQueryHandler(cancel_flow, pattern=r"^flow:cancel$"),
+            CommandHandler("cancel", cancel_flow),
+        ],
         allow_reentry=True,
     )
 

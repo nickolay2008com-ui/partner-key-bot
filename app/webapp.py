@@ -255,7 +255,10 @@ class WebAppHandler(BaseHTTPRequestHandler):
             action = str(payload.get("action", "get"))
             store = get_store()
             if action == "save":
-                profile = store.save_profile(user_id, payload.get("profile") if isinstance(payload.get("profile"), dict) else {})
+                profile = store.save_profile(
+                    user_id,
+                    payload.get("profile") if isinstance(payload.get("profile"), dict) else {},
+                )
             else:
                 profile = store.get_profile(user_id)
             self._send_json({"ok": True, "profile": profile})
