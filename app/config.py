@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -22,6 +23,18 @@ def _parse_ids(value: str | None) -> set[int]:
         except ValueError:
             raise ValueError(f"Список Telegram ID содержит не число: {item}") from None
     return result
+
+
+def _normalize_webapp_url(value: str | None) -> str:
+    url = (value or "https://partner-key.up.railway.app/webapp").strip()
+    if not url:
+        url = "https://partner-key.up.railway.app/webapp"
+    if not url.startswith(("https://", "http://")):
+        url = f"https://{url}"
+    parsed = urlparse(url)
+    if not parsed.path or parsed.path == "/":
+        url = url.rstrip("/") + "/webapp"
+    return url
 
 
 @dataclass(frozen=True)
@@ -44,7 +57,7 @@ class Settings:
             app_timezone=os.getenv("APP_TIMEZONE", "Europe/Moscow").strip() or "Europe/Moscow",
             authorized_telegram_ids=_parse_ids(os.getenv("AUTHORIZED_TELEGRAM_IDS")),
             broadcast_admin_ids=_parse_ids(os.getenv("BROADCAST_ADMIN_IDS")),
-            webapp_url=os.getenv("WEBAPP_URL", "https://partner-key.up.railway.app/webapp").strip() or "https://partner-key.up.railway.app/webapp",
+            webapp_url=_normalize_webapp_url(os.getenv("WEBAPP_URL")),
             data_dir=data_dir,
             openai_api_key=os.getenv("OPENAI_API_KEY", "").strip() or None,
             openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini",
