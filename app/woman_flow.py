@@ -34,7 +34,15 @@ from app.astro.product_blocks import (
 )
 from app.astro.report import PartnerReport, build_partner_report, format_free_preview
 from app.config import settings
-from app.relationship_practice import format_daily_connection_card, get_daily_connection_card
+from app.relationship_practice import (
+    format_daily_connection_card,
+    format_date_challenge,
+    format_star_goal,
+    format_weekly_couple_ritual,
+    get_daily_connection_card,
+    get_date_challenge,
+    get_weekly_couple_ritual,
+)
 from app.services.openai_client import build_partner_message_with_ai
 from app.storage import ReportsStore, format_history
 from app.webapp import start_webapp_server
@@ -72,6 +80,9 @@ def menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("🔑 Ключ на сегодня", callback_data="daily_key")],
+            [InlineKeyboardButton("⭐️ Звёздная цель дня", callback_data="star_goal")],
+            [InlineKeyboardButton("💞 Недельный ритуал", callback_data="weekly_ritual")],
+            [InlineKeyboardButton("🎬 Свидание / вызов", callback_data="date_challenge")],
             [InlineKeyboardButton("💞 Начать разбор пары", callback_data="start_man")],
             [profile_button()],
             [InlineKeyboardButton("🗂 История", callback_data="history")],
@@ -461,6 +472,38 @@ async def daily_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(format_daily_connection_card(card), reply_markup=menu())
 
 
+async def weekly_ritual(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.callback_query:
+        await update.callback_query.answer()
+    if not _is_authorized(update):
+        await _deny(update)
+        return
+    await _remember_user(update)
+    ritual = get_weekly_couple_ritual(_user_id(update), settings.app_timezone)
+    await update.effective_message.reply_text(format_weekly_couple_ritual(ritual), reply_markup=menu())
+
+
+async def star_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.callback_query:
+        await update.callback_query.answer()
+    if not _is_authorized(update):
+        await _deny(update)
+        return
+    await _remember_user(update)
+    await update.effective_message.reply_text(format_star_goal(settings.app_timezone), reply_markup=menu())
+
+
+async def date_challenge(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.callback_query:
+        await update.callback_query.answer()
+    if not _is_authorized(update):
+        await _deny(update)
+        return
+    await _remember_user(update)
+    card = get_date_challenge(_user_id(update), settings.app_timezone)
+    await update.effective_message.reply_text(format_date_challenge(card), reply_markup=menu())
+
+
 async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
@@ -778,8 +821,14 @@ def build_application() -> Application:
     app.add_handler(self_flow)
     app.add_handler(CommandHandler("profile", profile))
     app.add_handler(CommandHandler("daily", daily_key))
+    app.add_handler(CommandHandler("week", weekly_ritual))
+    app.add_handler(CommandHandler("stars", star_goal))
+    app.add_handler(CommandHandler("date", date_challenge))
     app.add_handler(CallbackQueryHandler(history, pattern=r"^history$"))
     app.add_handler(CallbackQueryHandler(daily_key, pattern=r"^daily_key$"))
+    app.add_handler(CallbackQueryHandler(weekly_ritual, pattern=r"^weekly_ritual$"))
+    app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
+    app.add_handler(CallbackQueryHandler(date_challenge, pattern=r"^date_challenge$"))
     app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|full)$"))
     app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^message$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_text))
