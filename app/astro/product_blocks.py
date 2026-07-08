@@ -10,7 +10,7 @@ from app.astro.meanings import (
     VENUS_MEANINGS,
     VENUS_SIGN_DETAILS,
 )
-from app.astro.report import PartnerReport, format_moon_precision_note
+from app.astro.report import PartnerReport, format_moon_precision_note, format_person_portrait
 from app.astro.sign_bridge import (
     format_moon_pair_mechanic,
     format_moon_person_mechanic,
@@ -399,6 +399,13 @@ def format_couple_moon_bridge(man_report: PartnerReport, woman_report: PartnerRe
 {mechanic}
 
 {_element_background(man_report, woman_report)}{alternate_text}
+
+{format_person_portrait(man_report, "👤 Его портрет в отношениях")}
+
+{format_person_portrait(woman_report, "👤 Ваш портрет в отношениях")}
+
+Общий вектор:
+эти два портрета нужны не для ярлыков, а чтобы увидеть, чем наполняется каждый. Когда пара уважает оба ритма, отношения получают больше тепла, ясности, желания действовать вместе и пространства для процветания.
 
 Гармония здесь не в том, чтобы кто-то стал удобнее. Она в том, чтобы увидеть конкретный механизм Луны каждого и найти между ними живой, тёплый проход.
 """.strip()

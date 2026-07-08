@@ -179,6 +179,33 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
     )
 
 
+def format_person_portrait(report: PartnerReport, heading: str | None = None) -> str:
+    meaning = MOON_MEANINGS[report.emotional_language]
+    moon_basis = _report_basis(report, "moon", "Луна")
+    venus_basis = _report_basis(report, "venus", "Венера")
+    mercury_basis = _report_basis(report, "mercury", "Меркурий")
+    mars_basis = _report_basis(report, "mars", "Марс")
+    title = heading or f"👤 Портрет: {report.partner_name}"
+    return f"""
+{title}
+
+Внутренняя опора ({moon_basis}):
+{meaning.needs}
+
+Как наполняется контакт ({venus_basis}):
+отношения становятся живее, когда человек чувствует ценность, вкус, удовольствие и естественное притяжение — не через давление, а через атмосферу, где ему приятно выбирать близость.
+
+Как строить понимание ({mercury_basis}):
+слова лучше работают, когда учитывают его способ мыслить, слышать и договариваться. Тогда разговор не разрушает связь, а возвращает ясность.
+
+Как поддержать движение и процветание ({mars_basis}):
+важно видеть, как человек действует, защищает границы и идёт к желаемому. Это помогает паре не тратить силу на борьбу темпов, а направлять энергию в общий рост.
+
+Связь с отношениями и процветанием:
+когда понятны спокойствие, ценность, слова и действие каждого, отношения становятся более наполненными: в них больше доверия, тепла, ясности и пространства для совместного процветания.
+""".strip()
+
+
 def format_free_preview(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
     rhythm = _rhythm_with_basis(report, meaning.core)
@@ -197,6 +224,8 @@ def format_free_preview(report: PartnerReport) -> str:
 
 Мягкий ключ ({basis}):
 {meaning.first_step}
+
+{format_person_portrait(report, "👤 Короткий портрет мужчины")}
 
 Это не инструкция, как стать удобной. Это первый перевод его эмоционального ритма: в какой атмосфере ему легче расслабиться, доверять и быть ближе.
 
