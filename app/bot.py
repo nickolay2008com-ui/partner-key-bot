@@ -7,6 +7,7 @@ from typing import Any
 
 from telegram import Update
 from telegram.constants import ChatAction
+from telegram.error import TelegramError
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -30,6 +31,25 @@ logger = logging.getLogger(__name__)
 
 ASK_NAME, ASK_BIRTH_DATE = range(2)
 LAST_REPORT_KEY = "last_partner_report"
+MERCURY_BROADCAST_KEY = "mercury_retrograde_opportunity_2026_07"
+MERCURY_BROADCAST_TEXT = """
+🗣 Ретроградный Меркурий — окно возможностей
+
+Сейчас хороший период не пугаться, а прояснять: детали, переписку, договорённости и то, что в отношениях осталось недосказанным.
+
+Меркурий помогает понять, как человек мыслит, слышит, объясняет и договаривается.
+
+В отношениях это шанс уточнить:
+— что каждый имел в виду;
+— где вас могли услышать не так;
+— о чём пора поговорить спокойнее;
+— какой маленький шаг вернёт ясность.
+
+Откройте разбор и посмотрите блок:
+🗣 Меркурий — как человек мыслит и договаривается
+
+Иногда новый уровень начинается не с громкого решения, а с честного и ясного разговора.
+""".strip()
 
 WELCOME_TEXT = """
 💞 Ключ к мужчине
@@ -79,6 +99,18 @@ def _is_authorized(update: Update) -> bool:
     return bool(user_id and user_id in settings.authorized_telegram_ids)
 
 
+def _is_broadcast_admin(update: Update) -> bool:
+    user_id = _user_id(update)
+    admin_ids = settings.broadcast_admin_ids | settings.authorized_telegram_ids
+    return bool(user_id and user_id in admin_ids)
+
+
+async def _remember_user(update: Update) -> None:
+    user_id = _user_id(update)
+    if user_id is not None:
+        await asyncio.to_thread(get_store().register_user, user_id)
+
+
 async def _deny(update: Update) -> None:
     message = update.effective_message
     if message:
@@ -118,14 +150,63 @@ def _load_last_report(context: ContextTypes.DEFAULT_TYPE) -> PartnerReport | Non
         return None
 
 
+async def _send_mercury_broadcast(application: Application, *, force: bool = False) -> tuple[int, int, int, str]:
+    store = get_store()
+    if not force and await asyncio.to_thread(store.was_broadcast_sent, MERCURY_BROADCAST_KEY):
+        return 0, 0, 0, "already_sent"
+
+    user_ids = await asyncio.to_thread(store.all_user_ids)
+    if not user_ids:
+        return 0, 0, 0, "no_users"
+
+    total = len(user_ids)
+    success = 0
+    failed = 0
+
+    for user_id in user_ids:
+        try:
+            await application.bot.send_message(
+                chat_id=user_id,
+                text=MERCURY_BROADCAST_TEXT,
+                disable_web_page_preview=True,
+                reply_markup=main_menu(),
+            )
+        except TelegramError as exc:
+            failed += 1
+            logger.warning("MERCURY_BROADCAST: failed user_id=%s error=%s", user_id, exc)
+        else:
+            success += 1
+        await asyncio.sleep(0.05)
+
+    if success > 0:
+        await asyncio.to_thread(store.mark_broadcast_sent, MERCURY_BROADCAST_KEY, total, success, failed)
+    return total, success, failed, "sent"
+
+
+async def _post_init(application: Application) -> None:
+    try:
+        total, success, failed, status = await _send_mercury_broadcast(application, force=False)
+        logger.info(
+            "MERCURY_BROADCAST_ON_BOOT: status=%s total=%s success=%s failed=%s",
+            status,
+            total,
+            success,
+            failed,
+        )
+    except Exception:
+        logger.exception("MERCURY_BROADCAST_ON_BOOT_FAILED")
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         await _deny(update)
         return
+    await _remember_user(update)
     await update.effective_message.reply_text(WELCOME_TEXT, reply_markup=main_menu())
 
 
 async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _remember_user(update)
     user_id = _user_id(update)
     if user_id:
         await update.effective_message.reply_text(f"Твой Telegram ID: {user_id}")
@@ -135,6 +216,7 @@ async def about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         await _deny(update)
         return
+    await _remember_user(update)
     await update.effective_message.reply_text(ABOUT_TEXT, reply_markup=main_menu())
 
 
@@ -142,11 +224,26 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         await _deny(update)
         return
+    await _remember_user(update)
     user_id = _user_id(update)
     if user_id is None:
         return
     items = get_store().recent(user_id, limit=10)
     await update.effective_message.reply_text(format_history(items), reply_markup=main_menu())
+
+
+async def broadcast_mercury(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_broadcast_admin(update):
+        await update.effective_message.reply_text(
+            "Команда рассылки доступна только админу. Добавь свой Telegram ID в BROADCAST_ADMIN_IDS или AUTHORIZED_TELEGRAM_IDS на Railway. Да, власть требует переменных окружения, как будто нам мало бюрократии в реальном мире."
+        )
+        return
+    await _remember_user(update)
+    wait = await update.effective_message.reply_text("Запускаю рассылку про ретроградный Меркурий…")
+    total, success, failed, status = await _send_mercury_broadcast(context.application, force=True)
+    await wait.edit_text(
+        f"Рассылка завершена.\n\nСтатус: {status}\nВсего: {total}\nОтправлено: {success}\nОшибок: {failed}"
+    )
 
 
 async def partner_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -156,6 +253,7 @@ async def partner_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await _deny(update)
         return ConversationHandler.END
 
+    await _remember_user(update)
     context.user_data.pop("partner_name", None)
     await update.effective_message.reply_text(
         "Кого разбираем? Напиши имя мужчины или коротко: парень, муж, партнёр, Андрей.\n\nИмя нужно только для красивой карточки. Космосу всё равно, а интерфейсу приятно.",
@@ -168,6 +266,7 @@ async def ask_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not _is_authorized(update):
         await _deny(update)
         return ConversationHandler.END
+    await _remember_user(update)
     text = (update.effective_message.text or "").strip()
     if not text:
         await update.effective_message.reply_text("Напиши имя текстом. Например: Андрей")
@@ -184,6 +283,7 @@ async def build_report_from_birth_date(update: Update, context: ContextTypes.DEF
     if not _is_authorized(update):
         await _deny(update)
         return ConversationHandler.END
+    await _remember_user(update)
     message = update.effective_message
     text = (message.text or "").strip()
     try:
@@ -222,6 +322,7 @@ async def build_report_from_birth_date(update: Update, context: ContextTypes.DEF
 async def cancel_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
+    await _remember_user(update)
     context.user_data.pop("partner_name", None)
     await update.effective_message.reply_text("Ок, отменил. Отношения пока спасены от ещё одной формы ввода.", reply_markup=main_menu())
     return ConversationHandler.END
@@ -246,6 +347,7 @@ async def on_report_details_button(update: Update, context: ContextTypes.DEFAULT
     if not _is_authorized(update):
         await _deny(update)
         return
+    await _remember_user(update)
     report = _load_last_report(context)
     if report is None:
         await update.effective_message.reply_text("Последний разбор не найден. Нажми /partner и сделай разбор заново.", reply_markup=main_menu())
@@ -260,6 +362,7 @@ async def on_report_message_button(update: Update, context: ContextTypes.DEFAULT
     if not _is_authorized(update):
         await _deny(update)
         return
+    await _remember_user(update)
     report = _load_last_report(context)
     if report is None:
         await update.effective_message.reply_text("Последний разбор не найден. Нажми /partner и сделай разбор заново.", reply_markup=main_menu())
@@ -280,7 +383,7 @@ def build_application() -> Application:
     logger.info("BOT_BOOT: Python %s on %s", platform.python_version(), platform.platform())
     logger.info("BOT_BOOT: %s", settings.diagnostic_summary())
 
-    app = ApplicationBuilder().token(settings.telegram_bot_token).build()
+    app = ApplicationBuilder().token(settings.telegram_bot_token).post_init(_post_init).build()
 
     partner_flow = ConversationHandler(
         entry_points=[
@@ -302,6 +405,7 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("whoami", whoami))
     app.add_handler(CommandHandler("about", about))
     app.add_handler(CommandHandler("history", history))
+    app.add_handler(CommandHandler("broadcast_mercury", broadcast_mercury))
     app.add_handler(partner_flow)
     app.add_handler(CallbackQueryHandler(on_report_details_button, pattern=r"^report:details$"))
     app.add_handler(CallbackQueryHandler(on_report_message_button, pattern=r"^report:message$"))
