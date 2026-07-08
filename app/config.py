@@ -30,6 +30,7 @@ class Settings:
     app_timezone: str
     authorized_telegram_ids: set[int]
     broadcast_admin_ids: set[int]
+    webapp_url: str
     data_dir: Path
     openai_api_key: str | None
     openai_model: str
@@ -43,6 +44,7 @@ class Settings:
             app_timezone=os.getenv("APP_TIMEZONE", "Europe/Moscow").strip() or "Europe/Moscow",
             authorized_telegram_ids=_parse_ids(os.getenv("AUTHORIZED_TELEGRAM_IDS")),
             broadcast_admin_ids=_parse_ids(os.getenv("BROADCAST_ADMIN_IDS")),
+            webapp_url=os.getenv("WEBAPP_URL", "https://partner-key.up.railway.app/webapp").strip() or "https://partner-key.up.railway.app/webapp",
             data_dir=data_dir,
             openai_api_key=os.getenv("OPENAI_API_KEY", "").strip() or None,
             openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini",
@@ -61,7 +63,7 @@ class Settings:
         access = "restricted" if self.authorized_telegram_ids else "public"
         openai = "enabled" if self.openai_api_key else "disabled"
         broadcast_admins = len(self.broadcast_admin_ids | self.authorized_telegram_ids)
-        return f"timezone={self.app_timezone}; access={access}; openai={openai}; data_dir={self.data_dir}; broadcast_admins={broadcast_admins}"
+        return f"timezone={self.app_timezone}; access={access}; openai={openai}; data_dir={self.data_dir}; broadcast_admins={broadcast_admins}; webapp_url={self.webapp_url}"
 
 
 settings = Settings.from_env()
