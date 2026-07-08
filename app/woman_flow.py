@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 ASK_MAN_NAME, ASK_MAN_DATE, ASK_WOMAN_NAME, ASK_WOMAN_DATE = range(4)
 LAST_MAN_REPORT = "last_man_report"
 LAST_WOMAN_REPORT = "last_woman_report"
+ACTIVE_BOT_MESSAGE_IDS = "active_bot_message_ids"
 _store: ReportsStore | None = None
 
 
@@ -76,6 +77,56 @@ def _clear_flow_state(context: ContextTypes.DEFAULT_TYPE) -> None:
         context.user_data.pop(key, None)
 
 
+def _active_bot_message_ids(context: ContextTypes.DEFAULT_TYPE) -> list[int]:
+    raw = context.user_data.get(ACTIVE_BOT_MESSAGE_IDS)
+    if not isinstance(raw, list):
+        return []
+    result: list[int] = []
+    for item in raw:
+        if isinstance(item, int) and item not in result:
+            result.append(item)
+    return result
+
+
+def _remember_bot_message(context: ContextTypes.DEFAULT_TYPE, message: Any) -> None:
+    message_id = getattr(message, "message_id", None)
+    if not isinstance(message_id, int):
+        return
+    ids = _active_bot_message_ids(context)
+    if message_id not in ids:
+        ids.append(message_id)
+    context.user_data[ACTIVE_BOT_MESSAGE_IDS] = ids
+
+
+def _forget_bot_message(context: ContextTypes.DEFAULT_TYPE, message: Any) -> None:
+    message_id = getattr(message, "message_id", None)
+    if not isinstance(message_id, int):
+        return
+    context.user_data[ACTIVE_BOT_MESSAGE_IDS] = [item for item in _active_bot_message_ids(context) if item != message_id]
+
+
+async def _clear_active_bot_messages(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat = update.effective_chat
+    if chat is None:
+        return
+    ids = _active_bot_message_ids(context)
+    context.user_data[ACTIVE_BOT_MESSAGE_IDS] = []
+    for message_id in reversed(ids):
+        try:
+            await context.bot.delete_message(chat_id=chat.id, message_id=message_id)
+        except Exception:
+            pass
+
+
+async def _tracked_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, **kwargs: Any) -> Any:
+    message = update.effective_message
+    if not message:
+        return None
+    sent = await message.reply_text(text, **kwargs)
+    _remember_bot_message(context, sent)
+    return sent
+
+
 def _state_lost_text() -> str:
     return (
         "Я не вижу активного шага разбора. Возможно, бот перезапустился после обновления или это старая кнопка. "
@@ -97,7 +148,7 @@ def _load_report(context: ContextTypes.DEFAULT_TYPE, key: str) -> PartnerReport 
         return None
 
 
-async def _send_long(update: Update, text: str, **kwargs: Any) -> None:
+async def _send_long(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, **kwargs: Any) -> None:
     message = update.effective_message
     if not message:
         return
@@ -112,7 +163,8 @@ async def _send_long(update: Update, text: str, **kwargs: Any) -> None:
     if rest:
         parts.append(rest)
     for i, part in enumerate(parts):
-        await message.reply_text(part, disable_web_page_preview=True, **(kwargs if i == len(parts) - 1 else {}))
+        sent = await message.reply_text(part, disable_web_page_preview=True, **(kwargs if i == len(parts) - 1 else {}))
+        _remember_bot_message(context, sent)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -136,25 +188,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
+    if not _is_authorized(update):
+        await _deny(update)
+        return ConversationHandler.END
+    await _clear_active_bot_messages(update, context)
+    if update.callback_query:
         try:
             await update.callback_query.edit_message_reply_markup(reply_markup=None)
         except Exception:
             pass
-    if not _is_authorized(update):
-        await _deny(update)
-        return ConversationHandler.END
     _clear_flow_state(context)
-    await update.effective_message.reply_text("Как зовут мужчину? Например: Андрей, муж, парень, партнёр.", reply_markup=cancel_keyboard())
+    await _tracked_reply_text(update, context, "Как зовут мужчину? Например: Андрей, муж, парень, партнёр.", reply_markup=cancel_keyboard())
     return ASK_MAN_NAME
 
 
 async def ask_man_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     name = (update.effective_message.text or "").strip()
     if not name:
-        await update.effective_message.reply_text("Напиши имя текстом. Например: Андрей")
+        await _tracked_reply_text(update, context, "Напиши имя текстом. Например: Андрей")
         return ASK_MAN_NAME
     context.user_data["man_name"] = name[:60]
-    await update.effective_message.reply_text("Дата рождения мужчины. Формат: 12.04.1993", reply_markup=cancel_keyboard())
+    await _tracked_reply_text(update, context, "Дата рождения мужчины. Формат: 12.04.1993", reply_markup=cancel_keyboard())
     return ASK_MAN_DATE
 
 
@@ -163,9 +217,9 @@ async def build_man_free(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     try:
         birth_date = parse_birth_date((message.text or "").strip())
     except ValueError as exc:
-        await message.reply_text(str(exc))
+        await _tracked_reply_text(update, context, str(exc))
         return ASK_MAN_DATE
-    wait = await message.reply_text("Считаю его эмоциональный язык…")
+    wait = await _tracked_reply_text(update, context, "Считаю его эмоциональный язык…")
     await context.bot.send_chat_action(chat_id=message.chat_id, action=ChatAction.TYPING)
     try:
         chart = await asyncio.to_thread(calculate_partner_chart, birth_date)
@@ -177,6 +231,7 @@ async def build_man_free(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await asyncio.to_thread(get_store().add, user_id, report)
         try:
             await wait.delete()
+            _forget_bot_message(context, wait)
         except Exception:
             pass
         text = (
@@ -185,10 +240,13 @@ async def build_man_free(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "Добавьте вашу дату рождения — я покажу, где спокойнее ему, где хорошо вам, "
             "и какой ритм помогает быть ближе без давления."
         )
-        await _send_long(update, text, reply_markup=after_free_keyboard())
+        await _send_long(update, context, text, reply_markup=after_free_keyboard())
     except Exception:
         logger.exception("Failed to build man report")
-        await wait.edit_text("Не получилось посчитать. Проверь дату в формате 12.04.1993 и попробуй ещё раз.")
+        try:
+            await wait.edit_text("Не получилось посчитать. Проверь дату в формате 12.04.1993 и попробуй ещё раз.")
+        except Exception:
+            await _tracked_reply_text(update, context, "Не получилось посчитать. Проверь дату в формате 12.04.1993 и попробуй ещё раз.")
     return ConversationHandler.END
 
 
@@ -196,34 +254,34 @@ async def start_self(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
     if _load_report(context, LAST_MAN_REPORT) is None:
-        await update.effective_message.reply_text(_state_lost_text(), reply_markup=menu())
+        await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
         return ConversationHandler.END
-    await update.effective_message.reply_text("Как вас назвать в разборе? Например: я, Анна, любимая.", reply_markup=cancel_keyboard())
+    await _tracked_reply_text(update, context, "Как вас назвать в разборе? Например: я, Анна, любимая.", reply_markup=cancel_keyboard())
     return ASK_WOMAN_NAME
 
 
 async def ask_woman_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     name = (update.effective_message.text or "").strip()
     if not name:
-        await update.effective_message.reply_text("Напиши имя текстом. Например: Анна")
+        await _tracked_reply_text(update, context, "Напиши имя текстом. Например: Анна")
         return ASK_WOMAN_NAME
     context.user_data["woman_name"] = name[:60]
-    await update.effective_message.reply_text("Теперь ваша дата рождения. Формат: 12.04.1993", reply_markup=cancel_keyboard())
+    await _tracked_reply_text(update, context, "Теперь ваша дата рождения. Формат: 12.04.1993", reply_markup=cancel_keyboard())
     return ASK_WOMAN_DATE
 
 
 async def build_bridge(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     man_report = _load_report(context, LAST_MAN_REPORT)
     if man_report is None:
-        await update.effective_message.reply_text(_state_lost_text(), reply_markup=menu())
+        await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
         return ConversationHandler.END
     message = update.effective_message
     try:
         birth_date = parse_birth_date((message.text or "").strip())
     except ValueError as exc:
-        await message.reply_text(str(exc))
+        await _tracked_reply_text(update, context, str(exc))
         return ASK_WOMAN_DATE
-    wait = await message.reply_text("Сравниваю ваши эмоциональные языки…")
+    wait = await _tracked_reply_text(update, context, "Сравниваю ваши эмоциональные языки…")
     await context.bot.send_chat_action(chat_id=message.chat_id, action=ChatAction.TYPING)
     try:
         chart = await asyncio.to_thread(calculate_partner_chart, birth_date)
@@ -231,12 +289,16 @@ async def build_bridge(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         _save_report(context, LAST_WOMAN_REPORT, woman_report)
         try:
             await wait.delete()
+            _forget_bot_message(context, wait)
         except Exception:
             pass
-        await _send_long(update, format_couple_moon_bridge(man_report, woman_report), reply_markup=after_bridge_keyboard())
+        await _send_long(update, context, format_couple_moon_bridge(man_report, woman_report), reply_markup=after_bridge_keyboard())
     except Exception:
         logger.exception("Failed to build bridge")
-        await wait.edit_text("Не получилось сравнить Луны. Проверь дату и попробуй ещё раз.")
+        try:
+            await wait.edit_text("Не получилось сравнить Луны. Проверь дату и попробуй ещё раз.")
+        except Exception:
+            await _tracked_reply_text(update, context, "Не получилось сравнить Луны. Проверь дату и попробуй ещё раз.")
     return ConversationHandler.END
 
 
@@ -244,7 +306,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
     _clear_flow_state(context)
-    await update.effective_message.reply_text("Ок, остановил. Начать заново можно через /start.", reply_markup=menu())
+    await _tracked_reply_text(update, context, "Ок, остановил. Начать заново можно через /start.", reply_markup=menu())
     return ConversationHandler.END
 
 
@@ -262,22 +324,22 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.callback_query.answer()
     man_report = _load_report(context, LAST_MAN_REPORT)
     if man_report is None:
-        await update.effective_message.reply_text(_state_lost_text(), reply_markup=menu())
+        await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
         return
     woman_report = _load_report(context, LAST_WOMAN_REPORT)
     if woman_report is None:
-        await update.effective_message.reply_text("Чтобы открыть глубокие блоки и карту гармонии пары, сначала добавьте вашу дату рождения.", reply_markup=after_free_keyboard())
+        await _tracked_reply_text(update, context, "Чтобы открыть глубокие блоки и карту гармонии пары, сначала добавьте вашу дату рождения.", reply_markup=after_free_keyboard())
         return
     code = (update.callback_query.data or "").replace("p:", "") if update.callback_query else ""
     if code == "full":
-        await _send_long(update, format_couple_full_report(man_report, woman_report), reply_markup=after_bridge_keyboard())
+        await _send_long(update, context, format_couple_full_report(man_report, woman_report), reply_markup=after_bridge_keyboard())
         return
     formatters = {"moon": format_moon_detail, "venus": format_venus_detail, "mercury": format_mercury_detail, "mars": format_mars_detail}
     formatter = formatters.get(code)
     if formatter is None:
-        await update.effective_message.reply_text("Этот блок пока не найден.", reply_markup=after_bridge_keyboard())
+        await _tracked_reply_text(update, context, "Этот блок пока не найден.", reply_markup=after_bridge_keyboard())
         return
-    await _send_long(update, formatter(man_report), reply_markup=after_bridge_keyboard())
+    await _send_long(update, context, formatter(man_report), reply_markup=after_bridge_keyboard())
 
 
 async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -285,18 +347,19 @@ async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.callback_query.answer()
     report = _load_report(context, LAST_MAN_REPORT)
     if report is None:
-        await update.effective_message.reply_text(_state_lost_text(), reply_markup=menu())
+        await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
         return
     if _load_report(context, LAST_WOMAN_REPORT) is None:
-        await update.effective_message.reply_text("Сначала добавьте вашу дату рождения и посмотрите эмоциональный мост. После этого я соберу варианты сообщения уже в контексте пары.", reply_markup=after_free_keyboard())
+        await _tracked_reply_text(update, context, "Сначала добавьте вашу дату рождения и посмотрите эмоциональный мост. После этого я соберу варианты сообщения уже в контексте пары.", reply_markup=after_free_keyboard())
         return
-    wait = await update.effective_message.reply_text("Собираю мягкие варианты сообщения…")
+    wait = await _tracked_reply_text(update, context, "Собираю мягкие варианты сообщения…")
     text = await asyncio.to_thread(build_partner_message_with_ai, report)
     try:
         await wait.delete()
+        _forget_bot_message(context, wait)
     except Exception:
         pass
-    await update.effective_message.reply_text(text, reply_markup=after_bridge_keyboard())
+    await _tracked_reply_text(update, context, text, reply_markup=after_bridge_keyboard())
 
 
 async def unknown_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
