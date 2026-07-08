@@ -45,8 +45,41 @@ class ReportsStore:
                 """
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_partner_reports_user_id ON partner_reports(user_id)")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS bot_users (
+                    user_id INTEGER PRIMARY KEY,
+                    first_seen_at TEXT NOT NULL,
+                    last_seen_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS broadcast_log (
+                    broadcast_key TEXT PRIMARY KEY,
+                    sent_at TEXT NOT NULL,
+                    total INTEGER NOT NULL,
+                    success INTEGER NOT NULL,
+                    failed INTEGER NOT NULL
+                )
+                """
+            )
+
+    def register_user(self, user_id: int) -> None:
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO bot_users (user_id, first_seen_at, last_seen_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET last_seen_at = excluded.last_seen_at
+                """,
+                (user_id, now, now),
+            )
 
     def add(self, user_id: int, report: object) -> int:
+        self.register_user(user_id)
         payload = report.to_dict()  # PartnerReport-like object. Keep storage decoupled.
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with self._connect() as conn:
@@ -92,6 +125,42 @@ class ReportsStore:
             )
             for row in rows
         ]
+
+    def all_user_ids(self) -> list[int]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT user_id FROM bot_users
+                UNION
+                SELECT DISTINCT user_id FROM partner_reports
+                ORDER BY user_id
+                """
+            ).fetchall()
+        return [int(row["user_id"]) for row in rows]
+
+    def was_broadcast_sent(self, broadcast_key: str) -> bool:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT broadcast_key FROM broadcast_log WHERE broadcast_key = ?",
+                (broadcast_key,),
+            ).fetchone()
+        return row is not None
+
+    def mark_broadcast_sent(self, broadcast_key: str, total: int, success: int, failed: int) -> None:
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO broadcast_log (broadcast_key, sent_at, total, success, failed)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(broadcast_key) DO UPDATE SET
+                    sent_at = excluded.sent_at,
+                    total = excluded.total,
+                    success = excluded.success,
+                    failed = excluded.failed
+                """,
+                (broadcast_key, now, total, success, failed),
+            )
 
 
 def format_history(items: list[SavedReport]) -> str:
