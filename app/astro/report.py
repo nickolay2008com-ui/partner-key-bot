@@ -3,7 +3,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 from app.astro.calculator import PartnerChart, Placement
-from app.astro.meanings import MARS_MEANINGS, MERCURY_MEANINGS, MESSAGE_TEMPLATES, MOON_MEANINGS, VENUS_MEANINGS
+from app.astro.meanings import (
+    MARS_MEANINGS,
+    MERCURY_MEANINGS,
+    MESSAGE_TEMPLATES,
+    MOON_MEANINGS,
+    VENUS_MEANINGS,
+)
 
 
 MOON_RHYTHM = {

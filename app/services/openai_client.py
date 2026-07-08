@@ -60,4 +60,7 @@ def build_partner_message_with_ai(report: PartnerReport) -> str:
         return f"✍️ Что можно написать: {report.partner_name}\n\n{text}"
     except Exception as exc:
         logger.exception("OpenAI message generation failed: %s", exc)
-        return fallback + "\n\nGPT-вариант временно не собрался, поэтому показываю базовые тексты. Внешние API иногда тоже изображают загадочную Луну."
+        return (
+            fallback
+            + "\n\nGPT-вариант временно не собрался, поэтому показываю базовые тексты. Внешние API иногда тоже изображают загадочную Луну."
+        )
