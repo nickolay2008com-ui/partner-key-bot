@@ -13,6 +13,7 @@ MAX_SUPPORTED_YEAR = 2100
 CALC_FLAGS = swe.FLG_MOSEPH
 
 PLANET_IDS: dict[str, int] = {
+    "sun": swe.SUN,
     "moon": swe.MOON,
     "venus": swe.VENUS,
     "mercury": swe.MERCURY,

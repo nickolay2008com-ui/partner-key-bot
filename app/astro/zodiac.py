@@ -27,6 +27,7 @@ SIGNS: tuple[SignInfo, ...] = (
 )
 
 PLANET_NAMES_RU: dict[str, str] = {
+    "sun": "Солнце",
     "moon": "Луна",
     "venus": "Венера",
     "mercury": "Меркурий",
