@@ -98,17 +98,14 @@ def format_moon_person_mechanic(item: dict[str, object], *, role: str) -> str:
     )
 
 
-def format_moon_pair_mechanic(man_moon: dict[str, object], woman_moon: dict[str, object]) -> str:
-    """Sign-first bridge for two Moon placements."""
+def _pair_body(man_moon: dict[str, object], woman_moon: dict[str, object], *, include_basis: bool) -> str:
     man = _mechanic(man_moon)
     woman = _mechanic(woman_moon)
     man_label = f"его Луна в {_sign_ru(man_moon)}, {_element_ru(man_moon)}"
     woman_label = f"ваша Луна в {_sign_ru(woman_moon)}, {_element_ru(woman_moon)}"
+    basis = f"Основание:\n{man_label}; {woman_label}.\n\n" if include_basis else f"{man_label}; {woman_label}.\n\n"
     return f"""
-Основание:
-{man_label}; {woman_label}.
-
-Где ему спокойнее:
+{basis}Где ему спокойнее:
 {format_moon_person_mechanic(man_moon, role="Его")}
 
 Где вам теплее:
@@ -129,5 +126,10 @@ def format_moon_pair_mechanic(man_moon: dict[str, object], woman_moon: dict[str,
 """.strip()
 
 
+def format_moon_pair_mechanic(man_moon: dict[str, object], woman_moon: dict[str, object]) -> str:
+    """Sign-first bridge for two Moon placements."""
+    return _pair_body(man_moon, woman_moon, include_basis=True)
+
+
 def format_moon_variant_pair(man_moon: dict[str, object], woman_moon: dict[str, object]) -> str:
-    return format_moon_pair_mechanic(man_moon, woman_moon)
+    return _pair_body(man_moon, woman_moon, include_basis=False)
