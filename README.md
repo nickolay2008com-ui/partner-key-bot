@@ -30,12 +30,14 @@ python -m app.woman_flow
 | `AUTHORIZED_TELEGRAM_IDS` | нет | Список разрешённых Telegram ID через запятую. Пусто = публичный доступ. |
 | `BROADCAST_ADMIN_IDS` | нет | Админы служебных рассылок через запятую. |
 | `APP_TIMEZONE` | нет | Таймзона приложения, по умолчанию `Europe/Moscow`. |
-| `DATA_DIR` | нет | Папка для SQLite-файла, по умолчанию `data`. |
+| `DATA_DIR` | нет | Папка для SQLite-файла. Если не задана, на Railway автоматически используется `RAILWAY_VOLUME_MOUNT_PATH`, иначе `data`. |
 | `WEBAPP_URL` | нет | Публичный URL мини-приложения Telegram Web App. |
 | `OPENAI_API_KEY` | нет | Ключ OpenAI для улучшения вариантов сообщений. |
 | `OPENAI_MODEL` | нет | Модель OpenAI, по умолчанию `gpt-4.1-mini`. |
 
 ## Production
+
+Для сохранения профиля и истории после рестарта подключите Railway Volume. Код автоматически берёт путь из `RAILWAY_VOLUME_MOUNT_PATH`, если `DATA_DIR` не задан. Без постоянного volume SQLite внутри контейнера будет потерян при пересоздании контейнера.
 
 Docker-образ стартует основной сценарий через Railway-команду:
 

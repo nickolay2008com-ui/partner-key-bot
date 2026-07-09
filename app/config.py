@@ -51,7 +51,8 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-        data_dir = Path(os.getenv("DATA_DIR", "data")).expanduser()
+        data_dir_value = os.getenv("DATA_DIR") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH") or "data"
+        data_dir = Path(data_dir_value).expanduser()
         return cls(
             telegram_bot_token=token,
             app_timezone=os.getenv("APP_TIMEZONE", "Europe/Moscow").strip() or "Europe/Moscow",
