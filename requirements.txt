@@ -2,3 +2,4 @@ python-telegram-bot==22.8
 pyswisseph==2.10.3.2
 python-dotenv>=1.0.1
 openai>=1.99.0
+psycopg[binary]>=3.2.3

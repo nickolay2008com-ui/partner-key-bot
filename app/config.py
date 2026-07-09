@@ -59,6 +59,7 @@ class Settings:
     data_dir: Path
     openai_api_key: str | None
     openai_model: str
+    database_url: str | None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -74,12 +75,15 @@ class Settings:
             data_dir=data_dir,
             openai_api_key=os.getenv("OPENAI_API_KEY", "").strip() or None,
             openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini",
+            database_url=os.getenv("DATABASE_URL", "").strip() or None,
         )
 
     def validate_runtime(self) -> None:
         if not self.telegram_bot_token:
             raise RuntimeError("TELEGRAM_BOT_TOKEN не задан. Добавь токен бота в Railway Variables или .env")
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        if self.database_url:
+            return
         if (os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID")) and not (
             os.getenv("DATA_DIR") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
         ):
@@ -97,7 +101,11 @@ class Settings:
         access = "restricted" if self.authorized_telegram_ids else "public"
         openai = "enabled" if self.openai_api_key else "disabled"
         broadcast_admins = len(self.broadcast_admin_ids | self.authorized_telegram_ids)
-        return f"timezone={self.app_timezone}; access={access}; openai={openai}; data_dir={self.data_dir}; broadcast_admins={broadcast_admins}; webapp_url={self.webapp_url}"
+        storage = "postgres" if self.database_url else f"sqlite:{self.data_dir}"
+        return (
+            f"timezone={self.app_timezone}; access={access}; openai={openai}; storage={storage}; "
+            f"broadcast_admins={broadcast_admins}; webapp_url={self.webapp_url}"
+        )
 
 
 settings = Settings.from_env()
