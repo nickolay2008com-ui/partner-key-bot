@@ -27,6 +27,54 @@ ELEMENT_KEYWORDS = {
 
 ELEMENT_NAMES = {"fire": "Огонь", "earth": "Земля", "air": "Воздух", "water": "Вода"}
 
+
+MODERN_ASTROLOGER_CONTEXT = (
+    "Подход современного практикующего астролога: не делать фатальный вывод по одному знаку, "
+    "а читать связку планеты, знака и реального поведения. Луна показывает эмоциональную безопасность, "
+    "Венера — ценность и притяжение, Меркурий — язык понимания, Марс — действие и напряжение. "
+    "Поэтому каждый блок ниже переведён в наблюдаемые сигналы: что человеку нужно, где он закрывается "
+    "и какой маленький шаг улучшает контакт без давления."
+)
+
+PLANET_EXPERT_LENS = {
+    "moon": (
+        "Астрологический фокус: Луну читают как базовую нервную систему отношений — не образ любви, "
+        "а то, что возвращает человеку чувство дома, безопасности и внутреннего разрешения быть собой."
+    ),
+    "venus": (
+        "Астрологический фокус: Венеру читают как стиль выбора, удовольствия и ценности — не только романтику, "
+        "но и то, через что человек чувствует вкус жизни, красоту обмена и желание приближаться."
+    ),
+    "mercury": (
+        "Астрологический фокус: Меркурий читают как способ обработки информации — темп мысли, форму диалога, "
+        "переписку, переговоры и то, какие слова становятся мостом, а какие звучат как давление."
+    ),
+    "mars": (
+        "Астрологический фокус: Марс читают как волю и реакцию на сопротивление — как человек хочет, спорит, "
+        "защищает границы, берёт инициативу и превращает напряжение в действие."
+    ),
+}
+
+PLANET_PRACTICE_PROMPTS = {
+    "moon": (
+        "Как проверить в жизни: посмотрите, после какого формата общения человек заметно расслабляется — "
+        "после тепла, ясного плана, разговора, свободы или совместного действия. Это важнее красивой формулы."
+    ),
+    "venus": (
+        "Как проверить в жизни: отметьте, на какие проявления человек откликается сам — комплименты, заботу делом, "
+        "эстетику, игру, интеллектуальный интерес, глубину или атмосферу. Венера видна там, где появляется добровольное притяжение."
+    ),
+    "mercury": (
+        "Как проверить в жизни: меняйте не смысл, а форму подачи — короче или мягче, конкретнее или легче, "
+        "письменно или голосом — и смотрите, где человек начинает слышать без обороны."
+    ),
+    "mars": (
+        "Как проверить в жизни: наблюдайте момент напряжения — человек ускоряется, упирается, спорит, закрывается "
+        "или берёт структуру. Марс лучше всего виден не в словах о желаниях, а в способе действовать под давлением."
+    ),
+}
+
+
 SIGN_PREPOSITIONAL = {
     "Овен": "Овне",
     "Телец": "Тельце",
@@ -175,6 +223,29 @@ def _sign_detail(report: PartnerReport, key: str) -> str:
     return "Точный знак уточняет личный оттенок проявления."
 
 
+def _expert_lens(key: str) -> str:
+    return PLANET_EXPERT_LENS.get(
+        key, "Астрологический фокус: смотреть на планету в контексте всей карты и реального поведения."
+    )
+
+
+def _practice_prompt(key: str) -> str:
+    return PLANET_PRACTICE_PROMPTS.get(
+        key, "Как проверить в жизни: сверять описание с повторяющимися действиями, а не с единичной ситуацией."
+    )
+
+
+def _applied_planet_block(report: PartnerReport, key: str, label: str) -> str:
+    return (
+        f"Профессиональная детализация {label}:\n"
+        f"{_expert_lens(key)}\n\n"
+        f"Стихия показывает общий режим: {_element_text(report, key)}\n\n"
+        f"Знак даёт точный сценарий в поведении ({label} в {_sign_ru_prepositional(report, key)}):\n"
+        f"{_sign_detail(report, key)}\n\n"
+        f"{_practice_prompt(key)}"
+    )
+
+
 def _current_moon_variant(report: PartnerReport) -> dict[str, object]:
     moon = _placement(report, "moon")
     return {
@@ -300,26 +371,17 @@ def _person_deep_profile(report: PartnerReport, title: str) -> str:
 💗 Венера — где включаются краски жизни {_basis(report, "venus", "Венера")}:
 {VENUS_SHORT}
 
-Стихийная база: {_element_text(report, "venus")}
-
-Точный оттенок Венеры в {_sign_ru(report, "venus")}:
-{_sign_detail(report, "venus")}
+{_applied_planet_block(report, "venus", "Венеры")}
 
 🗣 Меркурий — как человек мыслит и договаривается {_basis(report, "mercury", "Меркурий")}:
 {MERCURY_SHORT}
 
-Стихийная база: {_element_text(report, "mercury")}
-
-Точный оттенок Меркурия в {_sign_ru(report, "mercury")}:
-{_sign_detail(report, "mercury")}
+{_applied_planet_block(report, "mercury", "Меркурия")}
 
 🔥 Марс — как человек движется и достигает {_basis(report, "mars", "Марс")}:
 {MARS_SHORT}
 
-Стихийная база: {_element_text(report, "mars")}
-
-Точный оттенок Марса в {_sign_ru(report, "mars")}:
-{_sign_detail(report, "mars")}
+{_applied_planet_block(report, "mars", "Марса")}
 
 Итог:
 {_profile_integral(report)}
@@ -342,10 +404,16 @@ def format_moon_detail(report: PartnerReport) -> str:
 
 {MOON_INTRO}
 
+{MODERN_ASTROLOGER_CONTEXT}
+
+{_expert_lens("moon")}
+
 Его Луна: {_sign_ru(report, "moon")}, стихия {_element_ru(report, "moon")}{precision_block}
 
 Что это значит простыми словами:
 {format_moon_person_mechanic(_placement(report, "moon"), role="Его")}{alternate}
+
+{_practice_prompt("moon")}
 
 Что может сбивать контакт {moon_basis}:
 {meaning.what_not_to_do}
@@ -364,11 +432,7 @@ def format_venus_detail(report: PartnerReport) -> str:
 
 Венера: {_sign_ru(report, "venus")}, стихия {_element_ru(report, "venus")}
 
-Стихийная база:
-{_element_text(report, "venus")}
-
-Точный оттенок Венеры в {_sign_ru(report, "venus")}:
-{_sign_detail(report, "venus")}
+{_applied_planet_block(report, "venus", "Венеры")}
 
 Что особенно работает {venus_basis}:
 искренний формат ценности, вкуса и притяжения, который совпадает не только со стихией, но и с конкретным знаком Венеры.
@@ -387,11 +451,7 @@ def format_mercury_detail(report: PartnerReport) -> str:
 
 Меркурий: {_sign_ru(report, "mercury")}, стихия {_element_ru(report, "mercury")}
 
-Стихийная база:
-{_element_text(report, "mercury")}
-
-Точный оттенок Меркурия в {_sign_ru(report, "mercury")}:
-{_sign_detail(report, "mercury")}
+{_applied_planet_block(report, "mercury", "Меркурия")}
 
 Что особенно важно {mercury_basis}:
 не только подобрать правильные слова, но и попасть в способ мышления: темп, тон, прямоту, мягкость, факты или структуру.
@@ -410,11 +470,7 @@ def format_mars_detail(report: PartnerReport) -> str:
 
 Марс: {_sign_ru(report, "mars")}, стихия {_element_ru(report, "mars")}
 
-Стихийная база:
-{_element_text(report, "mars")}
-
-Точный оттенок Марса в {_sign_ru(report, "mars")}:
-{_sign_detail(report, "mars")}
+{_applied_planet_block(report, "mars", "Марса")}
 
 Что особенно важно {mars_basis}:
 в напряжении человек часто показывает не только характер, но и способ двигаться к желаемому, защищать своё направление и действовать под давлением.
@@ -470,6 +526,8 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
 📖 Карта гармонии пары: {man_report.partner_name} + {woman_report.partner_name}
 
 Эта карта не говорит, подходите вы друг другу или нет. Она показывает, какой эмоциональный ритм возникает между вами и как перевести разницу реакций в понятный мост: больше тепла, ясности, доверия и меньше угадывания.
+
+{MODERN_ASTROLOGER_CONTEXT}
 
 Ваш главный ритм {moon_basis}:{precision_block}
 
