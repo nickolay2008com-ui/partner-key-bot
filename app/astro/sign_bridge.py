@@ -64,6 +64,21 @@ MOON_SIGN_MECHANICS: dict[str, dict[str, str]] = {
     },
 }
 
+SIGN_PREPOSITIONAL = {
+    "Овен": "Овне",
+    "Телец": "Тельце",
+    "Близнецы": "Близнецах",
+    "Рак": "Раке",
+    "Лев": "Льве",
+    "Дева": "Деве",
+    "Весы": "Весах",
+    "Скорпион": "Скорпионе",
+    "Стрелец": "Стрельце",
+    "Козерог": "Козероге",
+    "Водолей": "Водолее",
+    "Рыбы": "Рыбах",
+}
+
 
 def _sign_key(item: dict[str, object]) -> str:
     return str(item.get("sign_key", ""))
@@ -75,6 +90,11 @@ def _sign_ru(item: dict[str, object]) -> str:
 
 def _element_ru(item: dict[str, object]) -> str:
     return str(item.get("element_ru", ""))
+
+
+def _sign_ru_prepositional(item: dict[str, object]) -> str:
+    sign = _sign_ru(item)
+    return SIGN_PREPOSITIONAL.get(sign, sign)
 
 
 def _mechanic(item: dict[str, object]) -> dict[str, str]:
@@ -92,17 +112,16 @@ def format_moon_person_mechanic(item: dict[str, object], *, role: str) -> str:
     """Precise Moon-in-sign explanation for one person."""
     mechanic = _mechanic(item)
     return (
-        f"{role} Луна в {_sign_ru(item)}, стихия {_element_ru(item)}.\n"
-        f"Спокойствие включается через: {mechanic['need']}.\n"
-        f"Закрываться может от: {mechanic['closed']}."
+        f"{role} внутренний покой включается через {mechanic['need']}.\n"
+        f"Защита может включаться, если вокруг есть {mechanic['closed']}."
     )
 
 
 def _pair_body(man_moon: dict[str, object], woman_moon: dict[str, object], *, include_basis: bool) -> str:
     man = _mechanic(man_moon)
     woman = _mechanic(woman_moon)
-    man_label = f"его Луна в {_sign_ru(man_moon)}, {_element_ru(man_moon)}"
-    woman_label = f"ваша Луна в {_sign_ru(woman_moon)}, {_element_ru(woman_moon)}"
+    man_label = f"его Луна в {_sign_ru_prepositional(man_moon)}, {_element_ru(man_moon)}"
+    woman_label = f"ваша Луна в {_sign_ru_prepositional(woman_moon)}, {_element_ru(woman_moon)}"
     basis = f"Основание:\n{man_label}; {woman_label}.\n\n" if include_basis else f"{man_label}; {woman_label}.\n\n"
     return f"""
 {basis}Где ему спокойнее:

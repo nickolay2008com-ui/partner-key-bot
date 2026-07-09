@@ -27,16 +27,29 @@ ELEMENT_KEYWORDS = {
 
 ELEMENT_NAMES = {"fire": "Огонь", "earth": "Земля", "air": "Воздух", "water": "Вода"}
 
+SIGN_PREPOSITIONAL = {
+    "Овен": "Овне",
+    "Телец": "Тельце",
+    "Близнецы": "Близнецах",
+    "Рак": "Раке",
+    "Лев": "Льве",
+    "Дева": "Деве",
+    "Весы": "Весах",
+    "Скорпион": "Скорпионе",
+    "Стрелец": "Стрельце",
+    "Козерог": "Козероге",
+    "Водолей": "Водолее",
+    "Рыбы": "Рыбах",
+}
+
+
 MOON_INTRO = (
-    "Луна в астрологической карте показывает эмоциональную природу человека: где ему становится спокойно внутри "
-    "и через какую атмосферу он восстанавливает доверие.\n\n"
-    "Это не просто настроение. Это базовый способ чувствовать безопасность, восстанавливаться, доверять, "
-    "расслабляться и быть собой без лишнего напряжения.\n\n"
-    "В отношениях Луна показывает базу близости: какая атмосфера раскрывает человека, что его закрывает, "
-    "где ему нужен покой, забота, пространство, движение или мягкий отклик.\n\n"
-    "В процветании Луна показывает способность держать внутренний ресурс: восстанавливаться, не перегреваться, "
-    "чувствовать свой ритм и не терять устойчивость в период перемен.\n\n"
-    "Чтобы понять партнёра, Луна отвечает на вопрос: где ему спокойно быть собой?"
+    "Луна — это не про красивые слова, а про внутренний режим безопасности: что помогает человеку "
+    "выдохнуть, доверять и быть собой без защиты.\n\n"
+    "В отношениях она показывает, в какой атмосфере человек раскрывается, а от чего начинает закрываться: "
+    "темп, тон, телесный комфорт, свобода, забота, ясность или мягкий отклик.\n\n"
+    "Если попасть в его Луну, контакт становится проще: меньше угадываний и проверок, больше понятных действий, "
+    "тепла и устойчивости. Главный вопрос Луны: где ему спокойно рядом с вами?"
 )
 
 VENUS_INTRO = (
@@ -102,12 +115,17 @@ def _element_ru(report: PartnerReport, key: str) -> str:
     return str(_placement(report, key).get("element_ru", ""))
 
 
+def _sign_ru_prepositional(report: PartnerReport, key: str) -> str:
+    sign = _sign_ru(report, key)
+    return SIGN_PREPOSITIONAL.get(sign, sign)
+
+
 def _element_name(element: str) -> str:
     return ELEMENT_NAMES.get(element, "свой ритм")
 
 
 def _basis(report: PartnerReport, key: str, label: str) -> str:
-    return f"({label} в {_sign_ru(report, key)}, {_element_ru(report, key)})"
+    return f"({label} в {_sign_ru_prepositional(report, key)}, {_element_ru(report, key)})"
 
 
 def _your_word(label: str) -> str:
@@ -115,7 +133,7 @@ def _your_word(label: str) -> str:
 
 
 def _couple_basis(man_report: PartnerReport, woman_report: PartnerReport, key: str, label: str) -> str:
-    return f"(его {label} в {_sign_ru(man_report, key)}, {_element_ru(man_report, key)}; {_your_word(label)} {label} в {_sign_ru(woman_report, key)}, {_element_ru(woman_report, key)})"
+    return f"(его {label} в {_sign_ru_prepositional(man_report, key)}, {_element_ru(man_report, key)}; {_your_word(label)} {label} в {_sign_ru_prepositional(woman_report, key)}, {_element_ru(woman_report, key)})"
 
 
 def _element_text(report: PartnerReport, key: str) -> str:
@@ -301,13 +319,13 @@ def format_moon_detail(report: PartnerReport) -> str:
             variant_lines.append(format_moon_person_mechanic(variant, role="Если"))
         alternate = "\n\nВозможные варианты Луны без точного времени рождения:\n" + "\n\n".join(variant_lines)
     return f"""
-🌙 Луна — где ему хорошо: {report.partner_name}
+🌙 Луна — где ему спокойно: {report.partner_name}
 
 {MOON_INTRO}
 
-Луна: {_sign_ru(report, "moon")}, стихия {_element_ru(report, "moon")}{precision_block}
+Его Луна: {_sign_ru(report, "moon")}, стихия {_element_ru(report, "moon")}{precision_block}
 
-Точный механизм Луны в {_sign_ru(report, "moon")}:
+Что это значит простыми словами:
 {format_moon_person_mechanic(_placement(report, "moon"), role="Его")}{alternate}
 
 Что может сбивать контакт {moon_basis}:
