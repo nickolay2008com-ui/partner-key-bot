@@ -123,6 +123,24 @@ class ReportsStore:
             )
             return int(cursor.lastrowid)
 
+    def latest_report_payload(self, user_id: int) -> dict[str, Any] | None:
+        self.register_user(user_id)
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT report_json
+                FROM partner_reports
+                WHERE user_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (user_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(str(row["report_json"]))
+        return payload if isinstance(payload, dict) else None
+
     def recent(self, user_id: int, limit: int = 10) -> list[SavedReport]:
         with self._connect() as conn:
             rows = conn.execute(

@@ -149,14 +149,31 @@ def _save_last_report(context: ContextTypes.DEFAULT_TYPE, report: PartnerReport)
     context.user_data[LAST_REPORT_KEY] = report.to_dict()
 
 
-def _load_last_report(context: ContextTypes.DEFAULT_TYPE) -> PartnerReport | None:
-    payload = context.user_data.get(LAST_REPORT_KEY)
+def _report_from_payload(payload: object) -> PartnerReport | None:
     if not isinstance(payload, dict):
         return None
     try:
         return PartnerReport(**payload)
     except TypeError:
         return None
+
+
+def _load_last_report(context: ContextTypes.DEFAULT_TYPE) -> PartnerReport | None:
+    return _report_from_payload(context.user_data.get(LAST_REPORT_KEY))
+
+
+async def _load_last_report_for_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> PartnerReport | None:
+    report = _load_last_report(context)
+    if report is not None:
+        return report
+    user_id = _user_id(update)
+    if user_id is None:
+        return None
+    payload = await asyncio.to_thread(get_store().latest_report_payload, user_id)
+    report = _report_from_payload(payload)
+    if report is not None:
+        _save_last_report(context, report)
+    return report
 
 
 async def _send_mercury_broadcast(application: Application, *, force: bool = False) -> tuple[int, int, int, str]:
@@ -360,7 +377,7 @@ async def on_report_details_button(update: Update, context: ContextTypes.DEFAULT
         await _deny(update)
         return
     await _remember_user(update)
-    report = _load_last_report(context)
+    report = await _load_last_report_for_user(update, context)
     if report is None:
         await update.effective_message.reply_text(
             "Последний разбор не найден. Нажми /partner и сделай разбор заново.",
@@ -378,7 +395,7 @@ async def on_report_message_button(update: Update, context: ContextTypes.DEFAULT
         await _deny(update)
         return
     await _remember_user(update)
-    report = _load_last_report(context)
+    report = await _load_last_report_for_user(update, context)
     if report is None:
         await update.effective_message.reply_text(
             "Последний разбор не найден. Нажми /partner и сделай разбор заново.",

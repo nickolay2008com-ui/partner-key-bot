@@ -296,14 +296,32 @@ def _save_report(context: ContextTypes.DEFAULT_TYPE, key: str, report: PartnerRe
     context.user_data[key] = report.to_dict()
 
 
-def _load_report(context: ContextTypes.DEFAULT_TYPE, key: str) -> PartnerReport | None:
-    payload = context.user_data.get(key)
+def _report_from_payload(payload: object) -> PartnerReport | None:
     if not isinstance(payload, dict):
         return None
     try:
         return PartnerReport(**payload)
     except TypeError:
         return None
+
+
+def _load_report(context: ContextTypes.DEFAULT_TYPE, key: str) -> PartnerReport | None:
+    return _report_from_payload(context.user_data.get(key))
+
+
+async def _load_latest_man_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> PartnerReport | None:
+    report = _load_report(context, LAST_MAN_REPORT)
+    if report is not None:
+        return report
+    user_id = _user_id(update)
+    if user_id is None:
+        return None
+    payload = await asyncio.to_thread(get_store().latest_report_payload, user_id)
+    report = _report_from_payload(payload)
+    if report is not None:
+        _save_report(context, LAST_MAN_REPORT, report)
+        context.user_data["last_partner_report"] = report.to_dict()
+    return report
 
 
 async def _send_long(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, **kwargs: Any) -> None:
@@ -384,7 +402,7 @@ async def _build_man_report_from_date(
 async def _build_bridge_from_date(
     update: Update, context: ContextTypes.DEFAULT_TYPE, name: str, birth_date_text: str
 ) -> int:
-    man_report = _load_report(context, LAST_MAN_REPORT)
+    man_report = await _load_latest_man_report(update, context)
     if man_report is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
         return ConversationHandler.END
@@ -589,7 +607,7 @@ async def start_self(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.callback_query.answer()
     await _remember_user(update)
     await _set_chat_menu_button(update, context)
-    if _load_report(context, LAST_MAN_REPORT) is None:
+    if await _load_latest_man_report(update, context) is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
         return ConversationHandler.END
     profile_data = await _get_profile(update)
@@ -685,7 +703,7 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if update.callback_query:
         await update.callback_query.answer()
     await _remember_user(update)
-    man_report = _load_report(context, LAST_MAN_REPORT)
+    man_report = await _load_latest_man_report(update, context)
     if man_report is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
         return
@@ -737,7 +755,7 @@ async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if update.callback_query:
         await update.callback_query.answer()
     await _remember_user(update)
-    report = _load_report(context, LAST_MAN_REPORT)
+    report = await _load_latest_man_report(update, context)
     if report is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
         return
