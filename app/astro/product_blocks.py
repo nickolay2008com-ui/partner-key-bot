@@ -301,7 +301,7 @@ def format_moon_detail(report: PartnerReport) -> str:
             variant_lines.append(format_moon_person_mechanic(variant, role="Если"))
         alternate = "\n\nВозможные варианты Луны без точного времени рождения:\n" + "\n\n".join(variant_lines)
     return f"""
-🌙 Луна — где человеку спокойно: {report.partner_name}
+🌙 Луна — где ему хорошо: {report.partner_name}
 
 {MOON_INTRO}
 
