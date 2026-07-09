@@ -202,10 +202,29 @@ def _moon_variants(report: PartnerReport) -> list[dict[str, object]]:
     return [_current_moon_variant(report)]
 
 
+def _variant_options(report: PartnerReport) -> str:
+    return " / ".join(_variant_label(item) for item in report.moon_variants) or "два соседних знака Луны"
+
+
+def _variant_label(variant: dict[str, object]) -> str:
+    sign = str(variant.get("sign_ru", "знак не определён"))
+    element = str(variant.get("element_ru", "стихия не определена"))
+    return f"{sign} ({element})"
+
+
 def _pair_precision_note(man_report: PartnerReport, woman_report: PartnerReport) -> str:
-    notes = [format_moon_precision_note(item) for item in (man_report, woman_report)]
-    notes = [item for item in notes if item]
-    return "\n\n".join(notes)
+    changed = []
+    if man_report.moon_status == "changed_during_day":
+        changed.append(f"его Луна: {_variant_options(man_report)}")
+    if woman_report.moon_status == "changed_during_day":
+        changed.append(f"ваша Луна: {_variant_options(woman_report)}")
+    if not changed:
+        return ""
+    subject = "; ".join(changed)
+    return (
+        f"⚠️ Точность Луны: в день рождения могла менять знак: {subject}. "
+        "Без времени рождения держим все сценарии — выберите тот, где поведение узнаётся сильнее."
+    )
 
 
 def _moon_pair_title(man_report: PartnerReport, woman_report: PartnerReport) -> str:
