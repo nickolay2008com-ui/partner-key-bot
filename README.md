@@ -37,7 +37,14 @@ python -m app.woman_flow
 
 ## Production
 
-Для сохранения профиля и истории после рестарта подключите Railway Volume. Код автоматически берёт путь из `RAILWAY_VOLUME_MOUNT_PATH`, если `DATA_DIR` не задан. Без постоянного volume SQLite внутри контейнера будет потерян при пересоздании контейнера.
+Для сохранения профиля и истории после рестарта подключите Railway Volume. Код выбирает папку для SQLite так:
+
+1. `DATA_DIR`, если переменная задана явно;
+2. `RAILWAY_VOLUME_MOUNT_PATH`, если Railway передал путь volume;
+3. `/data` на Railway, чтобы стандартный volume с mount path `/data` работал без дополнительной переменной;
+4. локально — `data`.
+
+Важно: если Railway Volume не подключён к выбранному пути, SQLite-файл остаётся внутри контейнера и будет потерян при redeploy/restart. Для production подключите Volume и укажите mount path `/data` или задайте `DATA_DIR` равным mount path.
 
 Docker-образ стартует основной сценарий через Railway-команду:
 
