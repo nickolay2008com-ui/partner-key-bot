@@ -194,12 +194,49 @@ def _sign_ru_prepositional(report: PartnerReport, key: str) -> str:
     return SIGN_PREPOSITIONAL.get(sign, sign)
 
 
+def _is_retrograde(report: PartnerReport, key: str) -> bool:
+    return bool(_placement(report, key).get("is_retrograde", False))
+
+
+def _retrograde_label(report: PartnerReport, key: str) -> str:
+    return "ретроградное положение" if _is_retrograde(report, key) else "прямое движение"
+
+
+def _retrograde_note(report: PartnerReport, key: str, label: str) -> str:
+    if not _is_retrograde(report, key):
+        return ""
+    notes = {
+        "mercury": (
+            "Ретроградный Меркурий усиливает внутреннюю переработку слов: человеку важно время подумать, "
+            "перепроверить смысл и возвращаться к теме без давления. В диалоге лучше задавать ясные вопросы, "
+            "фиксировать договорённости и не требовать мгновенной реакции."
+        ),
+        "venus": (
+            "Ретроградная Венера делает тему ценности и симпатии более внутренней: человек может дольше присматриваться, "
+            "проверять доверие и возвращаться к старым переживаниям. Лучше не форсировать признания, а показывать стабильную ценность делом."
+        ),
+        "mars": (
+            "Ретроградный Марс разворачивает действие внутрь: импульс может копиться, откладываться или выходить рывками. "
+            "Помогает не подгонять, а переводить напряжение в маленький безопасный шаг и понятную границу."
+        ),
+        "jupiter": (
+            "Ретроградный Юпитер показывает рост через личный смысл, а не через внешнюю гонку. Человеку важнее сначала поверить в свой горизонт, "
+            "а уже потом расширяться, обещать и брать большой масштаб."
+        ),
+        "moon": (
+            "Ретроградность для Луны практически не используется как отдельный бытовой ключ, поэтому здесь важнее знак, стихия и точность времени рождения."
+        ),
+    }
+    text = notes.get(key, "Ретроградность делает проявление планеты более внутренним: сначала человек перерабатывает тему внутри, затем проявляет её наружу.")
+    return f"\n\n↩️ Ретроградность ({label}):\n{text}"
+
+
 def _element_name(element: str) -> str:
     return ELEMENT_NAMES.get(element, "свой ритм")
 
 
 def _basis(report: PartnerReport, key: str, label: str) -> str:
-    return f"({label} в {_sign_ru_prepositional(report, key)}, {_element_ru(report, key)})"
+    return f"({label} в {_sign_ru_prepositional(report, key)}, {_element_ru(report, key)}, {_retrograde_label(report, key)})"
 
 
 def _your_word(label: str) -> str:
@@ -207,7 +244,7 @@ def _your_word(label: str) -> str:
 
 
 def _couple_basis(man_report: PartnerReport, woman_report: PartnerReport, key: str, label: str) -> str:
-    return f"(его {label} в {_sign_ru_prepositional(man_report, key)}, {_element_ru(man_report, key)}; {_your_word(label)} {label} в {_sign_ru_prepositional(woman_report, key)}, {_element_ru(woman_report, key)})"
+    return f"(его {label} в {_sign_ru_prepositional(man_report, key)}, {_element_ru(man_report, key)}, {_retrograde_label(man_report, key)}; {_your_word(label)} {label} в {_sign_ru_prepositional(woman_report, key)}, {_element_ru(woman_report, key)}, {_retrograde_label(woman_report, key)})"
 
 
 def _element_text(report: PartnerReport, key: str) -> str:
@@ -287,6 +324,7 @@ def _applied_planet_block(report: PartnerReport, key: str, label: str) -> str:
         f"Знак даёт точный сценарий в поведении ({label} в {_sign_ru_prepositional(report, key)}):\n"
         f"{_sign_detail(report, key)}\n\n"
         f"{_practice_prompt(key)}"
+        f"{_retrograde_note(report, key, label)}"
         f"{_action_key(report, key)}"
     )
 
@@ -499,7 +537,7 @@ def format_venus_detail(report: PartnerReport) -> str:
 
 {VENUS_INTRO}
 
-Венера: {_sign_ru(report, "venus")}, стихия {_element_ru(report, "venus")}
+Венера: {_sign_ru(report, "venus")}, стихия {_element_ru(report, "venus")}, {_retrograde_label(report, "venus")}
 
 {_applied_planet_block(report, "venus", "Венеры")}
 
@@ -518,7 +556,7 @@ def format_mercury_detail(report: PartnerReport) -> str:
 
 {MERCURY_INTRO}
 
-Меркурий: {_sign_ru(report, "mercury")}, стихия {_element_ru(report, "mercury")}
+Меркурий: {_sign_ru(report, "mercury")}, стихия {_element_ru(report, "mercury")}, {_retrograde_label(report, "mercury")}
 
 {_applied_planet_block(report, "mercury", "Меркурия")}
 
@@ -537,7 +575,7 @@ def format_mars_detail(report: PartnerReport) -> str:
 
 {MARS_INTRO}
 
-Марс: {_sign_ru(report, "mars")}, стихия {_element_ru(report, "mars")}
+Марс: {_sign_ru(report, "mars")}, стихия {_element_ru(report, "mars")}, {_retrograde_label(report, "mars")}
 
 {_applied_planet_block(report, "mars", "Марса")}
 
@@ -556,13 +594,13 @@ def format_jupiter_detail(report: PartnerReport) -> str:
 
 Юпитер в таком разборе — не про обещание удачи, а про направление расширения: где человеку легче верить в себя, видеть смысл, расти, щедрее относиться к жизни и строить общий горизонт.
 
-Юпитер: {_sign_ru(report, "jupiter")}, стихия {_element_ru(report, "jupiter")}
+Юпитер: {_sign_ru(report, "jupiter")}, стихия {_element_ru(report, "jupiter")}, {_retrograde_label(report, "jupiter")}
 
 Стихийная база:
 {_element_text(report, "jupiter")}
 
 Точный оттенок знака:
-{_sign_detail(report, "jupiter")}
+{_sign_detail(report, "jupiter")}{_retrograde_note(report, "jupiter", "Юпитера")}
 
 Что особенно важно {jupiter_basis}:
 не продавить человека мотивацией, а увидеть, где у него естественно появляется вера, щедрость, интерес к будущему и желание расти рядом.
@@ -590,12 +628,12 @@ def format_planet_short_card(report: PartnerReport, key: str) -> str:
     return f"""
 {emoji} {title}: главное для жизни
 
-{report.partner_name}: {title} в {_sign_ru(report, key)}, стихия {_element_ru(report, key)}.
+{report.partner_name}: {title} в {_sign_ru(report, key)}, стихия {_element_ru(report, key)}, {_retrograde_label(report, key)}.
 
 Короткий ключ: {promise} — через его реальный ритм, а не через угадывание.
 
 Что сделать сейчас:
-{action}
+{action}{_retrograde_note(report, key, title)}
 
 👇 Подробный красивый разбор с примерами откройте по кнопке ниже.
 """.strip()
@@ -685,12 +723,12 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
 Его Венера: {_sign_ru(man_report, "venus")}, стихия {_element_ru(man_report, "venus")}
 Стихийная база: {_element_text(man_report, "venus")}
 Точный оттенок его Венеры в {_sign_ru(man_report, "venus")}:
-{_sign_detail(man_report, "venus")}
+{_sign_detail(man_report, "venus")}{_retrograde_note(man_report, "venus", "его Венера")}
 
 Ваша Венера: {_sign_ru(woman_report, "venus")}, стихия {_element_ru(woman_report, "venus")}
 Стихийная база: {_element_text(woman_report, "venus")}
 Точный оттенок вашей Венеры в {_sign_ru(woman_report, "venus")}:
-{_sign_detail(woman_report, "venus")}
+{_sign_detail(woman_report, "venus")}{_retrograde_note(woman_report, "venus", "ваша Венера")}
 
 Здесь важно не копировать чужой способ любить, а почувствовать, где у каждого включаются краски жизни, ценность и притяжение.
 
@@ -700,12 +738,12 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
 Его Меркурий: {_sign_ru(man_report, "mercury")}, стихия {_element_ru(man_report, "mercury")}
 Стихийная база: {_element_text(man_report, "mercury")}
 Точный оттенок его Меркурия в {_sign_ru(man_report, "mercury")}:
-{_sign_detail(man_report, "mercury")}
+{_sign_detail(man_report, "mercury")}{_retrograde_note(man_report, "mercury", "его Меркурий")}
 
 Ваш Меркурий: {_sign_ru(woman_report, "mercury")}, стихия {_element_ru(woman_report, "mercury")}
 Стихийная база: {_element_text(woman_report, "mercury")}
 Точный оттенок вашего Меркурия в {_sign_ru(woman_report, "mercury")}:
-{_sign_detail(woman_report, "mercury")}
+{_sign_detail(woman_report, "mercury")}{_retrograde_note(woman_report, "mercury", "ваш Меркурий")}
 
 Слова становятся мостом, когда они учитывают не только тему разговора, но и способ мышления человека.
 
@@ -715,21 +753,21 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
 Его Марс: {_sign_ru(man_report, "mars")}, стихия {_element_ru(man_report, "mars")}
 Стихийная база: {_element_text(man_report, "mars")}
 Точный оттенок его Марса в {_sign_ru(man_report, "mars")}:
-{_sign_detail(man_report, "mars")}
+{_sign_detail(man_report, "mars")}{_retrograde_note(man_report, "mars", "его Марс")}
 
 Ваш Марс: {_sign_ru(woman_report, "mars")}, стихия {_element_ru(woman_report, "mars")}
 Стихийная база: {_element_text(woman_report, "mars")}
 Точный оттенок вашего Марса в {_sign_ru(woman_report, "mars")}:
-{_sign_detail(woman_report, "mars")}
+{_sign_detail(woman_report, "mars")}{_retrograde_note(woman_report, "mars", "ваш Марс")}
 
 Напряжение не обязательно разрушает пару. Иногда оно просто показывает, что два ритма движения пока не нашли общий шаг.
 
 🪐 Юпитер — общий горизонт роста {jupiter_basis}
 Его Юпитер: {_sign_ru(man_report, "jupiter")}, стихия {_element_ru(man_report, "jupiter")}
-{_sign_detail(man_report, "jupiter")}
+{_sign_detail(man_report, "jupiter")}{_retrograde_note(man_report, "jupiter", "его Юпитер")}
 
 Ваш Юпитер: {_sign_ru(woman_report, "jupiter")}, стихия {_element_ru(woman_report, "jupiter")}
-{_sign_detail(woman_report, "jupiter")}
+{_sign_detail(woman_report, "jupiter")}{_retrograde_note(woman_report, "jupiter", "ваш Юпитер")}
 
 Этот блок показывает не «кто успешнее», а где каждому легче видеть смысл, расширять жизнь и поддерживать общий горизонт без давления.
 

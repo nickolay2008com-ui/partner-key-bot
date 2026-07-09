@@ -36,6 +36,7 @@ class Placement:
     sign_ru: str
     element: str
     element_ru: str
+    is_retrograde: bool
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -107,6 +108,7 @@ def calculate_placement(day: date, planet: str, hour_utc: float = 12.0) -> Place
             "Не удалось посчитать карту. Попробуй другую дату или повтори чуть позже. Внутренняя ошибка расчёта уже спрятана, потому что пользователю не надо видеть кишки эфемерид."
         ) from exc
     longitude = float(result[0])
+    speed_longitude = float(result[3])
     sign = sign_info(longitude)
     return Placement(
         planet=planet,
@@ -116,6 +118,7 @@ def calculate_placement(day: date, planet: str, hour_utc: float = 12.0) -> Place
         sign_ru=sign.name_ru,
         element=sign.element,
         element_ru=sign.element_ru,
+        is_retrograde=speed_longitude < 0,
     )
 
 

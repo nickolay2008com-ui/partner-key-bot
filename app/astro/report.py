@@ -87,7 +87,7 @@ def _safe_name(name: str | None) -> str:
 
 
 def _placement_line(label: str, placement: Placement) -> str:
-    return f"{label}: {placement.sign_ru}, стихия {placement.element_ru}"
+    return f"{label}: {placement.sign_ru}, стихия {placement.element_ru}, {_placement_motion(placement)}"
 
 
 def _main_moon_placement(chart: PartnerChart) -> Placement:
@@ -113,7 +113,32 @@ def _report_basis(report: PartnerReport, key: str, label: str) -> str:
     placement = _report_placement(report, key)
     sign = str(placement.get("sign_ru", "знак не определён"))
     element = str(placement.get("element_ru", "стихия не определена"))
-    return f"{label} в {sign}, {element}"
+    return f"{label} в {sign}, {element}, {_report_motion(report, key)}"
+
+
+def _placement_motion(placement: Placement) -> str:
+    return "ретроградное положение" if placement.is_retrograde else "прямое движение"
+
+
+def _report_motion(report: PartnerReport, key: str) -> str:
+    return "ретроградное положение" if bool(_report_placement(report, key).get("is_retrograde", False)) else "прямое движение"
+
+
+def _retrograde_note_by_key(key: str, label: str, is_retrograde: bool) -> str:
+    if not is_retrograde:
+        return ""
+    notes = {
+        "mercury": "Ретроградность добавляет внутреннюю паузу в мышлении и словах: лучше давать время подумать, уточнять смысл и фиксировать договорённости спокойно.",
+        "venus": "Ретроградность делает тему ценности и симпатии более внутренней: человеку может быть важно присмотреться, проверить доверие и не спешить с признаниями.",
+        "mars": "Ретроградность разворачивает действие внутрь: энергия может копиться или идти рывками, поэтому лучше предлагать маленький понятный шаг без давления.",
+        "jupiter": "Ретроградность показывает рост через личный смысл: человеку важно сначала внутренне поверить в горизонт, а потом расширяться наружу.",
+    }
+    text = notes.get(key, "Ретроградность делает проявление планеты более внутренним: сначала тема перерабатывается внутри, затем проявляется наружу.")
+    return f"\n\n↩️ Ретроградность ({label}):\n{text}"
+
+
+def _report_retrograde_note(report: PartnerReport, key: str, label: str) -> str:
+    return _retrograde_note_by_key(key, label, bool(_report_placement(report, key).get("is_retrograde", False)))
 
 
 def _rhythm_with_basis(report: PartnerReport, meaning_core: str) -> str:
@@ -231,7 +256,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 {BEST_FLOW["venus"]}
 
 Тональность с учётом знака:
-{venus_detail}
+{venus_detail}{_retrograde_note_by_key("venus", "Венера", venus.is_retrograde)}
 
 Практический ключ:
 {PRACTICAL_KEYS["venus"]}
@@ -247,7 +272,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 {BEST_FLOW["mercury"]}
 
 Тональность с учётом знака:
-{mercury_detail}
+{mercury_detail}{_retrograde_note_by_key("mercury", "Меркурий", mercury.is_retrograde)}
 
 Практический ключ:
 {PRACTICAL_KEYS["mercury"]}
@@ -263,7 +288,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 {BEST_FLOW["mars"]}
 
 Тональность с учётом знака:
-{mars_detail}
+{mars_detail}{_retrograde_note_by_key("mars", "Марс", mars.is_retrograde)}
 
 Практический ключ:
 {PRACTICAL_KEYS["mars"]}
@@ -311,13 +336,13 @@ def format_person_portrait(report: PartnerReport, heading: str | None = None) ->
 {meaning.needs}
 
 Как наполняется контакт ({venus_basis}):
-отношения становятся живее, когда человек чувствует ценность, вкус, удовольствие и естественное притяжение — не через давление, а через атмосферу, где ему приятно выбирать близость.
+отношения становятся живее, когда человек чувствует ценность, вкус, удовольствие и естественное притяжение — не через давление, а через атмосферу, где ему приятно выбирать близость.{_report_retrograde_note(report, "venus", "Венера")}
 
 Как строить понимание ({mercury_basis}):
-слова лучше работают, когда учитывают его способ мыслить, слышать и договариваться. Тогда разговор не разрушает связь, а возвращает ясность.
+слова лучше работают, когда учитывают его способ мыслить, слышать и договариваться. Тогда разговор не разрушает связь, а возвращает ясность.{_report_retrograde_note(report, "mercury", "Меркурий")}
 
 Как поддержать движение и процветание ({mars_basis}):
-важно видеть, как человек действует, защищает границы и идёт к желаемому. Это помогает паре не тратить силу на борьбу темпов, а направлять энергию в общий рост.
+важно видеть, как человек действует, защищает границы и идёт к желаемому. Это помогает паре не тратить силу на борьбу темпов, а направлять энергию в общий рост.{_report_retrograde_note(report, "mars", "Марс")}
 
 Связь с отношениями и процветанием:
 когда понятны спокойствие, ценность, слова и действие каждого, отношения становятся более наполненными: в них больше доверия, тепла, ясности и пространства для совместного процветания.
