@@ -63,7 +63,7 @@ WEBAPP_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
   <title>Мои данные</title>
   <style>
     :root {
@@ -164,6 +164,9 @@ WEBAPP_HTML = r"""<!doctype html>
       color: var(--text);
     }
     .status { min-height: 22px; margin-top: 12px; color: var(--hint); font-size: 14px; }
+    .loading { opacity: .78; position: relative; overflow: hidden; }
+    .loading::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent); animation: shimmer 1.15s infinite; }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
     .hint-box {
       border: 1px dashed var(--border);
       border-radius: 16px;
@@ -217,15 +220,17 @@ WEBAPP_HTML = r"""<!doctype html>
   <button id="save">Сохранить и вернуться к разбору</button>
   <div class="cta-note">Следующий шаг — нажать в боте «Показать наш эмоциональный мост» или «Что написать?».</div>
   <button id="close" class="secondary">Закрыть без изменений</button>
-  <div class="status" id="status"></div>
+  <div class="status" id="status">Открываю форму…</div>
 
   <script>
-    const tg = window.Telegram && window.Telegram.WebApp;
+    let tg;
+    document.body.classList.add('loading');
     const statusEl = document.getElementById('status');
     const fields = ['self_name', 'self_birth_date', 'partner_name', 'partner_birth_date'];
     const dateFields = ['self_birth_date', 'partner_birth_date'];
 
     function status(text) { statusEl.textContent = text || ''; }
+    function stopLoading() { document.body.classList.remove('loading'); }
     function track(eventName, payload = {}) {
       const event = { event: eventName, payload, at: new Date().toISOString() };
       window.partnerKeyEvents = window.partnerKeyEvents || [];
@@ -275,6 +280,7 @@ WEBAPP_HTML = r"""<!doctype html>
     async function load() {
       if (!tg || !tg.initData) {
         status('Откройте это окно из Telegram, иначе идентификация не сработает. Да, безопасность решила вмешаться.');
+        stopLoading();
         return;
       }
       tg.ready();
@@ -290,8 +296,10 @@ WEBAPP_HTML = r"""<!doctype html>
           hasPartnerDate: Boolean(profile.partner_birth_date)
         });
         status('Данные загружены. Можно обновить их и вернуться к разбору.');
+        stopLoading();
       } catch (error) {
         status(error.message);
+        stopLoading();
       }
     }
 
@@ -327,7 +335,10 @@ WEBAPP_HTML = r"""<!doctype html>
       input.addEventListener('paste', () => setTimeout(() => applyBirthDateMask(input), 0));
     }
 
-    load();
+    document.addEventListener('DOMContentLoaded', () => {
+      tg = window.Telegram && window.Telegram.WebApp;
+      load();
+    });
   </script>
 </body>
 </html>
@@ -385,7 +396,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
   <title>Подробный разбор</title>
   <style>
     :root { color-scheme: light dark; --bg: var(--tg-theme-bg-color, #100f17); --text: var(--tg-theme-text-color, #f8fafc); --hint: var(--tg-theme-hint-color, #b6adc8); --button: var(--tg-theme-button-color, #8b5cf6); --border: rgba(255,255,255,.13); --glow: rgba(236,72,153,.24); }
@@ -397,6 +408,11 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     h1 { font-size: 25px; line-height: 1.12; margin: 0 0 8px; }
     p { margin: 0; color: var(--hint); line-height: 1.45; }
     .content { padding: 18px; font-size: 16px; line-height: 1.55; white-space: pre-wrap; }
+    .skeleton { color: var(--hint); }
+    .skeleton-line { display: block; height: 14px; margin: 12px 0; border-radius: 999px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,.16), rgba(255,255,255,.07)); background-size: 220% 100%; animation: shimmer 1.1s infinite linear; }
+    .skeleton-line:nth-child(2) { width: 88%; }
+    .skeleton-line:nth-child(3) { width: 72%; }
+    @keyframes shimmer { to { background-position: -220% 0; } }
     .close { width: 100%; margin-top: 14px; border: 0; border-radius: 16px; padding: 14px; background: var(--button); color: var(--tg-theme-button-text-color, #fff); font-weight: 800; font-size: 16px; }
   </style>
 </head>
@@ -406,13 +422,17 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     <h1 id="title">Загружаю…</h1>
     <p>Смотрите не как приговор, а как практичную подсказку: что попробовать в словах, внимании и ежедневном контакте.</p>
   </section>
-  <main class="content" id="content">Открываю подробности…</main>
+  <main class="content skeleton" id="content" aria-busy="true">
+    Открываю подробности…
+    <span class="skeleton-line"></span>
+    <span class="skeleton-line"></span>
+    <span class="skeleton-line"></span>
+  </main>
   <button class="close" id="close">Вернуться в Telegram</button>
   <script>
-    const tg = window.Telegram && window.Telegram.WebApp;
+    let tg;
     const params = new URLSearchParams(location.search);
     const block = params.get('block') || 'moon';
-    if (tg) { tg.ready(); tg.expand(); }
     async function load() {
       try {
         const response = await fetch('/api/detail', {
@@ -423,14 +443,24 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось открыть подробности.');
         document.getElementById('title').textContent = data.title;
-        document.getElementById('content').textContent = data.text;
+        const content = document.getElementById('content');
+        content.classList.remove('skeleton');
+        content.removeAttribute('aria-busy');
+        content.textContent = data.text;
       } catch (error) {
         document.getElementById('title').textContent = 'Нужен Telegram';
-        document.getElementById('content').textContent = error.message;
+        const content = document.getElementById('content');
+        content.classList.remove('skeleton');
+        content.removeAttribute('aria-busy');
+        content.textContent = error.message;
       }
     }
     document.getElementById('close').addEventListener('click', () => tg ? tg.close() : history.back());
-    load();
+    document.addEventListener('DOMContentLoaded', () => {
+      tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) { tg.ready(); tg.expand(); }
+      load();
+    });
   </script>
 </body>
 </html>"""
