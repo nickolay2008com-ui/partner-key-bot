@@ -65,6 +65,8 @@ WEBAPP_HTML = r"""<!doctype html>
       --button: var(--tg-theme-button-color, #7c3aed);
       --button-text: var(--tg-theme-button-text-color, #ffffff);
       --border: rgba(255, 255, 255, 0.12);
+      --success: #22c55e;
+      --warm: #f59e0b;
     }
     * { box-sizing: border-box; }
     body {
@@ -74,8 +76,46 @@ WEBAPP_HTML = r"""<!doctype html>
       background: var(--bg);
       color: var(--text);
     }
-    h1 { font-size: 24px; margin: 0 0 8px; }
+    h1 { font-size: 26px; margin: 0 0 8px; line-height: 1.12; }
     p { margin: 0 0 18px; color: var(--hint); line-height: 1.45; }
+    .hero {
+      background: linear-gradient(135deg, rgba(124,58,237,0.22), rgba(245,158,11,0.12));
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+    .hero p { margin-bottom: 12px; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      color: var(--hint);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .bridge {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .bridge-step {
+      min-height: 58px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 8px;
+      background: rgba(255,255,255,0.05);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+    .bridge-step strong { display: block; color: var(--text); margin-bottom: 3px; }
+    .value-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+    .value-list li { color: var(--hint); font-size: 14px; line-height: 1.35; }
+    .value-list li::before { content: '✓'; color: var(--success); font-weight: 800; margin-right: 7px; }
     .card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -114,11 +154,39 @@ WEBAPP_HTML = r"""<!doctype html>
       color: var(--text);
     }
     .status { min-height: 22px; margin-top: 12px; color: var(--hint); font-size: 14px; }
+    .hint-box {
+      border: 1px dashed var(--border);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 14px;
+      color: var(--hint);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .cta-note { margin: 8px 2px 0; font-size: 13px; color: var(--hint); text-align: center; }
+    @media (max-width: 360px) {
+      .bridge { grid-template-columns: repeat(2, 1fr); }
+    }
   </style>
 </head>
 <body>
-  <h1>👤 Мои данные</h1>
-  <p>Сохраните свои данные и данные партнёра. Потом бот сможет подтягивать их в разбор, вместо этой вечной человеческой радости «введите всё заново».</p>
+  <section class="hero" aria-labelledby="page-title">
+    <div class="eyebrow">💞 Мини-профиль для разбора пары</div>
+    <h1 id="page-title">Сохраните даты — получите эмоциональный мост без повторного ввода</h1>
+    <p>Бот сопоставит ваш ритм и ритм партнёра: где возникает сомнение, что помогает понять друг друга, чему можно доверять и какой первый шаг сделать мягче.</p>
+    <div class="bridge" aria-label="Эмоциональный путь пользователя">
+      <div class="bridge-step"><strong>Сомнение</strong>«Почему он так реагирует?»</div>
+      <div class="bridge-step"><strong>Понимание</strong>что ему спокойнее</div>
+      <div class="bridge-step"><strong>Доверие</strong>без давления и угадывания</div>
+      <div class="bridge-step"><strong>Действие</strong>готовая мягкая фраза</div>
+    </div>
+    <ul class="value-list">
+      <li>Данные нужны только чтобы не вводить их заново в каждом разборе.</li>
+      <li>После сохранения можно быстрее открыть мост пары и варианты сообщения.</li>
+    </ul>
+  </section>
+
+  <div class="hint-box">Заполните минимум имя и дату партнёра. Добавьте свою дату, если хотите сразу видеть общий эмоциональный мост, а не только его портрет.</div>
 
   <div class="card">
     <div class="title">Ваши данные</div>
@@ -136,8 +204,9 @@ WEBAPP_HTML = r"""<!doctype html>
     <input id="partner_birth_date" inputmode="numeric" maxlength="10" placeholder="06.11.1995" />
   </div>
 
-  <button id="save">Сохранить</button>
-  <button id="close" class="secondary">Закрыть</button>
+  <button id="save">Сохранить и вернуться к разбору</button>
+  <div class="cta-note">Следующий шаг — нажать в боте «Показать наш эмоциональный мост» или «Что написать?».</div>
+  <button id="close" class="secondary">Закрыть без изменений</button>
   <div class="status" id="status"></div>
 
   <script>
@@ -147,6 +216,12 @@ WEBAPP_HTML = r"""<!doctype html>
     const dateFields = ['self_birth_date', 'partner_birth_date'];
 
     function status(text) { statusEl.textContent = text || ''; }
+    function track(eventName, payload = {}) {
+      const event = { event: eventName, payload, at: new Date().toISOString() };
+      window.partnerKeyEvents = window.partnerKeyEvents || [];
+      window.partnerKeyEvents.push(event);
+      if (window.console && console.debug) console.debug('partner_key_event', event);
+    }
     function formatBirthDateInput(value) {
       const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
       const parts = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)].filter(Boolean);
@@ -194,11 +269,17 @@ WEBAPP_HTML = r"""<!doctype html>
       }
       tg.ready();
       tg.expand();
+      track('profile_webapp_opened');
       status('Загружаю данные…');
       try {
         const data = await api('get');
         fillForm(data.profile || {});
-        status('Данные загружены.');
+        const profile = data.profile || {};
+        track('profile_loaded', {
+          hasSelfDate: Boolean(profile.self_birth_date),
+          hasPartnerDate: Boolean(profile.partner_birth_date)
+        });
+        status('Данные загружены. Можно обновить их и вернуться к разбору.');
       } catch (error) {
         status(error.message);
       }
@@ -207,9 +288,18 @@ WEBAPP_HTML = r"""<!doctype html>
     document.getElementById('save').addEventListener('click', async () => {
       status('Сохраняю…');
       try {
-        const data = await api('save', profileFromForm());
+        const profile = profileFromForm();
+        track('profile_save_clicked', {
+          hasSelfDate: Boolean(profile.self_birth_date),
+          hasPartnerDate: Boolean(profile.partner_birth_date)
+        });
+        const data = await api('save', profile);
         fillForm(data.profile || {});
-        status('Сохранено. Теперь бот сможет подтянуть эти данные.');
+        track('profile_saved', {
+          hasSelfDate: Boolean((data.profile || {}).self_birth_date),
+          hasPartnerDate: Boolean((data.profile || {}).partner_birth_date)
+        });
+        status('Сохранено. Вернитесь в бот — теперь эмоциональный мост и тексты можно собрать быстрее.');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
       } catch (error) {
         status(error.message);
@@ -217,6 +307,7 @@ WEBAPP_HTML = r"""<!doctype html>
       }
     });
     document.getElementById('close').addEventListener('click', () => {
+      track('profile_webapp_closed');
       if (tg) tg.close();
     });
     for (const id of dateFields) {
