@@ -193,7 +193,7 @@ WEBAPP_HTML = r"""<!doctype html>
     <div class="bridge" aria-label="Эмоциональный путь пользователя">
       <div class="bridge-step"><strong>Сомнение</strong>«Почему он так реагирует?»</div>
       <div class="bridge-step"><strong>Понимание</strong>что ему спокойнее</div>
-      <div class="bridge-step"><strong>Доверие</strong>без давления и угадывания</div>
+      <div class="bridge-step"><strong>Доверие</strong>через ясность и бережность</div>
       <div class="bridge-step"><strong>Действие</strong>готовая мягкая фраза</div>
     </div>
     <ul class="value-list">
@@ -450,7 +450,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     <div class="use-grid">
       <div class="use-card"><strong>Понимание партнёра</strong><span>Смотрите, что стоит за реакцией: потребность в спокойствии, тепле, ясных словах или поддержке действия.</span></div>
       <div class="use-card"><strong>Гармонизация отношений</strong><span>Выберите один маленький мост на сегодня вместо большого разговора обо всём: вопрос, просьбу, паузу или ритуал контакта.</span></div>
-      <div class="use-card"><strong>Практика без давления</strong><span>Проверяйте подсказки мягко: если партнёр закрывается, снижайте темп и возвращайтесь к безопасности диалога.</span></div>
+      <div class="use-card"><strong>Бережная практика</strong><span>Проверяйте подсказки мягко: если партнёр закрывается, снижайте темп и возвращайтесь к безопасности диалога.</span></div>
     </div>
   </section>
   <section class="variant-wrap" id="variants" aria-labelledby="variants-title">
