@@ -98,7 +98,6 @@ def profile_partner_keyboard() -> InlineKeyboardMarkup:
                     callback_data="profile:use_partner",
                 )
             ],
-            [profile_button()],
             [InlineKeyboardButton("Отмена", callback_data="cancel")],
         ]
     )
@@ -113,21 +112,19 @@ def profile_self_keyboard() -> InlineKeyboardMarkup:
                     callback_data="profile:use_self",
                 )
             ],
-            [profile_button()],
             [InlineKeyboardButton("Отмена", callback_data="cancel")],
         ]
     )
 
 
 def profile_only_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[profile_button()], [InlineKeyboardButton("⬅️ В меню", callback_data="cancel")]])
+    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="cancel")]])
 
 
 def after_free_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("💞 Показать наш эмоциональный мост", callback_data="add_me")],
-            [profile_button()],
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
         ]
     )
@@ -148,7 +145,6 @@ def after_bridge_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("👤 Портреты в отношениях", callback_data="p:portrait")],
             [InlineKeyboardButton("📖 Карта гармонии пары", callback_data="p:full")],
             [InlineKeyboardButton("✍️ Что написать?", callback_data="message")],
-            [profile_button()],
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
         ]
     )
