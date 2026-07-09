@@ -12,6 +12,7 @@ from urllib.parse import parse_qsl, urlparse
 
 from app.astro.calculator import calculate_partner_chart, parse_birth_date
 from app.astro.product_blocks import (
+    format_couple_full_report,
     format_couple_portraits,
     format_jupiter_detail,
     format_mars_detail,
@@ -352,6 +353,7 @@ DETAIL_LABELS = {
     "mars": "🔥 Марс: как поддержать действие",
     "jupiter": "🪐 Юпитер: куда расти вместе",
     "portrait": "👤 Портреты в отношениях",
+    "full": "📖 Карта гармонии пары",
 }
 
 
@@ -370,13 +372,15 @@ def _detail_text(user_id: int, block: str) -> str:
     man_report = _report_from_payload(store.latest_report_payload(user_id))
     if man_report is None:
         raise ValueError("Сначала соберите разбор в боте — тогда здесь откроется подробная карта.")
-    if block == "portrait":
+    if block in {"portrait", "full"}:
         profile = store.get_profile(user_id)
         self_birth_date = profile.get("self_birth_date", "")
         if not self_birth_date:
-            raise ValueError("Для портретов добавьте вашу дату рождения в мини-профиле.")
+            raise ValueError("Для карты пары добавьте вашу дату рождения в мини-профиле.")
         woman_chart = calculate_partner_chart(parse_birth_date(self_birth_date))
         woman_report = build_partner_report(woman_chart, profile.get("self_name") or "вы")
+        if block == "full":
+            return format_couple_full_report(man_report, woman_report)
         return format_couple_portraits(man_report, woman_report)
     formatters = {
         "moon": format_moon_detail,
@@ -413,6 +417,13 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     .skeleton-line:nth-child(2) { width: 88%; }
     .skeleton-line:nth-child(3) { width: 72%; }
     @keyframes shimmer { to { background-position: -220% 0; } }
+    .life-use { display: none; margin: 0 0 14px; padding: 16px; border: 1px solid var(--border); border-radius: 22px; background: rgba(255,255,255,.07); }
+    .life-use.is-visible { display: block; }
+    .life-use h2 { margin: 0 0 10px; font-size: 20px; line-height: 1.18; }
+    .use-grid { display: grid; gap: 10px; }
+    .use-card { border: 1px solid var(--border); border-radius: 16px; padding: 12px; background: rgba(0,0,0,.13); }
+    .use-card strong { display: block; margin-bottom: 5px; }
+    .use-card span { color: var(--hint); line-height: 1.4; }
     .close { width: 100%; margin-top: 14px; border: 0; border-radius: 16px; padding: 14px; background: var(--button); color: var(--tg-theme-button-text-color, #fff); font-weight: 800; font-size: 16px; }
   </style>
 </head>
@@ -421,6 +432,14 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     <div class="eyebrow">✨ Подробный разбор карты</div>
     <h1 id="title">Загружаю…</h1>
     <p>Смотрите не как приговор, а как практичную подсказку: что попробовать в словах, внимании и ежедневном контакте.</p>
+  </section>
+  <section class="life-use" id="life-use" aria-labelledby="life-use-title">
+    <h2 id="life-use-title">Как применять карту в жизни</h2>
+    <div class="use-grid">
+      <div class="use-card"><strong>Понимание партнёра</strong><span>Смотрите, что стоит за реакцией: потребность в спокойствии, тепле, ясных словах или поддержке действия.</span></div>
+      <div class="use-card"><strong>Гармонизация отношений</strong><span>Выберите один маленький мост на сегодня вместо большого разговора обо всём: вопрос, просьбу, паузу или ритуал контакта.</span></div>
+      <div class="use-card"><strong>Практика без давления</strong><span>Проверяйте подсказки мягко: если партнёр закрывается, снижайте темп и возвращайтесь к безопасности диалога.</span></div>
+    </div>
   </section>
   <main class="content skeleton" id="content" aria-busy="true">
     Открываю подробности…
@@ -443,6 +462,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось открыть подробности.');
         document.getElementById('title').textContent = data.title;
+        if (block === 'full') document.getElementById('life-use').classList.add('is-visible');
         const content = document.getElementById('content');
         content.classList.remove('skeleton');
         content.removeAttribute('aria-busy');

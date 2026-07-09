@@ -27,7 +27,6 @@ from telegram.ext import (
 
 from app.astro.calculator import calculate_partner_chart, parse_birth_date
 from app.astro.product_blocks import (
-    format_couple_full_report,
     format_couple_moon_bridge,
     format_couple_portraits_short_card,
     format_planet_short_card,
@@ -171,6 +170,7 @@ def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
         "mars": "🔥 Открыть подробный Марс",
         "jupiter": "🪐 Открыть подробный Юпитер",
         "portrait": "👤 Открыть подробные портреты",
+        "full": "📖 Открыть расширенную карту",
     }
     return InlineKeyboardMarkup(
         [
@@ -791,11 +791,11 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _tracked_reply_text(update, context, premium_paywall_text("details"), reply_markup=premium_keyboard("details"))
         return
     if code == "full":
-        await _send_long(
+        await _tracked_reply_text(
             update,
             context,
-            format_couple_full_report(man_report, woman_report),
-            reply_markup=after_bridge_keyboard(),
+            "📖 Расширенная карта гармонии пары готова. Откройте её в отдельном окне: внутри будет полный разбор и блок применения в жизни — для понимания партнёра, мягких разговоров и гармонизации отношений.",
+            reply_markup=detail_card_keyboard("full"),
         )
         return
     if code == "portrait":
