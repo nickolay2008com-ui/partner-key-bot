@@ -76,9 +76,9 @@ def profile_button() -> InlineKeyboardButton:
 def menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
+            [InlineKeyboardButton("💞 Начать разбор пары", callback_data="start_man")],
             [InlineKeyboardButton("🔑 Ключ на сегодня", callback_data="daily_key")],
             [InlineKeyboardButton("⭐️ Звёздная цель дня", callback_data="star_goal")],
-            [InlineKeyboardButton("💞 Начать разбор пары", callback_data="start_man")],
             [profile_button()],
             [InlineKeyboardButton("🗂 История", callback_data="history")],
         ]
@@ -124,7 +124,7 @@ def profile_only_keyboard() -> InlineKeyboardMarkup:
 def after_free_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("💞 Показать наш эмоциональный мост", callback_data="add_me")],
+            [InlineKeyboardButton("💞 Добавить себя и увидеть мост", callback_data="add_me")],
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
         ]
     )
@@ -184,6 +184,15 @@ async def _remember_user(update: Update) -> None:
     user_id = _user_id(update)
     if user_id is not None:
         await asyncio.to_thread(get_store().register_user, user_id)
+
+
+async def _track_event(update: Update, event_name: str, **properties: Any) -> None:
+    user_id = _user_id(update)
+    safe_properties = {key: value for key, value in properties.items() if value is not None}
+    try:
+        await asyncio.to_thread(get_store().track_event, user_id, event_name, safe_properties)
+    except Exception:
+        logger.exception("ANALYTICS_EVENT_FAILED: event=%s user_id=%s", event_name, user_id)
 
 
 async def _get_profile(update: Update) -> dict[str, str]:
@@ -375,6 +384,7 @@ async def _build_man_report_from_date(
             "Добавьте вашу дату рождения — я покажу, где спокойнее ему, где хорошо вам, "
             "и какой ритм помогает быть ближе без давления."
         )
+        await _track_event(update, "man_free_report_generated")
         await _send_long(update, context, text, reply_markup=after_free_keyboard())
     except Exception:
         logger.exception("Failed to build man report")
@@ -420,6 +430,7 @@ async def _build_bridge_from_date(
             _forget_bot_message(context, wait)
         except Exception:
             pass
+        await _track_event(update, "couple_bridge_generated")
         await _send_long(
             update,
             context,
@@ -448,12 +459,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await _remember_user(update)
     await _set_chat_menu_button(update, context)
     _clear_flow_state(context)
+    await _track_event(update, "menu_opened", source="start")
     text = (
         "💞 Карта гармонии пары\n\n"
-        "Иногда люди любят по-разному.\n\n"
-        "Один ищет близость через спокойствие и надёжность. Другой — через слова, движение, чувство или живой отклик.\n\n"
-        "Бот покажет эмоциональный ритм мужчины, ваш ритм и мост между вами: где ему спокойнее, где вам теплее и как лучше понимать друг друга без давления.\n\n"
-        "Теперь можно сохранить свои данные и данные партнёра через нижнюю кнопку «Мои данные», чтобы не вводить их каждый раз заново. Чудо цивилизации, почти холодильник с лампочкой."
+        "За 1 минуту покажу не «подходит / не подходит», а понятный следующий шаг: "
+        "где мужчине спокойнее, где вам теплее и как говорить без давления.\n\n"
+        "Как это работает:\n"
+        "1. Введите имя и дату рождения мужчины.\n"
+        "2. Получите бесплатный ключ: его эмоциональный язык и первый мягкий шаг.\n"
+        "3. Добавьте свою дату — увидите ваш эмоциональный мост и готовую фразу для сообщения.\n\n"
+        "Если сомневаетесь — начните с бесплатного ключа. Данные можно сохранить в «Мои данные», "
+        "чтобы не вводить их каждый раз."
     )
     await update.effective_message.reply_text(text, reply_markup=menu())
     return ConversationHandler.END
@@ -478,6 +494,7 @@ async def daily_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _deny(update)
         return
     await _remember_user(update)
+    await _track_event(update, "daily_key_opened")
     card = get_daily_connection_card(_user_id(update), settings.app_timezone)
     await update.effective_message.reply_text(format_daily_connection_card(card), reply_markup=menu())
 
@@ -489,6 +506,7 @@ async def star_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _deny(update)
         return
     await _remember_user(update)
+    await _track_event(update, "star_goal_opened")
     await update.effective_message.reply_text(format_star_goal(settings.app_timezone), reply_markup=menu())
 
 
@@ -499,6 +517,7 @@ async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await _deny(update)
         return ConversationHandler.END
     await _remember_user(update)
+    await _track_event(update, "partner_flow_started")
     await _set_chat_menu_button(update, context)
     await _clear_active_bot_messages(update, context)
     if update.callback_query:
@@ -574,6 +593,7 @@ async def start_self(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
     await _remember_user(update)
+    await _track_event(update, "self_flow_started")
     await _set_chat_menu_button(update, context)
     if await _load_latest_man_report(update, context) is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
@@ -671,6 +691,8 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if update.callback_query:
         await update.callback_query.answer()
     await _remember_user(update)
+    code = (update.callback_query.data or "").replace("p:", "") if update.callback_query else ""
+    await _track_event(update, "product_block_opened", block=code)
     man_report = await _load_latest_man_report(update, context)
     if man_report is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
@@ -684,7 +706,6 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply_markup=after_free_keyboard(),
         )
         return
-    code = (update.callback_query.data or "").replace("p:", "") if update.callback_query else ""
     if code == "full":
         await _send_long(
             update,
@@ -723,6 +744,7 @@ async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if update.callback_query:
         await update.callback_query.answer()
     await _remember_user(update)
+    await _track_event(update, "message_hint_requested")
     report = await _load_latest_man_report(update, context)
     if report is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
