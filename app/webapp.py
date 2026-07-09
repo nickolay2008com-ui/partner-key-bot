@@ -10,6 +10,16 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qsl, urlparse
 
+from app.astro.calculator import calculate_partner_chart, parse_birth_date
+from app.astro.product_blocks import (
+    format_couple_portraits,
+    format_jupiter_detail,
+    format_mars_detail,
+    format_mercury_detail,
+    format_moon_detail,
+    format_venus_detail,
+)
+from app.astro.report import PartnerReport, build_partner_report
 from app.config import settings
 from app.storage import ReportsStore
 
@@ -324,6 +334,108 @@ WEBAPP_HTML = r"""<!doctype html>
 """
 
 
+DETAIL_LABELS = {
+    "moon": "🌙 Луна: где ему спокойно",
+    "venus": "💗 Венера: что включает тепло",
+    "mercury": "🗣 Меркурий: как договориться",
+    "mars": "🔥 Марс: как поддержать действие",
+    "jupiter": "🪐 Юпитер: куда расти вместе",
+    "portrait": "👤 Портреты в отношениях",
+}
+
+
+def _report_from_payload(payload: dict[str, Any] | None) -> PartnerReport | None:
+    if not isinstance(payload, dict):
+        return None
+    payload = {key: value for key, value in payload.items() if key != "_storage_report_id"}
+    try:
+        return PartnerReport(**payload)
+    except TypeError:
+        return None
+
+
+def _detail_text(user_id: int, block: str) -> str:
+    store = get_store()
+    man_report = _report_from_payload(store.latest_report_payload(user_id))
+    if man_report is None:
+        raise ValueError("Сначала соберите разбор в боте — тогда здесь откроется подробная карта.")
+    if block == "portrait":
+        profile = store.get_profile(user_id)
+        self_birth_date = profile.get("self_birth_date", "")
+        if not self_birth_date:
+            raise ValueError("Для портретов добавьте вашу дату рождения в мини-профиле.")
+        woman_chart = calculate_partner_chart(parse_birth_date(self_birth_date))
+        woman_report = build_partner_report(woman_chart, profile.get("self_name") or "вы")
+        return format_couple_portraits(man_report, woman_report)
+    formatters = {
+        "moon": format_moon_detail,
+        "venus": format_venus_detail,
+        "mercury": format_mercury_detail,
+        "mars": format_mars_detail,
+        "jupiter": format_jupiter_detail,
+    }
+    formatter = formatters.get(block)
+    if formatter is None:
+        raise ValueError("Этот подробный блок пока не найден.")
+    return formatter(man_report)
+
+
+DETAIL_WEBAPP_HTML = r"""<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <title>Подробный разбор</title>
+  <style>
+    :root { color-scheme: light dark; --bg: var(--tg-theme-bg-color, #100f17); --text: var(--tg-theme-text-color, #f8fafc); --hint: var(--tg-theme-hint-color, #b6adc8); --button: var(--tg-theme-button-color, #8b5cf6); --border: rgba(255,255,255,.13); --glow: rgba(236,72,153,.24); }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 18px; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at top, var(--glow), transparent 34%), var(--bg); color: var(--text); }
+    .hero, .content { border: 1px solid var(--border); border-radius: 24px; background: rgba(255,255,255,.055); box-shadow: 0 18px 50px rgba(0,0,0,.18); }
+    .hero { padding: 18px; margin-bottom: 14px; }
+    .eyebrow { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: rgba(255,255,255,.09); color: var(--hint); font-size: 13px; margin-bottom: 12px; }
+    h1 { font-size: 25px; line-height: 1.12; margin: 0 0 8px; }
+    p { margin: 0; color: var(--hint); line-height: 1.45; }
+    .content { padding: 18px; font-size: 16px; line-height: 1.55; white-space: pre-wrap; }
+    .close { width: 100%; margin-top: 14px; border: 0; border-radius: 16px; padding: 14px; background: var(--button); color: var(--tg-theme-button-text-color, #fff); font-weight: 800; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <div class="eyebrow">✨ Подробный разбор карты</div>
+    <h1 id="title">Загружаю…</h1>
+    <p>Смотрите не как приговор, а как практичную подсказку: что попробовать в словах, внимании и ежедневном контакте.</p>
+  </section>
+  <main class="content" id="content">Открываю подробности…</main>
+  <button class="close" id="close">Вернуться в Telegram</button>
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+    const params = new URLSearchParams(location.search);
+    const block = params.get('block') || 'moon';
+    if (tg) { tg.ready(); tg.expand(); }
+    async function load() {
+      try {
+        const response = await fetch('/api/detail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ block, initData: tg ? tg.initData : '' })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось открыть подробности.');
+        document.getElementById('title').textContent = data.title;
+        document.getElementById('content').textContent = data.text;
+      } catch (error) {
+        document.getElementById('title').textContent = 'Нужен Telegram';
+        document.getElementById('content').textContent = error.message;
+      }
+    }
+    document.getElementById('close').addEventListener('click', () => tg ? tg.close() : history.back());
+    load();
+  </script>
+</body>
+</html>"""
+
+
 class WebAppHandler(BaseHTTPRequestHandler):
     server_version = "PartnerKeyWebApp/1.0"
 
@@ -366,10 +478,25 @@ class WebAppHandler(BaseHTTPRequestHandler):
         if path == "/webapp":
             self._send_html(WEBAPP_HTML)
             return
+        if path == "/webapp/detail":
+            self._send_html(DETAIL_WEBAPP_HTML)
+            return
         self._send_json({"ok": False, "error": "not_found"}, status=404)
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path.rstrip("/") or "/"
+        if path == "/api/detail":
+            try:
+                payload = self._read_json()
+                user_id = _validate_init_data(str(payload.get("initData", "")))
+                block = str(payload.get("block", "moon"))
+                text = _detail_text(user_id, block)
+                get_store().track_event(user_id, "detail_webapp_opened", {"block": block})
+                self._send_json({"ok": True, "title": DETAIL_LABELS.get(block, "✨ Подробный разбор"), "text": text})
+            except Exception as exc:
+                logger.exception("DETAIL_WEBAPP_FAILED")
+                self._send_json({"ok": False, "error": str(exc)}, status=400)
+            return
         if path != "/api/profile":
             self._send_json({"ok": False, "error": "not_found"}, status=404)
             return

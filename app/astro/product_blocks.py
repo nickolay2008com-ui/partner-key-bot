@@ -572,6 +572,51 @@ def format_jupiter_detail(report: PartnerReport) -> str:
 """.strip()
 
 
+def format_planet_short_card(report: PartnerReport, key: str) -> str:
+    labels = {
+        "moon": ("🌙", "Луна", "где ему спокойно"),
+        "venus": ("💗", "Венера", "что включает тепло"),
+        "mercury": ("🗣", "Меркурий", "как договориться"),
+        "mars": ("🔥", "Марс", "как поддержать действие"),
+        "jupiter": ("🪐", "Юпитер", "куда расти вместе"),
+    }
+    emoji, title, promise = labels.get(key, ("✨", "Карта", "главный ключ"))
+    if key == "moon":
+        action = MOON_MEANINGS[report.emotional_language].first_step
+    elif key == "jupiter":
+        action = "поддерживать не давлением, а вопросом о честном следующем горизонте и понятном маленьком шаге."
+    else:
+        action = _action_key(report, key).replace("\n\nПрактический ключ:\n", "") or _practice_prompt(key)
+    return f"""
+{emoji} {title}: главное для жизни
+
+{report.partner_name}: {title} в {_sign_ru(report, key)}, стихия {_element_ru(report, key)}.
+
+Короткий ключ: {promise} — через его реальный ритм, а не через угадывание.
+
+Что сделать сейчас:
+{action}
+
+👇 Подробный красивый разбор с примерами откройте по кнопке ниже.
+""".strip()
+
+
+def format_couple_portraits_short_card(man_report: PartnerReport, woman_report: PartnerReport) -> str:
+    return f"""
+👤 Портреты в отношениях: главное
+
+Он: Луна в {_sign_ru(man_report, "moon")} — ему важен ритм «{_element_ru(man_report, "moon")}».
+Вы: Луна в {_sign_ru(woman_report, "moon")} — вам важен ритм «{_element_ru(woman_report, "moon")}».
+
+Короткий ключ: не становиться одинаковыми, а понять, что наполняет каждого — где нужен покой, где тепло, где слова, а где действие.
+
+Что сделать сейчас:
+выберите один маленький мост на сегодня: «что даст тебе спокойствие?» + «что даст мне тепло?».
+
+👇 Подробные портреты с яркими подсказками и применением в жизни откройте по кнопке ниже.
+""".strip()
+
+
 def format_couple_moon_bridge(man_report: PartnerReport, woman_report: PartnerReport) -> str:
     precision_note = _pair_precision_note(man_report, woman_report)
     precision_block = f"\n\n{precision_note}" if precision_note else ""
