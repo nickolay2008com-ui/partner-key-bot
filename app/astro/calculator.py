@@ -10,7 +10,7 @@ from app.astro.zodiac import PLANET_NAMES_RU, sign_info
 
 MIN_SUPPORTED_YEAR = 1900
 MAX_SUPPORTED_YEAR = 2100
-CALC_FLAGS = swe.FLG_MOSEPH
+CALC_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
 
 PLANET_IDS: dict[str, int] = {
     "sun": swe.SUN,
