@@ -7,26 +7,44 @@
 - Analytics events are already stored through `ReportsStore.track_event`, so premium funnel events can be measured without a new analytics system.
 - Deep content exists for Moon, Venus, Mercury, Mars, portraits, a full couple map, and message hints.
 
-## Gap
+## Product / market research notes
 
-The current “premium” value is content-rich, but payment enforcement is not connected. The safest MVP is not to hide the whole product behind payment immediately. First measure intent on specific high-value blocks, then enable Stars only where users click.
+- Telegram Stars are the native Telegram currency for bots and mini apps that sell digital products.
+- Modern paywalls work better when they show a concrete outcome, a short value ladder and a low-friction next action instead of listing every internal feature.
+- For a relationship bot, the paid moment should happen after the user has already received a personal “aha”: the free key and the couple bridge. Charging before that would reduce trust.
+
+## Gap fixed
+
+The previous “premium” value was content-rich, but payment enforcement was not connected. The new MVP keeps the emotional key and several deep blocks free, then gates only the highest-intent actions:
+
+1. **Premium-карта пары** — the complete pair map and relationship portraits.
+2. **Premium-сообщение партнёру** — ready-to-send AI message variants.
+
+This avoids a harsh paywall while still asking for payment exactly where intent is strongest.
 
 ## Implemented in this pass
 
 - Added Jupiter calculation to every new report.
 - Added a Jupiter block: “common growth horizon”. This is a good premium candidate because it extends the existing emotional/communication analysis into future, meaning, support and shared growth.
 - Added Jupiter to the deep couple keyboard and full report.
+- Reordered the post-bridge product menu into a guided sequence: emotions → warmth → communication → action → shared growth → paid map/message.
+- Added Telegram Stars invoice flow for the two premium products.
+- Added persistent premium entitlements by `user_id`, `product_key`, and `report_id`.
+- Added premium funnel analytics events:
+  - `premium_paywall_viewed`
+  - `premium_gate_hit`
+  - `premium_invoice_opened`
+  - `premium_precheckout_approved`
+  - `premium_payment_succeeded`
 
 ## Recommended next MVP for paid access
 
-1. Keep the free report and the “add yourself” bridge free.
-2. Track clicks on each deep block (`product_block_opened`, already implemented).
-3. Make only the full map + Jupiter/message pack paid with Telegram Stars.
-4. Add purchase events:
-   - `premium_invoice_opened`
-   - `premium_payment_succeeded`
-   - `premium_content_unlocked`
-5. Store entitlements by `user_id`, `product_key`, and `report_id` so paid blocks survive bot restarts.
+1. Add a simple admin export for premium funnel metrics by day.
+2. A/B test two offers:
+   - “Premium-карта пары” at 25 Stars.
+   - “Что написать партнёру” at 15 Stars.
+3. Add one post-payment success screen that immediately recommends the best first premium block based on the user’s previous click.
+4. If message purchases convert better than the map, bundle both into one “Сделать мягкий шаг” offer.
 
 ## Why Jupiter is a strong premium candidate
 
