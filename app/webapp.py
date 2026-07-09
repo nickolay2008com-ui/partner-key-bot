@@ -13,7 +13,9 @@ from urllib.parse import parse_qsl, urlparse
 from app.astro.calculator import calculate_partner_chart, parse_birth_date
 from app.astro.product_blocks import (
     format_couple_full_report,
+    format_couple_moon_bridge,
     format_couple_portraits,
+    format_moon_variant_cards,
     format_jupiter_detail,
     format_mars_detail,
     format_mercury_detail,
@@ -354,6 +356,7 @@ DETAIL_LABELS = {
     "jupiter": "🪐 Юпитер: куда расти вместе",
     "portrait": "👤 Портреты в отношениях",
     "full": "📖 Карта гармонии пары",
+    "bridge": "💞 Эмоциональный мост",
 }
 
 
@@ -372,7 +375,7 @@ def _detail_text(user_id: int, block: str) -> str:
     man_report = _report_from_payload(store.latest_report_payload(user_id))
     if man_report is None:
         raise ValueError("Сначала соберите разбор в боте — тогда здесь откроется подробная карта.")
-    if block in {"portrait", "full"}:
+    if block in {"portrait", "full", "bridge"}:
         profile = store.get_profile(user_id)
         self_birth_date = profile.get("self_birth_date", "")
         if not self_birth_date:
@@ -381,6 +384,8 @@ def _detail_text(user_id: int, block: str) -> str:
         woman_report = build_partner_report(woman_chart, profile.get("self_name") or "вы")
         if block == "full":
             return format_couple_full_report(man_report, woman_report)
+        if block == "bridge":
+            return format_couple_moon_bridge(man_report, woman_report)
         return format_couple_portraits(man_report, woman_report)
     formatters = {
         "moon": format_moon_detail,
@@ -424,6 +429,13 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     .use-card { border: 1px solid var(--border); border-radius: 16px; padding: 12px; background: rgba(0,0,0,.13); }
     .use-card strong { display: block; margin-bottom: 5px; }
     .use-card span { color: var(--hint); line-height: 1.4; }
+    .variant-wrap { display: none; margin: 0 0 14px; }
+    .variant-wrap.is-visible { display: block; }
+    .variant-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 8px; color: var(--hint); font-size: 14px; }
+    .variant-carousel { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+    .variant-card { flex: 0 0 88%; scroll-snap-align: start; border: 1px solid var(--border); border-radius: 20px; padding: 14px; background: rgba(255,255,255,.075); white-space: pre-wrap; line-height: 1.48; }
+    .variant-card h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.2; }
+    .variant-card p { color: var(--text); white-space: pre-wrap; }
     .close { width: 100%; margin-top: 14px; border: 0; border-radius: 16px; padding: 14px; background: var(--button); color: var(--tg-theme-button-text-color, #fff); font-weight: 800; font-size: 16px; }
   </style>
 </head>
@@ -441,6 +453,10 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
       <div class="use-card"><strong>Практика без давления</strong><span>Проверяйте подсказки мягко: если партнёр закрывается, снижайте темп и возвращайтесь к безопасности диалога.</span></div>
     </div>
   </section>
+  <section class="variant-wrap" id="variants" aria-labelledby="variants-title">
+    <div class="variant-head"><strong id="variants-title">Свайп вариантов Луны</strong><span>выберите, что больше похоже на жизнь</span></div>
+    <div class="variant-carousel" id="variant-carousel"></div>
+  </section>
   <main class="content skeleton" id="content" aria-busy="true">
     Открываю подробности…
     <span class="skeleton-line"></span>
@@ -452,6 +468,23 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     let tg;
     const params = new URLSearchParams(location.search);
     const block = params.get('block') || 'moon';
+    function renderVariants(variants) {
+      if (!variants.length) return;
+      const wrap = document.getElementById('variants');
+      const carousel = document.getElementById('variant-carousel');
+      carousel.innerHTML = '';
+      variants.forEach((item, index) => {
+        const card = document.createElement('article');
+        card.className = 'variant-card';
+        const title = document.createElement('h2');
+        title.textContent = `${index + 1}. ${item.title || 'Вариант Луны'}`;
+        const text = document.createElement('p');
+        text.textContent = item.text || '';
+        card.append(title, text);
+        carousel.append(card);
+      });
+      wrap.classList.add('is-visible');
+    }
     async function load() {
       try {
         const response = await fetch('/api/detail', {
@@ -462,7 +495,8 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось открыть подробности.');
         document.getElementById('title').textContent = data.title;
-        if (block === 'full') document.getElementById('life-use').classList.add('is-visible');
+        if (block === 'full' || block === 'bridge') document.getElementById('life-use').classList.add('is-visible');
+        renderVariants(data.variants || []);
         const content = document.getElementById('content');
         content.classList.remove('skeleton');
         content.removeAttribute('aria-busy');
@@ -541,8 +575,24 @@ class WebAppHandler(BaseHTTPRequestHandler):
                 user_id = _validate_init_data(str(payload.get("initData", "")))
                 block = str(payload.get("block", "moon"))
                 text = _detail_text(user_id, block)
+                variants = []
+                if block in {"bridge", "full"}:
+                    profile = get_store().get_profile(user_id)
+                    man_report = _report_from_payload(get_store().latest_report_payload(user_id))
+                    if man_report is not None and profile.get("self_birth_date"):
+                        woman_chart = calculate_partner_chart(parse_birth_date(profile.get("self_birth_date", "")))
+                        woman_report = build_partner_report(woman_chart, profile.get("self_name") or "вы")
+                        if "changed_during_day" in {man_report.moon_status, woman_report.moon_status}:
+                            variants = format_moon_variant_cards(man_report, woman_report)
                 get_store().track_event(user_id, "detail_webapp_opened", {"block": block})
-                self._send_json({"ok": True, "title": DETAIL_LABELS.get(block, "✨ Подробный разбор"), "text": text})
+                self._send_json(
+                    {
+                        "ok": True,
+                        "title": DETAIL_LABELS.get(block, "✨ Подробный разбор"),
+                        "text": text,
+                        "variants": variants,
+                    }
+                )
             except Exception as exc:
                 logger.exception("DETAIL_WEBAPP_FAILED")
                 self._send_json({"ok": False, "error": str(exc)}, status=400)

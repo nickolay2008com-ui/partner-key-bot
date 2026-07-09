@@ -27,7 +27,7 @@ from telegram.ext import (
 
 from app.astro.calculator import calculate_partner_chart, parse_birth_date
 from app.astro.product_blocks import (
-    format_couple_moon_bridge,
+    format_couple_moon_bridge_short_card,
     format_couple_portraits_short_card,
     format_planet_short_card,
 )
@@ -171,6 +171,7 @@ def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
         "jupiter": "🪐 Открыть подробный Юпитер",
         "portrait": "👤 Открыть подробные портреты",
         "full": "📖 Открыть расширенную карту",
+        "bridge": "💞 Открыть полный эмоциональный мост",
     }
     return InlineKeyboardMarkup(
         [
@@ -513,8 +514,8 @@ async def _build_bridge_from_date(
         await _send_long(
             update,
             context,
-            format_couple_moon_bridge(man_report, woman_report),
-            reply_markup=after_bridge_keyboard(),
+            format_couple_moon_bridge_short_card(man_report, woman_report),
+            reply_markup=detail_card_keyboard("bridge"),
         )
     except Exception:
         logger.exception("Failed to build bridge")

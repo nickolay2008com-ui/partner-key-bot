@@ -227,7 +227,10 @@ def _retrograde_note(report: PartnerReport, key: str, label: str) -> str:
             "Ретроградность для Луны практически не используется как отдельный бытовой ключ, поэтому здесь важнее знак, стихия и точность времени рождения."
         ),
     }
-    text = notes.get(key, "Ретроградность делает проявление планеты более внутренним: сначала человек перерабатывает тему внутри, затем проявляет её наружу.")
+    text = notes.get(
+        key,
+        "Ретроградность делает проявление планеты более внутренним: сначала человек перерабатывает тему внутри, затем проявляет её наружу.",
+    )
     return f"\n\n↩️ Ретроградность ({label}):\n{text}"
 
 
@@ -653,6 +656,55 @@ def format_couple_portraits_short_card(man_report: PartnerReport, woman_report: 
 
 👇 Подробные портреты с яркими подсказками и применением в жизни откройте по кнопке ниже.
 """.strip()
+
+
+def format_couple_moon_bridge_short_card(man_report: PartnerReport, woman_report: PartnerReport) -> str:
+    """Short Telegram card that sends users to the full HTML bridge."""
+    precision_note = _pair_precision_note(man_report, woman_report)
+    precision_line = (
+        "\n\n⚠️ Луна могла быть на переходе: в полной версии можно свайпнуть все варианты и выбрать похожий на жизнь."
+        if precision_note
+        else ""
+    )
+    return f"""
+💞 Эмоциональный мост: главное
+
+{_moon_pair_title(man_report, woman_report)}{precision_line}
+
+Коротко: задача не решить, кто чувствует «правильно», а перевести два ритма в понятный контакт — что даёт ему спокойствие, что даёт вам тепло и какой маленький шаг не создаёт давления.
+
+Что сделать сейчас:
+1. Дайте ему его формат безопасности.
+2. Одной фразой назовите свой формат тепла.
+3. Сравните реакцию: стало спокойнее, яснее или теплее?
+
+👇 Полную карту моста с развёрнутыми вариантами Луны откройте по кнопке ниже.
+""".strip()
+
+
+def format_moon_variant_cards(man_report: PartnerReport, woman_report: PartnerReport) -> list[dict[str, str]]:
+    """Moon transition combinations for a swipe UI in the WebApp."""
+    cards: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str, str]] = set()
+    for man_variant in _moon_variants(man_report):
+        for woman_variant in _moon_variants(woman_report):
+            key = (
+                str(man_variant.get("sign_key", "")),
+                str(man_variant.get("element", "")),
+                str(woman_variant.get("sign_key", "")),
+                str(woman_variant.get("element", "")),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            title = f"Он: {_variant_label(man_variant)} · Вы: {_variant_label(woman_variant)}"
+            cards.append(
+                {
+                    "title": title,
+                    "text": format_moon_variant_pair(man_variant, woman_variant),
+                }
+            )
+    return cards
 
 
 def format_couple_moon_bridge(man_report: PartnerReport, woman_report: PartnerReport) -> str:
