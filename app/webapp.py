@@ -237,7 +237,12 @@ class WebAppHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path == "/healthz":
-            self._send_json({"ok": True})
+            try:
+                storage = get_store().healthcheck()
+                self._send_json({"ok": bool(storage.get("ok")), "storage": storage})
+            except Exception as exc:
+                logger.exception("HEALTHCHECK_STORAGE_FAILED")
+                self._send_json({"ok": False, "error": str(exc)}, status=503)
             return
         if path == "/webapp":
             self._send_html(WEBAPP_HTML)

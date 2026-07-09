@@ -369,6 +369,16 @@ class ReportsStore:
             "partner_birth_date": str(row["partner_birth_date"] or ""),
         }
 
+    def healthcheck(self) -> dict[str, Any]:
+        """Return a small storage readiness payload for deployment health endpoints."""
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                row = conn.execute("SELECT 1 AS ok").fetchone()
+            return {"ok": bool(row and row["ok"] == 1), "storage": "postgres"}
+        with self._connect_sqlite() as conn:
+            row = conn.execute("SELECT 1 AS ok").fetchone()
+        return {"ok": bool(row and row["ok"] == 1), "storage": "sqlite", "path": str(self.db_path)}
+
     def save_profile(self, user_id: int, profile: dict[str, Any]) -> dict[str, str]:
         self.register_user(user_id)
         clean = {key: str(profile.get(key, "") or "").strip()[:80] for key in DEFAULT_PROFILE}
