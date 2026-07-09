@@ -400,14 +400,20 @@ def format_couple_moon_bridge(man_report: PartnerReport, woman_report: PartnerRe
 
 {_element_background(man_report, woman_report)}{alternate_text}
 
+Гармония здесь не в том, чтобы кто-то стал удобнее. Она в том, чтобы увидеть конкретный механизм Луны каждого и найти между ними живой, тёплый проход.
+""".strip()
+
+
+def format_couple_portraits(man_report: PartnerReport, woman_report: PartnerReport) -> str:
+    return f"""
+👤 Портреты в отношениях
+
 {format_person_portrait(man_report, "👤 Его портрет в отношениях")}
 
 {format_person_portrait(woman_report, "👤 Ваш портрет в отношениях")}
 
 Общий вектор:
 эти два портрета нужны не для ярлыков, а чтобы увидеть, чем наполняется каждый. Когда пара уважает оба ритма, отношения получают больше тепла, ясности, желания действовать вместе и пространства для процветания.
-
-Гармония здесь не в том, чтобы кто-то стал удобнее. Она в том, чтобы увидеть конкретный механизм Луны каждого и найти между ними живой, тёплый проход.
 """.strip()
 
 
