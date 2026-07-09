@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
+from datetime import datetime, time, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from telegram import Update
 from telegram.constants import ChatAction
@@ -36,6 +38,8 @@ logger = logging.getLogger(__name__)
 
 ASK_NAME, ASK_BIRTH_DATE = range(2)
 LAST_REPORT_KEY = "last_partner_report"
+DAILY_KEY_HOUR = 8
+DAILY_KEY_MINUTE = 0
 MERCURY_BROADCAST_KEY = "mercury_retrograde_opportunity_2026_07"
 MERCURY_BROADCAST_TEXT = """
 🗣 Ретроградный Меркурий — окно возможностей
@@ -55,6 +59,77 @@ MERCURY_BROADCAST_TEXT = """
 
 Иногда новый уровень начинается не с громкого решения, а с честного и ясного разговора.
 """.strip()
+
+
+DAILY_KEY_THEMES = [
+    ("Луна", "эмоциональную безопасность", "сначала признать чувство, потом предлагать решение"),
+    ("Венера", "тёплое притяжение", "добавить конкретный комплимент без давления"),
+    ("Меркурий", "ясный разговор", "задать один прямой вопрос и не спорить с ответом"),
+    ("Марс", "уважение к инициативе", "дать пространство для действия, а не контролировать каждый шаг"),
+    ("Солнце", "уважение к его роли", "заметить, где он уже старается"),
+    ("Сатурн", "надёжность", "договориться о маленьком понятном шаге"),
+    ("Юпитер", "веру в лучшее", "говорить через возможность, а не через претензию"),
+]
+
+DAILY_KEY_TONES = [
+    "мягко",
+    "коротко",
+    "без проверки и допроса",
+    "с теплом, но с границами",
+    "через благодарность",
+    "спокойно и конкретно",
+    "без намёков",
+]
+
+
+def _app_timezone() -> ZoneInfo:
+    try:
+        return ZoneInfo(settings.app_timezone)
+    except Exception:
+        logger.warning("Invalid APP_TIMEZONE=%s; falling back to Europe/Moscow", settings.app_timezone)
+        return ZoneInfo("Europe/Moscow")
+
+
+def _daily_key_broadcast_key(now: datetime | None = None) -> str:
+    tz = _app_timezone()
+    local_now = now.astimezone(tz) if now else datetime.now(tz)
+    return f"daily_partner_key_{local_now:%Y_%m_%d}"
+
+
+def build_daily_partner_key_text(now: datetime | None = None) -> str:
+    """Build a deterministic but different daily relationship key for the app timezone date."""
+    tz = _app_timezone()
+    local_now = now.astimezone(tz) if now else datetime.now(tz)
+    day_seed = local_now.toordinal()
+    theme_name, focus, action = DAILY_KEY_THEMES[day_seed % len(DAILY_KEY_THEMES)]
+    tone = DAILY_KEY_TONES[(day_seed // len(DAILY_KEY_THEMES)) % len(DAILY_KEY_TONES)]
+    date_label = local_now.strftime("%d.%m.%Y")
+    key_code = f"{theme_name[:1].upper()}-{day_seed % 97:02d}"
+
+    return f"""
+🔑 Ключ к мужчине на сегодня — {date_label}
+
+Код дня: {key_code}
+Планета-фокус: {theme_name}
+Главная тема: {focus}
+
+Как применить сегодня:
+— действуй {tone};
+— {action};
+— выбери один маленький шаг, а не большой разговор на два часа.
+
+Если хочешь точнее — сделай личный разбор по дате рождения мужчины: /partner
+""".strip()
+
+
+def _next_daily_key_run(now: datetime | None = None) -> datetime:
+    tz = _app_timezone()
+    local_now = now.astimezone(tz) if now else datetime.now(tz)
+    run_at = datetime.combine(local_now.date(), time(DAILY_KEY_HOUR, DAILY_KEY_MINUTE), tzinfo=tz)
+    if local_now >= run_at:
+        run_at += timedelta(days=1)
+    return run_at
+
 
 WELCOME_TEXT = """
 💞 Ключ к мужчине
@@ -177,9 +252,16 @@ async def _load_last_report_for_user(update: Update, context: ContextTypes.DEFAU
     return report
 
 
-async def _send_mercury_broadcast(application: Application, *, force: bool = False) -> tuple[int, int, int, str]:
+async def _send_broadcast(
+    application: Application,
+    *,
+    broadcast_key: str,
+    text: str,
+    log_prefix: str,
+    force: bool = False,
+) -> tuple[int, int, int, str]:
     store = get_store()
-    if not force and await asyncio.to_thread(store.was_broadcast_sent, MERCURY_BROADCAST_KEY):
+    if not force and await asyncio.to_thread(store.was_broadcast_sent, broadcast_key):
         return 0, 0, 0, "already_sent"
 
     user_ids = await asyncio.to_thread(store.all_user_ids)
@@ -194,23 +276,81 @@ async def _send_mercury_broadcast(application: Application, *, force: bool = Fal
         try:
             await application.bot.send_message(
                 chat_id=user_id,
-                text=MERCURY_BROADCAST_TEXT,
+                text=text,
                 disable_web_page_preview=True,
                 reply_markup=main_menu(),
             )
         except TelegramError as exc:
             failed += 1
-            logger.warning("MERCURY_BROADCAST: failed user_id=%s error=%s", user_id, exc)
+            logger.warning("%s: failed user_id=%s error=%s", log_prefix, user_id, exc)
         else:
             success += 1
         await asyncio.sleep(0.05)
 
     if success > 0:
-        await asyncio.to_thread(store.mark_broadcast_sent, MERCURY_BROADCAST_KEY, total, success, failed)
+        await asyncio.to_thread(store.mark_broadcast_sent, broadcast_key, total, success, failed)
     return total, success, failed, "sent"
 
 
+async def _send_mercury_broadcast(application: Application, *, force: bool = False) -> tuple[int, int, int, str]:
+    return await _send_broadcast(
+        application,
+        broadcast_key=MERCURY_BROADCAST_KEY,
+        text=MERCURY_BROADCAST_TEXT,
+        log_prefix="MERCURY_BROADCAST",
+        force=force,
+    )
+
+
+async def _send_daily_key_broadcast(
+    application: Application, *, force: bool = False, now: datetime | None = None
+) -> tuple[int, int, int, str]:
+    return await _send_broadcast(
+        application,
+        broadcast_key=_daily_key_broadcast_key(now),
+        text=build_daily_partner_key_text(now),
+        log_prefix="DAILY_KEY_BROADCAST",
+        force=force,
+    )
+
+
+async def _daily_key_scheduler(application: Application) -> None:
+    while True:
+        run_at = _next_daily_key_run()
+        sleep_seconds = max(1.0, (run_at - datetime.now(run_at.tzinfo)).total_seconds())
+        logger.info("DAILY_KEY_SCHEDULER: next_run=%s", run_at.isoformat(timespec="seconds"))
+        await asyncio.sleep(sleep_seconds)
+        try:
+            total, success, failed, status = await _send_daily_key_broadcast(application, force=False)
+            logger.info(
+                "DAILY_KEY_SCHEDULED: status=%s total=%s success=%s failed=%s",
+                status,
+                total,
+                success,
+                failed,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("DAILY_KEY_SCHEDULED_FAILED")
+
+
 async def _post_init(application: Application) -> None:
+    if datetime.now(_app_timezone()).time() >= time(DAILY_KEY_HOUR, DAILY_KEY_MINUTE):
+        try:
+            total, success, failed, status = await _send_daily_key_broadcast(application, force=False)
+            logger.info(
+                "DAILY_KEY_ON_BOOT: status=%s total=%s success=%s failed=%s",
+                status,
+                total,
+                success,
+                failed,
+            )
+        except Exception:
+            logger.exception("DAILY_KEY_ON_BOOT_FAILED")
+
+    application.create_task(_daily_key_scheduler(application), name="daily-key-scheduler")
+
     try:
         total, success, failed, status = await _send_mercury_broadcast(application, force=False)
         logger.info(
@@ -257,6 +397,28 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     items = get_store().recent(user_id, limit=10)
     await update.effective_message.reply_text(format_history(items), reply_markup=main_menu())
+
+
+async def today_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_authorized(update):
+        await _deny(update)
+        return
+    await _remember_user(update)
+    await update.effective_message.reply_text(build_daily_partner_key_text(), reply_markup=main_menu())
+
+
+async def broadcast_daily_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_broadcast_admin(update):
+        await update.effective_message.reply_text(
+            "Команда рассылки доступна только админу. Добавь свой Telegram ID в BROADCAST_ADMIN_IDS или AUTHORIZED_TELEGRAM_IDS на Railway."
+        )
+        return
+    await _remember_user(update)
+    wait = await update.effective_message.reply_text("Запускаю рассылку ключа на сегодня…")
+    total, success, failed, status = await _send_daily_key_broadcast(context.application, force=True)
+    await wait.edit_text(
+        f"Рассылка завершена.\n\nСтатус: {status}\nВсего: {total}\nОтправлено: {success}\nОшибок: {failed}"
+    )
 
 
 async def broadcast_mercury(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -444,6 +606,8 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("whoami", whoami))
     app.add_handler(CommandHandler("about", about))
     app.add_handler(CommandHandler("history", history))
+    app.add_handler(CommandHandler("today_key", today_key))
+    app.add_handler(CommandHandler("broadcast_daily_key", broadcast_daily_key))
     app.add_handler(CommandHandler("broadcast_mercury", broadcast_mercury))
     app.add_handler(partner_flow)
     app.add_handler(CallbackQueryHandler(on_report_details_button, pattern=r"^report:details$"))
