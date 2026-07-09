@@ -27,6 +27,7 @@ from app.astro.calculator import calculate_partner_chart, parse_birth_date
 from app.astro.product_blocks import (
     format_couple_full_report,
     format_couple_moon_bridge,
+    format_couple_portraits,
     format_mars_detail,
     format_mercury_detail,
     format_moon_detail,
@@ -150,6 +151,7 @@ def after_bridge_keyboard() -> InlineKeyboardMarkup:
                 )
             ],
             [InlineKeyboardButton("🔥 Марс: как он движется и достигает", callback_data="p:mars")],
+            [InlineKeyboardButton("👤 Портреты в отношениях", callback_data="p:portrait")],
             [InlineKeyboardButton("📖 Карта гармонии пары", callback_data="p:full")],
             [InlineKeyboardButton("✍️ Что написать?", callback_data="message")],
             [profile_button()],
@@ -705,6 +707,14 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply_markup=after_bridge_keyboard(),
         )
         return
+    if code == "portrait":
+        await _send_long(
+            update,
+            context,
+            format_couple_portraits(man_report, woman_report),
+            reply_markup=after_bridge_keyboard(),
+        )
+        return
     formatters = {
         "moon": format_moon_detail,
         "venus": format_venus_detail,
@@ -829,7 +839,7 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(weekly_ritual, pattern=r"^weekly_ritual$"))
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
     app.add_handler(CallbackQueryHandler(date_challenge, pattern=r"^date_challenge$"))
-    app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|full)$"))
+    app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|portrait|full)$"))
     app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^message$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_text))
     return app
