@@ -32,6 +32,7 @@ PLANET_NAMES_RU: dict[str, str] = {
     "venus": "Венера",
     "mercury": "Меркурий",
     "mars": "Марс",
+    "jupiter": "Юпитер",
 }
 
 

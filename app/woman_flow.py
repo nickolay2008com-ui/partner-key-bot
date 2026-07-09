@@ -28,6 +28,7 @@ from app.astro.product_blocks import (
     format_couple_full_report,
     format_couple_moon_bridge,
     format_couple_portraits,
+    format_jupiter_detail,
     format_mars_detail,
     format_mercury_detail,
     format_moon_detail,
@@ -142,6 +143,7 @@ def after_bridge_keyboard() -> InlineKeyboardMarkup:
                 )
             ],
             [InlineKeyboardButton("🔥 Марс: как он движется и достигает", callback_data="p:mars")],
+            [InlineKeyboardButton("🪐 Юпитер: общий горизонт роста", callback_data="p:jupiter")],
             [InlineKeyboardButton("👤 Портреты в отношениях", callback_data="p:portrait")],
             [InlineKeyboardButton("📖 Карта гармонии пары", callback_data="p:full")],
             [InlineKeyboardButton("✍️ Что написать?", callback_data="message")],
@@ -727,6 +729,7 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "venus": format_venus_detail,
         "mercury": format_mercury_detail,
         "mars": format_mars_detail,
+        "jupiter": format_jupiter_detail,
     }
     formatter = formatters.get(code)
     if formatter is None:
@@ -843,7 +846,7 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(history, pattern=r"^history$"))
     app.add_handler(CallbackQueryHandler(daily_key, pattern=r"^daily_key$"))
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
-    app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|portrait|full)$"))
+    app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|jupiter|portrait|full)$"))
     app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^message$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_text))
     return app

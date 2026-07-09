@@ -18,6 +18,7 @@ PLANET_IDS: dict[str, int] = {
     "venus": swe.VENUS,
     "mercury": swe.MERCURY,
     "mars": swe.MARS,
+    "jupiter": swe.JUPITER,
 }
 
 DATE_PATTERNS: tuple[str, ...] = (
@@ -150,6 +151,7 @@ def calculate_partner_chart(day: date) -> PartnerChart:
         "venus": calculate_placement(day, "venus"),
         "mercury": calculate_placement(day, "mercury"),
         "mars": calculate_placement(day, "mars"),
+        "jupiter": calculate_placement(day, "jupiter"),
     }
     moon_confidence = calculate_moon_confidence(day)
     if moon_confidence.is_exact_enough:

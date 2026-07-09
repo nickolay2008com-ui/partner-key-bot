@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 from app import woman_flow as base
 from app.astro.product_blocks import (
     format_full_report_intro,
+    format_jupiter_detail,
     format_mars_detail,
     format_mercury_detail,
     format_moon_detail,
@@ -23,6 +24,7 @@ def _formatter(code: str):
         "venus": format_venus_detail,
         "mercury": format_mercury_detail,
         "mars": format_mars_detail,
+        "jupiter": format_jupiter_detail,
         "full": format_full_report_intro,
     }.get(code)
 
