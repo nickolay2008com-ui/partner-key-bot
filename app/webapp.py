@@ -48,7 +48,7 @@ def _validate_init_data(init_data: str) -> int:
     return user_id
 
 
-WEBAPP_HTML = """<!doctype html>
+WEBAPP_HTML = r"""<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
@@ -125,7 +125,7 @@ WEBAPP_HTML = """<!doctype html>
     <label for="self_name">Имя</label>
     <input id="self_name" autocomplete="name" placeholder="Например: Анна" />
     <label for="self_birth_date">Дата рождения</label>
-    <input id="self_birth_date" inputmode="numeric" placeholder="12.04.1993" />
+    <input id="self_birth_date" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="12.04.1993" />
   </div>
 
   <div class="card">
@@ -133,7 +133,7 @@ WEBAPP_HTML = """<!doctype html>
     <label for="partner_name">Имя партнёра</label>
     <input id="partner_name" placeholder="Например: Андрей" />
     <label for="partner_birth_date">Дата рождения партнёра</label>
-    <input id="partner_birth_date" inputmode="numeric" placeholder="06.11.1995" />
+    <input id="partner_birth_date" inputmode="numeric" maxlength="10" placeholder="06.11.1995" />
   </div>
 
   <button id="save">Сохранить</button>
@@ -144,15 +144,37 @@ WEBAPP_HTML = """<!doctype html>
     const tg = window.Telegram && window.Telegram.WebApp;
     const statusEl = document.getElementById('status');
     const fields = ['self_name', 'self_birth_date', 'partner_name', 'partner_birth_date'];
+    const dateFields = ['self_birth_date', 'partner_birth_date'];
 
     function status(text) { statusEl.textContent = text || ''; }
+    function formatBirthDateInput(value) {
+      const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+      const parts = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)].filter(Boolean);
+      return parts.join('.');
+    }
+    function isCompleteBirthDate(value) {
+      return /^\d{2}\.\d{2}\.\d{4}$/.test(value);
+    }
+    function applyBirthDateMask(input) {
+      input.value = formatBirthDateInput(input.value);
+    }
+    function validateBirthDateMasks(profile) {
+      for (const id of dateFields) {
+        if (profile[id] && !isCompleteBirthDate(profile[id])) {
+          throw new Error('Введите дату полностью по маске ДД.ММ.ГГГГ, например 12.04.1993.');
+        }
+      }
+    }
     function profileFromForm() {
       const result = {};
       for (const id of fields) result[id] = document.getElementById(id).value.trim();
+      for (const id of dateFields) result[id] = formatBirthDateInput(result[id]);
+      validateBirthDateMasks(result);
       return result;
     }
     function fillForm(profile) {
       for (const id of fields) document.getElementById(id).value = profile[id] || '';
+      for (const id of dateFields) applyBirthDateMask(document.getElementById(id));
     }
     async function api(action, profile) {
       const response = await fetch('/api/profile', {
@@ -197,6 +219,12 @@ WEBAPP_HTML = """<!doctype html>
     document.getElementById('close').addEventListener('click', () => {
       if (tg) tg.close();
     });
+    for (const id of dateFields) {
+      const input = document.getElementById(id);
+      input.addEventListener('input', () => applyBirthDateMask(input));
+      input.addEventListener('blur', () => applyBirthDateMask(input));
+      input.addEventListener('paste', () => setTimeout(() => applyBirthDateMask(input), 0));
+    }
 
     load();
   </script>
