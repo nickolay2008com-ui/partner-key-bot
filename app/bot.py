@@ -88,7 +88,7 @@ _store: ReportsStore | None = None
 def get_store() -> ReportsStore:
     global _store
     if _store is None:
-        _store = ReportsStore(settings.reports_db_path)
+        _store = ReportsStore(settings.reports_db_path, settings.database_url)
     return _store
 
 

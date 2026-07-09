@@ -8,11 +8,11 @@ README намеренно описывает устойчивую архитек
 
 - Telegram-бот на `python-telegram-bot` с long polling запуском.
 - Telegram Web App для сбора, показа или сохранения пользовательских данных.
-- Локальное SQLite-хранилище для пользователей, профилей, истории и продуктовых состояний.
+- PostgreSQL-хранилище через `DATABASE_URL` для production и локальный SQLite fallback для разработки.
 - Конфигурация через переменные окружения и `.env` для локального запуска.
 - Поддержка публичного режима и режима доступа по списку Telegram ID.
 - Опциональная интеграция с OpenAI API для генерации, улучшения или персонализации текстов.
-- Готовность к деплою в Docker/Railway с постоянным хранилищем через volume.
+- Готовность к деплою в Docker/Railway с постоянным хранилищем через Railway Postgres или volume.
 - Healthcheck endpoint для проверки доступности процесса.
 
 ## Архитектура проекта
@@ -20,7 +20,7 @@ README намеренно описывает устойчивую архитек
 ```text
 app/
   config.py              # настройки окружения и runtime-валидация
-  storage.py             # SQLite-хранилище и работа с данными
+  storage.py             # PostgreSQL/SQLite-хранилище и работа с данными
   webapp.py              # Telegram Web App и HTTP endpoints
   services/              # внешние сервисы и AI-клиенты
   ui/                    # клавиатуры и элементы Telegram-интерфейса
@@ -50,21 +50,24 @@ python -m app.woman_flow
 | `AUTHORIZED_TELEGRAM_IDS` | нет | Список разрешённых Telegram ID через запятую. Пусто = публичный доступ. |
 | `BROADCAST_ADMIN_IDS` | нет | Админы служебных рассылок через запятую. |
 | `APP_TIMEZONE` | нет | Таймзона приложения, по умолчанию `Europe/Moscow`. |
-| `DATA_DIR` | нет | Папка для SQLite-файла. Если не задана, на Railway автоматически используется `RAILWAY_VOLUME_MOUNT_PATH`, иначе `data`. |
+| `DATA_DIR` | нет | Папка для SQLite-файла, если `DATABASE_URL` не задан. Если не задана, на Railway автоматически используется `RAILWAY_VOLUME_MOUNT_PATH`, иначе `data`. |
+| `DATABASE_URL` | нет | Строка подключения Railway Postgres/PostgreSQL. Если задана, профили, пользователи, история и рассылки хранятся в PostgreSQL вместо SQLite. |
 | `WEBAPP_URL` | нет | Публичный URL Telegram Web App. Если путь не указан, добавляется `/webapp`. |
 | `OPENAI_API_KEY` | нет | Ключ OpenAI для AI-функций. Базовый сценарий должен работать без него. |
 | `OPENAI_MODEL` | нет | Модель OpenAI, по умолчанию `gpt-4.1-mini`. |
 
 ## Данные и хранение
 
-Приложение хранит состояние в SQLite-файле внутри `DATA_DIR`. Путь выбирается в таком порядке:
+Приложение выбирает постоянное хранилище так:
 
-1. `DATA_DIR`, если переменная задана явно;
-2. `RAILWAY_VOLUME_MOUNT_PATH`, если Railway передал путь volume;
-3. `/data` на Railway;
-4. локально — `data`.
+1. Если задан `DATABASE_URL`, используется PostgreSQL/Railway Postgres. Это предпочтительный production-вариант: данные не зависят от файловой системы контейнера и сохраняются между redeploy/restart.
+2. Если `DATABASE_URL` не задан, используется SQLite-файл внутри `DATA_DIR`. Путь выбирается в таком порядке:
+   - `DATA_DIR`, если переменная задана явно;
+   - `RAILWAY_VOLUME_MOUNT_PATH`, если Railway передал путь volume;
+   - `/data` на Railway;
+   - локально — `data`.
 
-Для production обязательно подключите постоянный volume. Если volume не подключён к выбранному пути, SQLite-файл останется внутри контейнера и может быть потерян при redeploy или restart.
+Для Railway можно выбрать один из двух устойчивых вариантов: подключить Railway Postgres и передать `DATABASE_URL` в сервис бота или подключить постоянный volume для SQLite. Без Postgres и без volume SQLite-файл останется внутри контейнера и может быть потерян при redeploy или restart.
 
 ## Production
 
