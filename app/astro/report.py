@@ -141,14 +141,8 @@ def _report_retrograde_note(report: PartnerReport, key: str, label: str) -> str:
     return _retrograde_note_by_key(key, label, bool(_report_placement(report, key).get("is_retrograde", False)))
 
 
-def _rhythm_with_basis(report: PartnerReport, meaning_core: str) -> str:
-    rhythm = MOON_RHYTHM.get(report.emotional_language, meaning_core)
-    basis = _report_basis(report, "moon", "Луна")
-    marker = f"Его эмоциональный ритм — {report.emotional_language_title}:"
-    replacement = f"Его эмоциональный ритм — {report.emotional_language_title} ({basis}):"
-    if marker in rhythm:
-        return rhythm.replace(marker, replacement, 1)
-    return f"{rhythm}\n\nОснование: ({basis})"
+def _rhythm_without_placement_badge(report: PartnerReport, meaning_core: str) -> str:
+    return MOON_RHYTHM.get(report.emotional_language, meaning_core)
 
 
 def format_moon_precision_note(report: PartnerReport) -> str:
@@ -351,21 +345,16 @@ def format_person_portrait(report: PartnerReport, heading: str | None = None) ->
 
 def format_free_preview(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
-    rhythm = _rhythm_with_basis(report, meaning.core)
-    precision_note = format_moon_precision_note(report)
-    precision_block = f"\n\n{precision_note}" if precision_note else ""
-    basis = _report_basis(report, "moon", "Луна")
+    rhythm = _rhythm_without_placement_badge(report, meaning.core)
     return f"""
 💞 Эмоциональный ритм мужчины: {report.partner_name}
 
-{rhythm}{precision_block}
+{rhythm}
 
-Основание описания: ({basis}).
-
-Что может сбивать контакт ({basis}):
+Что может сбивать контакт:
 {meaning.what_not_to_do}
 
-Мягкий ключ ({basis}):
+Мягкий ключ:
 {meaning.first_step}
 
 Это не инструкция, как стать удобной. Это первый перевод его эмоционального ритма: в какой атмосфере ему легче расслабиться, доверять и быть ближе.
