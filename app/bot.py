@@ -152,6 +152,7 @@ def _save_last_report(context: ContextTypes.DEFAULT_TYPE, report: PartnerReport)
 def _report_from_payload(payload: object) -> PartnerReport | None:
     if not isinstance(payload, dict):
         return None
+    payload = {key: value for key, value in payload.items() if key != "_storage_report_id"}
     try:
         return PartnerReport(**payload)
     except TypeError:

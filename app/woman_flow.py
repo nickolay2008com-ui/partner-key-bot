@@ -20,6 +20,7 @@ from telegram.ext import (
     ContextTypes,
     ConversationHandler,
     MessageHandler,
+    PreCheckoutQueryHandler,
     filters,
 )
 
@@ -36,6 +37,7 @@ from app.astro.product_blocks import (
 )
 from app.astro.report import PartnerReport, build_partner_report, format_free_preview
 from app.config import settings
+from app.payments import CURRENCY_STARS, PROVIDER_TOKEN_STARS, get_product, make_payload, parse_payload
 from app.relationship_practice import (
     format_daily_connection_card,
     format_star_goal,
@@ -51,6 +53,7 @@ logger = logging.getLogger(__name__)
 ASK_MAN_NAME, ASK_MAN_DATE, ASK_WOMAN_NAME, ASK_WOMAN_DATE = range(4)
 LAST_MAN_REPORT = "last_man_report"
 LAST_WOMAN_REPORT = "last_woman_report"
+LAST_MAN_REPORT_ID = "last_man_report_id"
 ACTIVE_BOT_MESSAGE_IDS = "active_bot_message_ids"
 _store: ReportsStore | None = None
 
@@ -134,20 +137,56 @@ def after_free_keyboard() -> InlineKeyboardMarkup:
 def after_bridge_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🌙 Луна: где ему хорошо", callback_data="p:moon")],
-            [InlineKeyboardButton("💗 Венера: где включаются краски жизни", callback_data="p:venus")],
-            [
-                InlineKeyboardButton(
-                    "🗣 Меркурий: как он мыслит и договаривается",
-                    callback_data="p:mercury",
-                )
-            ],
-            [InlineKeyboardButton("🔥 Марс: как он движется и достигает", callback_data="p:mars")],
-            [InlineKeyboardButton("🪐 Юпитер: общий горизонт роста", callback_data="p:jupiter")],
-            [InlineKeyboardButton("👤 Портреты в отношениях", callback_data="p:portrait")],
-            [InlineKeyboardButton("📖 Карта гармонии пары", callback_data="p:full")],
-            [InlineKeyboardButton("✍️ Что написать?", callback_data="message")],
+            [InlineKeyboardButton("1️⃣ Луна: где ему спокойно", callback_data="p:moon")],
+            [InlineKeyboardButton("2️⃣ Венера: что включает тепло", callback_data="p:venus")],
+            [InlineKeyboardButton("3️⃣ Меркурий: как договориться", callback_data="p:mercury")],
+            [InlineKeyboardButton("4️⃣ Марс: как поддержать действие", callback_data="p:mars")],
+            [InlineKeyboardButton("5️⃣ Юпитер: куда расти вместе", callback_data="p:jupiter")],
+            [InlineKeyboardButton("🔓 Premium: карта гармонии пары", callback_data="p:full")],
+            [InlineKeyboardButton("👤 Premium: портреты в отношениях", callback_data="p:portrait")],
+            [InlineKeyboardButton("✍️ Premium: что написать", callback_data="message")],
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
+        ]
+    )
+
+
+def premium_paywall_text(product_key: str) -> str:
+    if product_key == "message":
+        return """
+✍️ Premium-сообщение
+
+Вы уже знаете эмоциональный мост. Следующий шаг — не ещё один абзац теории, а готовые формулировки, которые можно отправить без давления.
+
+Внутри:
+• 3 мягких варианта сообщения под его Луну;
+• тональность по Меркурию — чтобы вас легче услышали;
+• короткая подсказка, чего лучше не писать сейчас.
+
+Подходит, когда хочется сделать шаг, но не хочется звучать навязчиво.
+""".strip()
+    return """
+🔓 Premium-карта пары
+
+Бесплатная часть показывает главный ключ. Premium собирает его в понятную цепочку действий: где человеку спокойно, что включает тепло, как говорить, как поддерживать движение и куда паре расти.
+
+Внутри:
+• полный разбор Луны, Венеры, Меркурия, Марса и Юпитера;
+• портреты обоих в отношениях;
+• карта гармонии пары без “процентов совместимости”;
+• практичный порядок чтения — от эмоций к разговору и следующему шагу.
+
+Это не гадание “да/нет”, а карта поведения, которую можно применить в переписке и встречах.
+""".strip()
+
+
+def premium_keyboard(product_key: str) -> InlineKeyboardMarkup:
+    product = get_product(product_key)
+    price = f"{product.stars} ⭐️" if product else "⭐️"
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(f"Оплатить {price}", callback_data=f"premium:buy:{product_key}")],
+            [InlineKeyboardButton("Сначала посмотреть блоки", callback_data="p:moon")],
+            [InlineKeyboardButton("⬅️ Назад к карте", callback_data="premium:back")],
         ]
     )
 
@@ -230,6 +269,7 @@ def _clear_flow_state(context: ContextTypes.DEFAULT_TYPE) -> None:
         LAST_MAN_REPORT,
         LAST_WOMAN_REPORT,
         "last_partner_report",
+        LAST_MAN_REPORT_ID,
     ):
         context.user_data.pop(key, None)
 
@@ -300,6 +340,7 @@ def _save_report(context: ContextTypes.DEFAULT_TYPE, key: str, report: PartnerRe
 def _report_from_payload(payload: object) -> PartnerReport | None:
     if not isinstance(payload, dict):
         return None
+    payload = {key: value for key, value in payload.items() if key != "_storage_report_id"}
     try:
         return PartnerReport(**payload)
     except TypeError:
@@ -322,6 +363,8 @@ async def _load_latest_man_report(update: Update, context: ContextTypes.DEFAULT_
     if report is not None:
         _save_report(context, LAST_MAN_REPORT, report)
         context.user_data["last_partner_report"] = report.to_dict()
+        if isinstance(payload, dict) and payload.get("_storage_report_id"):
+            context.user_data[LAST_MAN_REPORT_ID] = int(payload["_storage_report_id"])
     return report
 
 
@@ -369,7 +412,8 @@ async def _build_man_report_from_date(
         context.user_data["last_partner_report"] = report.to_dict()
         user_id = _user_id(update)
         if user_id is not None:
-            await asyncio.to_thread(get_store().add, user_id, report)
+            report_id = await asyncio.to_thread(get_store().add, user_id, report)
+            context.user_data[LAST_MAN_REPORT_ID] = report_id
             await _save_profile_fields(
                 update,
                 partner_name=context.user_data.get("man_name", ""),
@@ -708,6 +752,11 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply_markup=after_free_keyboard(),
         )
         return
+    report_id = _current_report_id(context)
+    if code in {"full", "portrait"} and not await _has_premium_access(update, context, "details", report_id):
+        await _track_event(update, "premium_gate_hit", product_key="details", block=code, report_id=report_id)
+        await _tracked_reply_text(update, context, premium_paywall_text("details"), reply_markup=premium_keyboard("details"))
+        return
     if code == "full":
         await _send_long(
             update,
@@ -743,6 +792,109 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await _send_long(update, context, formatter(man_report), reply_markup=after_bridge_keyboard())
 
 
+def _current_report_id(context: ContextTypes.DEFAULT_TYPE) -> int:
+    raw = context.user_data.get(LAST_MAN_REPORT_ID)
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
+
+
+async def _has_premium_access(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, product_key: str, report_id: int
+) -> bool:
+    user_id = _user_id(update)
+    if user_id is None or report_id <= 0:
+        return False
+    return await asyncio.to_thread(get_store().has_entitlement, user_id, product_key, report_id)
+
+
+async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.callback_query:
+        await update.callback_query.answer()
+    await _remember_user(update)
+    data = update.callback_query.data if update.callback_query else ""
+    product_key = (data or "").replace("premium:", "")
+    if product_key == "back":
+        await _tracked_reply_text(update, context, "Вернул к карте пары.", reply_markup=after_bridge_keyboard())
+        return
+    if product_key not in {"details", "message"}:
+        product_key = "details"
+    await _track_event(update, "premium_paywall_viewed", product_key=product_key)
+    await _tracked_reply_text(update, context, premium_paywall_text(product_key), reply_markup=premium_keyboard(product_key))
+
+
+async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if query:
+        await query.answer()
+    await _remember_user(update)
+    product_key = (query.data or "").replace("premium:buy:", "") if query else ""
+    product = get_product(product_key)
+    report_id = _current_report_id(context)
+    if product is None or report_id <= 0:
+        await _tracked_reply_text(
+            update,
+            context,
+            "Сначала соберите разбор пары — тогда я привяжу Premium к конкретной карте.",
+            reply_markup=after_free_keyboard(),
+        )
+        return
+    await _track_event(update, "premium_invoice_opened", product_key=product_key, report_id=report_id)
+    message = update.effective_message
+    if not message:
+        return
+    await context.bot.send_invoice(
+        chat_id=message.chat_id,
+        title=product.title,
+        description=product.description,
+        payload=make_payload(product_key, report_id),
+        provider_token=PROVIDER_TOKEN_STARS,
+        currency=CURRENCY_STARS,
+        prices=[product.price],
+    )
+
+
+async def precheckout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.pre_checkout_query
+    if query is None:
+        return
+    parsed = parse_payload(query.invoice_payload)
+    if parsed is None:
+        await query.answer(ok=False, error_message="Не получилось распознать продукт. Попробуйте открыть оплату заново.")
+        return
+    await query.answer(ok=True)
+    product_key, report_id = parsed
+    await _track_event(update, "premium_precheckout_approved", product_key=product_key, report_id=report_id)
+
+
+async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    payment = update.effective_message.successful_payment if update.effective_message else None
+    if payment is None:
+        return
+    parsed = parse_payload(payment.invoice_payload)
+    if parsed is None:
+        await _tracked_reply_text(update, context, "Оплата прошла, но продукт не распознан. Напишите администратору.")
+        return
+    product_key, report_id = parsed
+    user_id = _user_id(update)
+    if user_id is not None:
+        await asyncio.to_thread(
+            get_store().grant_entitlement,
+            user_id,
+            product_key,
+            report_id,
+            payment.telegram_payment_charge_id,
+        )
+    await _track_event(update, "premium_payment_succeeded", product_key=product_key, report_id=report_id)
+    await _tracked_reply_text(
+        update,
+        context,
+        "Готово — Premium открыт для этой карты пары. Выберите, что посмотреть первым.",
+        reply_markup=after_bridge_keyboard(),
+    )
+
+
 async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.callback_query:
         await update.callback_query.answer()
@@ -759,6 +911,11 @@ async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             "Сначала добавьте вашу дату рождения и посмотрите эмоциональный мост. После этого я соберу варианты сообщения уже в контексте пары.",
             reply_markup=after_free_keyboard(),
         )
+        return
+    report_id = _current_report_id(context)
+    if not await _has_premium_access(update, context, "message", report_id):
+        await _track_event(update, "premium_gate_hit", product_key="message", block="message", report_id=report_id)
+        await _tracked_reply_text(update, context, premium_paywall_text("message"), reply_markup=premium_keyboard("message"))
         return
     wait = await _tracked_reply_text(update, context, "Собираю мягкие варианты сообщения…")
     text = await asyncio.to_thread(build_partner_message_with_ai, report)
@@ -846,8 +1003,12 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(history, pattern=r"^history$"))
     app.add_handler(CallbackQueryHandler(daily_key, pattern=r"^daily_key$"))
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
+    app.add_handler(CallbackQueryHandler(premium_offer, pattern=r"^premium:(details|message|back)$"))
+    app.add_handler(CallbackQueryHandler(premium_buy, pattern=r"^premium:buy:(details|message)$"))
     app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|jupiter|portrait|full)$"))
     app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^message$"))
+    app.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_text))
     return app
 

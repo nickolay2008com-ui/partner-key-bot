@@ -111,6 +111,21 @@ class ReportsStore:
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_analytics_events_name ON analytics_events(event_name)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id)")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS premium_entitlements (
+                    user_id INTEGER NOT NULL,
+                    product_key TEXT NOT NULL,
+                    report_id INTEGER NOT NULL,
+                    unlocked_at TEXT NOT NULL,
+                    payment_payload TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY (user_id, product_key, report_id)
+                )
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_premium_entitlements_user_id ON premium_entitlements(user_id)"
+            )
 
     def _init_postgres_db(self) -> None:
         with self._connect_postgres() as conn:
@@ -174,6 +189,21 @@ class ReportsStore:
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_analytics_events_name ON analytics_events(event_name)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id)")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS premium_entitlements (
+                    user_id BIGINT NOT NULL,
+                    product_key TEXT NOT NULL,
+                    report_id BIGINT NOT NULL,
+                    unlocked_at TEXT NOT NULL,
+                    payment_payload TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY (user_id, product_key, report_id)
+                )
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_premium_entitlements_user_id ON premium_entitlements(user_id)"
+            )
 
     def register_user(self, user_id: int) -> None:
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -250,7 +280,7 @@ class ReportsStore:
             with self._connect_postgres() as conn:
                 row = conn.execute(
                     """
-                    SELECT report_json
+                    SELECT id, report_json
                     FROM partner_reports
                     WHERE user_id = %s
                     ORDER BY id DESC
@@ -262,7 +292,7 @@ class ReportsStore:
             with self._connect_sqlite() as conn:
                 row = conn.execute(
                     """
-                    SELECT report_json
+                    SELECT id, report_json
                     FROM partner_reports
                     WHERE user_id = ?
                     ORDER BY id DESC
@@ -274,7 +304,10 @@ class ReportsStore:
             return None
         raw_payload = row["report_json"]
         payload = raw_payload if isinstance(raw_payload, dict) else json.loads(str(raw_payload))
-        return payload if isinstance(payload, dict) else None
+        if not isinstance(payload, dict):
+            return None
+        payload["_storage_report_id"] = int(row["id"])
+        return payload
 
     def recent(self, user_id: int, limit: int = 10) -> list[SavedReport]:
         if self.database_url:
@@ -458,6 +491,52 @@ class ReportsStore:
                 """,
                 (user_id, event_name, payload, now),
             )
+
+    def grant_entitlement(
+        self, user_id: int, product_key: str, report_id: int, payment_payload: str = ""
+    ) -> None:
+        self.register_user(user_id)
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        query = """
+            INSERT INTO premium_entitlements (user_id, product_key, report_id, unlocked_at, payment_payload)
+            VALUES ({placeholders})
+            ON CONFLICT(user_id, product_key, report_id) DO UPDATE SET
+                unlocked_at = excluded.unlocked_at,
+                payment_payload = excluded.payment_payload
+            """
+        values = (user_id, product_key, report_id, now, payment_payload)
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                conn.execute(query.format(placeholders="%s, %s, %s, %s, %s"), values)
+            return
+        with self._connect_sqlite() as conn:
+            conn.execute(query.format(placeholders="?, ?, ?, ?, ?"), values)
+
+    def has_entitlement(self, user_id: int, product_key: str, report_id: int) -> bool:
+        self.register_user(user_id)
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                row = conn.execute(
+                    """
+                    SELECT 1
+                    FROM premium_entitlements
+                    WHERE user_id = %s AND product_key = %s AND report_id = %s
+                    LIMIT 1
+                    """,
+                    (user_id, product_key, report_id),
+                ).fetchone()
+        else:
+            with self._connect_sqlite() as conn:
+                row = conn.execute(
+                    """
+                    SELECT 1
+                    FROM premium_entitlements
+                    WHERE user_id = ? AND product_key = ? AND report_id = ?
+                    LIMIT 1
+                    """,
+                    (user_id, product_key, report_id),
+                ).fetchone()
+        return row is not None
 
 
 def format_history(items: list[SavedReport]) -> str:
