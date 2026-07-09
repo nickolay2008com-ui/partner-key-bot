@@ -5,10 +5,14 @@ from dataclasses import asdict, dataclass, field
 from app.astro.calculator import PartnerChart, Placement
 from app.astro.meanings import (
     MARS_MEANINGS,
+    MARS_SIGN_DETAILS,
     MERCURY_MEANINGS,
+    MERCURY_SIGN_DETAILS,
     MESSAGE_TEMPLATES,
     MOON_MEANINGS,
+    MOON_SIGN_DETAILS,
     VENUS_MEANINGS,
+    VENUS_SIGN_DETAILS,
 )
 
 
@@ -58,6 +62,10 @@ def _main_moon_placement(chart: PartnerChart) -> Placement:
     return chart.placements["moon"]
 
 
+def _placement_detail(placement: Placement, details: dict[str, str], fallback: str) -> str:
+    return details.get(placement.sign_key, fallback)
+
+
 def _variant_label(variant: dict[str, object]) -> str:
     sign = str(variant.get("sign_ru", "знак не определён"))
     element = str(variant.get("element_ru", "стихия не определена"))
@@ -105,9 +113,29 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
     mars = chart.placements["mars"]
 
     moon_meaning = MOON_MEANINGS[moon.element]
+    moon_detail = _placement_detail(
+        moon,
+        MOON_SIGN_DETAILS,
+        "Точный знак Луны уточняет, какой формат эмоционального спокойствия человеку ближе.",
+    )
     venus_text = VENUS_MEANINGS[venus.element]
+    venus_detail = _placement_detail(
+        venus,
+        VENUS_SIGN_DETAILS,
+        "Точный знак Венеры уточняет, где у человека включаются ценность, вкус и притяжение.",
+    )
     mercury_text = MERCURY_MEANINGS[mercury.element]
+    mercury_detail = _placement_detail(
+        mercury,
+        MERCURY_SIGN_DETAILS,
+        "Точный знак Меркурия уточняет, как человеку легче мыслить, слышать слова и договариваться.",
+    )
     mars_text = MARS_MEANINGS[mars.element]
+    mars_detail = _placement_detail(
+        mars,
+        MARS_SIGN_DETAILS,
+        "Точный знак Марса уточняет, как человек движется, действует и защищает своё направление.",
+    )
     templates = MESSAGE_TEMPLATES[moon.element]
     moon_variants = [item.to_dict() for item in chart.moon_confidence.variants]
 
@@ -135,6 +163,9 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 Что человеку нужно:
 {moon_meaning.needs}
 
+Точный оттенок знака:
+{moon_detail}
+
 Как это обычно проявляется:
 {moon_meaning.how_it_shows}
 
@@ -147,11 +178,20 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 2. Как проявляется симпатия ({_placement_line("Венера", venus)})
 {venus_text}
 
+Точный оттенок знака:
+{venus_detail}
+
 3. Как говорить, чтобы вас услышали ({_placement_line("Меркурий", mercury)})
 {mercury_text}
 
+Точный оттенок знака:
+{mercury_detail}
+
 4. Как человек действует в напряжении ({_placement_line("Марс", mars)})
 {mars_text}
+
+Точный оттенок знака:
+{mars_detail}
 
 5. Как сделать хорошо обоим ({_placement_line("Луна", moon)})
 {moon_meaning.bridge}
