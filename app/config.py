@@ -60,6 +60,8 @@ class Settings:
     openai_api_key: str | None
     openai_model: str
     database_url: str | None
+    yookassa_shop_id: str | None
+    yookassa_secret_key: str | None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -76,6 +78,8 @@ class Settings:
             openai_api_key=os.getenv("OPENAI_API_KEY", "").strip() or None,
             openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini",
             database_url=os.getenv("DATABASE_URL", "").strip() or None,
+            yookassa_shop_id=(os.getenv("YOOKASSA_SHOP_ID") or os.getenv("YUKASSA_SHOP_ID") or "").strip() or None,
+            yookassa_secret_key=(os.getenv("YOOKASSA_SECRET_KEY") or os.getenv("YUKASSA_SECRET") or "").strip() or None,
         )
 
     def validate_runtime(self) -> None:
@@ -94,6 +98,9 @@ class Settings:
             )
 
     @property
+    def yookassa_enabled(self) -> bool:
+        return bool(self.yookassa_shop_id and self.yookassa_secret_key)
+
     def reports_db_path(self) -> Path:
         return self.data_dir / "partner_reports.sqlite3"
 
@@ -102,9 +109,10 @@ class Settings:
         openai = "enabled" if self.openai_api_key else "disabled"
         broadcast_admins = len(self.broadcast_admin_ids | self.authorized_telegram_ids)
         storage = "postgres" if self.database_url else f"sqlite:{self.data_dir}"
+        yookassa = "enabled" if self.yookassa_enabled else "disabled"
         return (
             f"timezone={self.app_timezone}; access={access}; openai={openai}; storage={storage}; "
-            f"broadcast_admins={broadcast_admins}; webapp_url={self.webapp_url}"
+            f"broadcast_admins={broadcast_admins}; webapp_url={self.webapp_url}; yookassa={yookassa}"
         )
 
 
