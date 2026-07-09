@@ -34,7 +34,15 @@ from app.astro.product_blocks import (
 )
 from app.astro.report import PartnerReport, build_partner_report, format_free_preview
 from app.config import settings
-from app.payments import CURRENCY_STARS, PROVIDER_TOKEN_STARS, get_product, make_payload, parse_payload
+from app.payments import (
+    CURRENCY_STARS,
+    PROVIDER_TOKEN_STARS,
+    create_yookassa_payment,
+    get_product,
+    get_yookassa_payment,
+    make_payload,
+    parse_payload,
+)
 from app.relationship_practice import (
     format_daily_connection_card,
     format_star_goal,
@@ -52,6 +60,7 @@ LAST_MAN_REPORT = "last_man_report"
 LAST_WOMAN_REPORT = "last_woman_report"
 LAST_MAN_REPORT_ID = "last_man_report_id"
 ACTIVE_BOT_MESSAGE_IDS = "active_bot_message_ids"
+PENDING_YOOKASSA_PAYMENT = "pending_yookassa_payment"
 _store: ReportsStore | None = None
 
 
@@ -202,7 +211,10 @@ def premium_paywall_text(product_key: str) -> str:
 
 def premium_keyboard(product_key: str) -> InlineKeyboardMarkup:
     product = get_product(product_key)
-    price = f"{product.stars} ⭐️" if product else "⭐️"
+    if product and settings.yookassa_enabled:
+        price = f"{product.rubles} ₽"
+    else:
+        price = f"{product.stars} ⭐️" if product else "⭐️"
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton(f"Оплатить {price}", callback_data=f"premium:buy:{product_key}")],
@@ -858,10 +870,60 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             reply_markup=after_free_keyboard(),
         )
         return
-    await _track_event(update, "premium_invoice_opened", product_key=product_key, report_id=report_id)
     message = update.effective_message
-    if not message:
+    user_id = _user_id(update)
+    if not message or user_id is None:
         return
+    if settings.yookassa_enabled:
+        await _track_event(update, "premium_yookassa_payment_started", product_key=product_key, report_id=report_id)
+        try:
+            payment = await asyncio.to_thread(
+                create_yookassa_payment,
+                shop_id=settings.yookassa_shop_id or "",
+                secret_key=settings.yookassa_secret_key or "",
+                product=product,
+                product_key=product_key,
+                report_id=report_id,
+                user_id=user_id,
+                return_url=settings.webapp_url,
+            )
+        except RuntimeError:
+            logger.exception("YOOKASSA_CREATE_FAILED")
+            await _track_event(update, "premium_yookassa_create_failed", product_key=product_key, report_id=report_id)
+            await _tracked_reply_text(
+                update,
+                context,
+                "Не получилось создать платёж ЮKassa. Попробуйте ещё раз чуть позже.",
+                reply_markup=premium_keyboard(product_key),
+            )
+            return
+        if not payment.confirmation_url or not payment.payment_id:
+            await _tracked_reply_text(
+                update,
+                context,
+                "ЮKassa не вернула ссылку на оплату. Попробуйте ещё раз чуть позже.",
+                reply_markup=premium_keyboard(product_key),
+            )
+            return
+        context.user_data[PENDING_YOOKASSA_PAYMENT] = {
+            "payment_id": payment.payment_id,
+            "product_key": product_key,
+            "report_id": report_id,
+        }
+        await _tracked_reply_text(
+            update,
+            context,
+            f"Оплата {product.title}: {product.rubles} ₽. После оплаты вернитесь сюда и нажмите проверку.",
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("Оплатить в ЮKassa", url=payment.confirmation_url)],
+                    [InlineKeyboardButton("✅ Проверить оплату", callback_data="premium:check")],
+                    [InlineKeyboardButton("⬅️ Назад к карте", callback_data="premium:back")],
+                ]
+            ),
+        )
+        return
+    await _track_event(update, "premium_invoice_opened", product_key=product_key, report_id=report_id)
     await context.bot.send_invoice(
         chat_id=message.chat_id,
         title=product.title,
@@ -870,6 +932,57 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         provider_token=PROVIDER_TOKEN_STARS,
         currency=CURRENCY_STARS,
         prices=[product.price],
+    )
+
+
+async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if query:
+        await query.answer()
+    await _remember_user(update)
+    pending = context.user_data.get(PENDING_YOOKASSA_PAYMENT)
+    if not isinstance(pending, dict) or not settings.yookassa_enabled:
+        await _tracked_reply_text(update, context, "Активный платёж не найден. Откройте оплату ещё раз.", reply_markup=after_bridge_keyboard())
+        return
+    payment_id = str(pending.get("payment_id", ""))
+    product_key = str(pending.get("product_key", ""))
+    try:
+        report_id = int(pending.get("report_id", 0))
+    except (TypeError, ValueError):
+        report_id = 0
+    if not payment_id or product_key not in {"details", "message"} or report_id <= 0:
+        await _tracked_reply_text(update, context, "Платёжные данные устарели. Откройте оплату ещё раз.", reply_markup=after_bridge_keyboard())
+        return
+    try:
+        payment = await asyncio.to_thread(
+            get_yookassa_payment,
+            shop_id=settings.yookassa_shop_id or "",
+            secret_key=settings.yookassa_secret_key or "",
+            payment_id=payment_id,
+        )
+    except RuntimeError:
+        logger.exception("YOOKASSA_CHECK_FAILED")
+        await _tracked_reply_text(update, context, "Не получилось проверить оплату. Попробуйте ещё раз через минуту.")
+        return
+    await _track_event(update, "premium_yookassa_payment_checked", product_key=product_key, report_id=report_id, status=payment.status)
+    if not payment.paid or payment.status != "succeeded":
+        await _tracked_reply_text(
+            update,
+            context,
+            "Пока не вижу успешную оплату. Если вы только что оплатили, подождите несколько секунд и нажмите проверку ещё раз.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ Проверить оплату", callback_data="premium:check")]]),
+        )
+        return
+    user_id = _user_id(update)
+    if user_id is not None:
+        await asyncio.to_thread(get_store().grant_entitlement, user_id, product_key, report_id, payment.payment_id)
+    context.user_data.pop(PENDING_YOOKASSA_PAYMENT, None)
+    await _track_event(update, "premium_payment_succeeded", product_key=product_key, report_id=report_id, provider="yookassa")
+    await _tracked_reply_text(
+        update,
+        context,
+        "Готово — Premium открыт для этой карты пары. Выберите, что посмотреть первым.",
+        reply_markup=after_bridge_keyboard(),
     )
 
 
@@ -1023,6 +1136,7 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
     app.add_handler(CallbackQueryHandler(premium_offer, pattern=r"^premium:(details|message|back)$"))
     app.add_handler(CallbackQueryHandler(premium_buy, pattern=r"^premium:buy:(details|message)$"))
+    app.add_handler(CallbackQueryHandler(yookassa_payment_check, pattern=r"^premium:check$"))
     app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|jupiter|portrait|full)$"))
     app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^message$"))
     app.add_handler(PreCheckoutQueryHandler(precheckout_callback))
