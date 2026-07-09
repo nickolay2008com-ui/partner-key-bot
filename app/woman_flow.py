@@ -82,8 +82,6 @@ def menu() -> InlineKeyboardMarkup:
         [
             [InlineKeyboardButton("🔑 Ключ на сегодня", callback_data="daily_key")],
             [InlineKeyboardButton("⭐️ Звёздная цель дня", callback_data="star_goal")],
-            [InlineKeyboardButton("💞 Недельный ритуал", callback_data="weekly_ritual")],
-            [InlineKeyboardButton("🎬 Свидание / вызов", callback_data="date_challenge")],
             [InlineKeyboardButton("💞 Начать разбор пары", callback_data="start_man")],
             [profile_button()],
             [InlineKeyboardButton("🗂 История", callback_data="history")],
