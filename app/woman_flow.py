@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import Any
+from urllib.parse import urlencode
 
 from telegram import (
     InlineKeyboardButton,
@@ -28,12 +29,8 @@ from app.astro.calculator import calculate_partner_chart, parse_birth_date
 from app.astro.product_blocks import (
     format_couple_full_report,
     format_couple_moon_bridge,
-    format_couple_portraits,
-    format_jupiter_detail,
-    format_mars_detail,
-    format_mercury_detail,
-    format_moon_detail,
-    format_venus_detail,
+    format_couple_portraits_short_card,
+    format_planet_short_card,
 )
 from app.astro.report import PartnerReport, build_partner_report, format_free_preview
 from app.config import settings
@@ -67,6 +64,13 @@ def get_store() -> ReportsStore:
 
 def webapp_info() -> WebAppInfo:
     return WebAppInfo(url=settings.webapp_url)
+
+
+def detail_webapp_info(block: str) -> WebAppInfo:
+    base_url = settings.webapp_url.rstrip("/")
+    if base_url.endswith("/webapp"):
+        base_url = base_url[: -len("/webapp")]
+    return WebAppInfo(url=f"{base_url}/webapp/detail?{urlencode({'block': block})}")
 
 
 def webapp_menu_button() -> MenuButtonWebApp:
@@ -146,6 +150,23 @@ def after_bridge_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("👤 Premium: портреты в отношениях", callback_data="p:portrait")],
             [InlineKeyboardButton("✍️ Premium: что написать", callback_data="message")],
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
+        ]
+    )
+
+
+def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
+    labels = {
+        "moon": "🌙 Открыть подробную Луну",
+        "venus": "💗 Открыть подробную Венеру",
+        "mercury": "🗣 Открыть подробный Меркурий",
+        "mars": "🔥 Открыть подробный Марс",
+        "jupiter": "🪐 Открыть подробный Юпитер",
+        "portrait": "👤 Открыть подробные портреты",
+    }
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(labels.get(block, "✨ Открыть подробности"), web_app=detail_webapp_info(block))],
+            [InlineKeyboardButton("⬅️ Назад к карте", callback_data="premium:back")],
         ]
     )
 
@@ -766,22 +787,14 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return
     if code == "portrait":
-        await _send_long(
+        await _tracked_reply_text(
             update,
             context,
-            format_couple_portraits(man_report, woman_report),
-            reply_markup=after_bridge_keyboard(),
+            format_couple_portraits_short_card(man_report, woman_report),
+            reply_markup=detail_card_keyboard("portrait"),
         )
         return
-    formatters = {
-        "moon": format_moon_detail,
-        "venus": format_venus_detail,
-        "mercury": format_mercury_detail,
-        "mars": format_mars_detail,
-        "jupiter": format_jupiter_detail,
-    }
-    formatter = formatters.get(code)
-    if formatter is None:
+    if code not in {"moon", "venus", "mercury", "mars", "jupiter"}:
         await _tracked_reply_text(
             update,
             context,
@@ -789,7 +802,12 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply_markup=after_bridge_keyboard(),
         )
         return
-    await _send_long(update, context, formatter(man_report), reply_markup=after_bridge_keyboard())
+    await _tracked_reply_text(
+        update,
+        context,
+        format_planet_short_card(man_report, code),
+        reply_markup=detail_card_keyboard(code),
+    )
 
 
 def _current_report_id(context: ContextTypes.DEFAULT_TYPE) -> int:
