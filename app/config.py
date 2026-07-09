@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,6 +9,8 @@ from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_ids(value: str | None) -> set[int]:
@@ -23,6 +26,15 @@ def _parse_ids(value: str | None) -> set[int]:
         except ValueError:
             raise ValueError(f"Список Telegram ID содержит не число: {item}") from None
     return result
+
+
+def _default_data_dir() -> str:
+    explicit = os.getenv("DATA_DIR") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+    if explicit:
+        return explicit
+    if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID"):
+        return "/data"
+    return "data"
 
 
 def _normalize_webapp_url(value: str | None) -> str:
@@ -51,7 +63,7 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-        data_dir_value = os.getenv("DATA_DIR") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH") or "data"
+        data_dir_value = _default_data_dir()
         data_dir = Path(data_dir_value).expanduser()
         return cls(
             telegram_bot_token=token,
@@ -68,6 +80,14 @@ class Settings:
         if not self.telegram_bot_token:
             raise RuntimeError("TELEGRAM_BOT_TOKEN не задан. Добавь токен бота в Railway Variables или .env")
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        if (os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID")) and not (
+            os.getenv("DATA_DIR") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+        ):
+            logger.warning(
+                "DATA_DIR is not configured on Railway; using %s. "
+                "Attach a Railway Volume mounted to this path or profile data will still be lost on redeploy.",
+                self.data_dir,
+            )
 
     @property
     def reports_db_path(self) -> Path:
