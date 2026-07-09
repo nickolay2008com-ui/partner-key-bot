@@ -73,6 +73,21 @@ def test_couple_moon_bridge_short_card_points_to_full_html() -> None:
     assert "его Луна в Овен" in text
 
 
+
+def test_couple_moon_bridge_short_card_leads_with_benefit_before_technical_note() -> None:
+    variants = [
+        {"sign_key": "aries", "sign_ru": "Овен", "element": "fire", "element_ru": "Огонь"},
+        {"sign_key": "taurus", "sign_ru": "Телец", "element": "earth", "element_ru": "Земля"},
+    ]
+    man = _report("Андрей", "aries", "Овен", "fire", "Огонь", "changed_during_day", variants)
+    woman = _report("Анна", "cancer", "Рак", "water", "Вода")
+
+    text = format_couple_moon_bridge_short_card(man, woman)
+
+    assert "Техническое уточнение" in text
+    assert text.index("Коротко:") < text.index("Техническое уточнение")
+    assert text.index("Что сделать сейчас:") < text.index("Техническое уточнение")
+
 def test_moon_variant_cards_include_all_transition_combinations() -> None:
     variants = [
         {"sign_key": "aries", "sign_ru": "Овен", "element": "fire", "element_ru": "Огонь"},
