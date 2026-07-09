@@ -22,9 +22,8 @@ from telegram.ext import (
 )
 
 from app.astro.calculator import calculate_partner_chart, parse_birth_date
-from app.astro.report import PartnerReport, build_partner_report, format_free_preview
+from app.astro.report import PartnerReport, build_partner_report, format_free_preview, format_message_guidance
 from app.config import settings
-from app.services.openai_client import build_partner_message_with_ai
 from app.storage import ReportsStore, format_history
 from app.ui.keyboards import (
     after_details_keyboard,
@@ -566,9 +565,9 @@ async def on_report_message_button(update: Update, context: ContextTypes.DEFAULT
         )
         return
 
-    wait = await update.effective_message.reply_text("Собираю мягкие варианты сообщения…")
+    wait = await update.effective_message.reply_text("Собираю общий ориентир для сообщения…")
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    text = await asyncio.to_thread(build_partner_message_with_ai, report)
+    text = format_message_guidance(report)
     try:
         await wait.delete()
     except Exception:

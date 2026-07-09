@@ -8,7 +8,6 @@ from app.astro.meanings import (
     MARS_SIGN_DETAILS,
     MERCURY_MEANINGS,
     MERCURY_SIGN_DETAILS,
-    MESSAGE_TEMPLATES,
     MOON_MEANINGS,
     MOON_SIGN_DETAILS,
     VENUS_MEANINGS,
@@ -187,7 +186,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
         MARS_SIGN_DETAILS,
         "Точный знак Марса уточняет, как человек движется, действует и защищает своё направление.",
     )
-    templates = MESSAGE_TEMPLATES[moon.element]
+    templates: list[str] = []
     moon_variants = [item.to_dict() for item in chart.moon_confidence.variants]
 
     moon_note = ""
@@ -363,10 +362,47 @@ def format_free_preview(report: PartnerReport) -> str:
 """.strip()
 
 
-def format_message_templates(report: PartnerReport) -> str:
-    lines = [f"✍️ Что можно написать: {report.partner_name}", ""]
-    for index, template in enumerate(report.message_templates, start=1):
-        lines.append(f"Вариант {index}:\n{template}")
-        lines.append("")
-    lines.append("Смысл не в том, чтобы давить. Смысл в том, чтобы говорить на языке, который человеку легче услышать.")
-    return "\n".join(lines).strip()
+def format_message_guidance(report: PartnerReport) -> str:
+    meaning = MOON_MEANINGS[report.emotional_language]
+    moon_basis = _report_basis(report, "moon", "Луна")
+    venus_basis = _report_basis(report, "venus", "Венера")
+    mercury_basis = _report_basis(report, "mercury", "Меркурий")
+    mars_basis = _report_basis(report, "mars", "Марс")
+
+    return f"""
+✍️ Что можно написать: общий ориентир для {report.partner_name}
+
+Не нужен идеальный готовый текст. Лучше написать своими словами так, чтобы в сообщении были понятны смысл, цель и бережный тон.
+
+Смысл сообщения:
+показать, что контакт важен, но без давления, проверки, обвинения или попытки получить гарантированный ответ.
+
+Цель сообщения:
+создать понятный следующий шаг: мягко прояснить контакт, предложить встречу/разговор или вернуть спокойный ритм общения.
+
+На что опереться ({moon_basis}):
+{meaning.needs}
+
+Какой тон выбрать ({mercury_basis}):
+говори так, чтобы человеку было легче ответить спокойно: коротко, ясно, без намёков, ультиматумов и эмоционального шантажа.{_report_retrograde_note(report, "mercury", "Меркурий")}
+
+Что добавить для тепла ({venus_basis}):
+немного ценности и приятности: не доказывать любовь, а дать ощущение, что рядом может быть спокойно, интересно и по-доброму.{_report_retrograde_note(report, "venus", "Венера")}
+
+Как не разогнать напряжение ({mars_basis}):
+если есть обида или пауза, не начинай с претензии. Лучше предложить маленькое действие: поговорить, встретиться, уточнить или взять паузу без холодности.{_report_retrograde_note(report, "mars", "Марс")}
+
+Структура сообщения:
+1. Тёплое признание: почему ты пишешь.
+2. Один ясный смысл: что тебе важно.
+3. Один спокойный следующий шаг: что предлагаешь.
+4. Свобода ответа: без давления и требования немедленной реакции.
+
+Чего избегать:
+{meaning.what_not_to_do}
+
+Формула:
+«Мне важно [смысл]. Я не хочу давить. Давай [один простой шаг], если тебе это тоже сейчас ок».
+
+Главное: сообщение должно звучать живо и по-человечески, а не как скрипт. Смысл не в том, чтобы подобрать волшебную фразу, а в том, чтобы говорить на языке, который человеку легче услышать.
+""".strip()

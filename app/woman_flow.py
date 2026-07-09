@@ -31,7 +31,7 @@ from app.astro.product_blocks import (
     format_couple_portraits_short_card,
     format_planet_short_card,
 )
-from app.astro.report import PartnerReport, build_partner_report, format_free_preview
+from app.astro.report import PartnerReport, build_partner_report, format_free_preview, format_message_guidance
 from app.config import settings
 from app.payments import (
     CURRENCY_STARS,
@@ -47,7 +47,6 @@ from app.relationship_practice import (
     format_star_goal,
     get_daily_connection_card,
 )
-from app.services.openai_client import build_partner_message_with_ai
 from app.storage import ReportsStore, format_history
 from app.webapp import start_webapp_server
 
@@ -1049,8 +1048,8 @@ async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await _track_event(update, "premium_gate_hit", product_key="message", block="message", report_id=report_id)
         await _tracked_reply_text(update, context, premium_paywall_text("message"), reply_markup=premium_keyboard("message"))
         return
-    wait = await _tracked_reply_text(update, context, "Собираю мягкие варианты сообщения…")
-    text = await asyncio.to_thread(build_partner_message_with_ai, report)
+    wait = await _tracked_reply_text(update, context, "Собираю общий ориентир для сообщения…")
+    text = format_message_guidance(report)
     try:
         await wait.delete()
         _forget_bot_message(context, wait)

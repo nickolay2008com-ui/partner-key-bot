@@ -112,3 +112,19 @@ def test_moon_variant_cards_include_all_transition_combinations() -> None:
     assert len(cards) == 4
     assert cards[0]["title"].startswith("Он:")
     assert all("Фраза-мост" in card["text"] for card in cards)
+
+
+def test_message_guidance_is_general_and_not_ready_script() -> None:
+    from app.astro.report import format_message_guidance
+
+    report = _report("Андрей", "taurus", "Телец", "earth", "Земля")
+
+    text = format_message_guidance(report)
+
+    assert "общий ориентир" in text
+    assert "Смысл сообщения:" in text
+    assert "Цель сообщения:" in text
+    assert "Структура сообщения:" in text
+    assert "Не нужен идеальный готовый текст" in text
+    assert "Вариант 1" not in text
+    assert "GPT" not in text

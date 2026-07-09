@@ -57,8 +57,6 @@ class Settings:
     broadcast_admin_ids: set[int]
     webapp_url: str
     data_dir: Path
-    openai_api_key: str | None
-    openai_model: str
     database_url: str | None
     yookassa_shop_id: str | None
     yookassa_secret_key: str | None
@@ -75,8 +73,6 @@ class Settings:
             broadcast_admin_ids=_parse_ids(os.getenv("BROADCAST_ADMIN_IDS")),
             webapp_url=_normalize_webapp_url(os.getenv("WEBAPP_URL")),
             data_dir=data_dir,
-            openai_api_key=os.getenv("OPENAI_API_KEY", "").strip() or None,
-            openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini",
             database_url=os.getenv("DATABASE_URL", "").strip() or None,
             yookassa_shop_id=(os.getenv("YOOKASSA_SHOP_ID") or os.getenv("YUKASSA_SHOP_ID") or "").strip() or None,
             yookassa_secret_key=(os.getenv("YOOKASSA_SECRET_KEY") or os.getenv("YUKASSA_SECRET") or "").strip() or None,
@@ -106,12 +102,11 @@ class Settings:
 
     def diagnostic_summary(self) -> str:
         access = "restricted" if self.authorized_telegram_ids else "public"
-        openai = "enabled" if self.openai_api_key else "disabled"
         broadcast_admins = len(self.broadcast_admin_ids | self.authorized_telegram_ids)
         storage = "postgres" if self.database_url else f"sqlite:{self.data_dir}"
         yookassa = "enabled" if self.yookassa_enabled else "disabled"
         return (
-            f"timezone={self.app_timezone}; access={access}; openai={openai}; storage={storage}; "
+            f"timezone={self.app_timezone}; access={access}; storage={storage}; "
             f"broadcast_admins={broadcast_admins}; webapp_url={self.webapp_url}; yookassa={yookassa}"
         )
 
