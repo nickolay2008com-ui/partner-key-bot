@@ -3,6 +3,8 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from app.astro.calculator import Placement
+from app.astro.product_blocks import format_couple_moon_bridge_short_card, format_moon_variant_cards
+from app.astro.report import PartnerReport
 from app.relationship_practice import format_star_goal
 
 
@@ -27,3 +29,71 @@ class StarGoalFormatTest(TestCase):
         self.assertIn("Астро-детали коротко:", text)
         self.assertLess(text.index("Главное:"), text.index("Астро-детали коротко:"))
         self.assertNotIn("Небо сегодня:", text)
+
+
+def _report(
+    name: str,
+    sign_key: str,
+    sign_ru: str,
+    element: str,
+    element_ru: str,
+    status: str = "exact",
+    variants: list[dict[str, object]] | None = None,
+) -> PartnerReport:
+    moon = {
+        "sign_key": sign_key,
+        "sign_ru": sign_ru,
+        "element": element,
+        "element_ru": element_ru,
+        "is_retrograde": False,
+    }
+    base = {"sign_key": "taurus", "sign_ru": "Телец", "element": "earth", "element_ru": "Земля", "is_retrograde": False}
+    return PartnerReport(
+        partner_name=name,
+        birth_date="1993-04-12",
+        moon_status=status,
+        emotional_language=element,
+        emotional_language_title="ритм",
+        placements={"moon": moon, "venus": base, "mercury": base, "mars": base, "jupiter": base},
+        summary="",
+        text="",
+        message_templates=[],
+        moon_variants=variants or [],
+    )
+
+
+def test_couple_moon_bridge_short_card_points_to_full_html() -> None:
+    man = _report("Андрей", "aries", "Овен", "fire", "Огонь")
+    woman = _report("Анна", "cancer", "Рак", "water", "Вода")
+
+    text = format_couple_moon_bridge_short_card(man, woman)
+
+    assert "Эмоциональный мост: главное" in text
+    assert "Полную карту моста" in text
+    assert "его Луна в Овен" in text
+
+
+def test_moon_variant_cards_include_all_transition_combinations() -> None:
+    variants = [
+        {"sign_key": "aries", "sign_ru": "Овен", "element": "fire", "element_ru": "Огонь"},
+        {"sign_key": "taurus", "sign_ru": "Телец", "element": "earth", "element_ru": "Земля"},
+    ]
+    man = _report("Андрей", "aries", "Овен", "fire", "Огонь", "changed_during_day", variants)
+    woman = _report(
+        "Анна",
+        "cancer",
+        "Рак",
+        "water",
+        "Вода",
+        "changed_during_day",
+        [
+            {"sign_key": "cancer", "sign_ru": "Рак", "element": "water", "element_ru": "Вода"},
+            {"sign_key": "leo", "sign_ru": "Лев", "element": "fire", "element_ru": "Огонь"},
+        ],
+    )
+
+    cards = format_moon_variant_cards(man, woman)
+
+    assert len(cards) == 4
+    assert cards[0]["title"].startswith("Он:")
+    assert all("Фраза-мост" in card["text"] for card in cards)
