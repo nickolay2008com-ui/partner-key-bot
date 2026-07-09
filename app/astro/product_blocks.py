@@ -82,6 +82,24 @@ PLANET_PRACTICE_PROMPTS = {
     ),
 }
 
+PLANET_ACTION_KEYS = {
+    "mars": {
+        "libra": (
+            "Польза для отношений: не требовать мгновенного рывка, а предложить выбор из 2–3 честных вариантов "
+            "и сразу зафиксировать следующий шаг.\n"
+            "Что усиливает: спокойная формулировка «давай найдём решение, где никто не проигрывает».\n"
+            "Что снижает силу: давление, ультиматумы, сравнение и спор без финального решения.\n"
+            "Мини-шаг: договориться, кто что делает и к какому сроку возвращает ответ."
+        ),
+        "default": (
+            "Польза для отношений: переводить напряжение в понятный следующий шаг, а не оставлять его в догадках.\n"
+            "Что усиливает: уважение к его способу действовать, ясная цель и короткая договорённость.\n"
+            "Что снижает силу: давление, обесценивание темпа и конфликт ради самого конфликта.\n"
+            "Мини-шаг: назвать желание, границу и одно действие, которое можно сделать уже сейчас."
+        ),
+    }
+}
+
 
 SIGN_PREPOSITIONAL = {
     "Овен": "Овне",
@@ -250,6 +268,17 @@ def _practice_prompt(key: str) -> str:
     )
 
 
+def _action_key(report: PartnerReport, key: str) -> str:
+    planet_keys = PLANET_ACTION_KEYS.get(key)
+    if not planet_keys:
+        return ""
+    sign = _sign_key(report, key)
+    detail = planet_keys.get(sign, planet_keys.get("default", ""))
+    if not detail:
+        return ""
+    return f"\n\nПрактический ключ:\n{detail}"
+
+
 def _applied_planet_block(report: PartnerReport, key: str, label: str) -> str:
     return (
         f"Профессиональная детализация {label}:\n"
@@ -258,6 +287,7 @@ def _applied_planet_block(report: PartnerReport, key: str, label: str) -> str:
         f"Знак даёт точный сценарий в поведении ({label} в {_sign_ru_prepositional(report, key)}):\n"
         f"{_sign_detail(report, key)}\n\n"
         f"{_practice_prompt(key)}"
+        f"{_action_key(report, key)}"
     )
 
 
