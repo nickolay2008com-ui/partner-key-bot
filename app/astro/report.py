@@ -458,7 +458,7 @@ def format_free_preview(report: PartnerReport) -> str:
     check_steps = "\n".join(f"{index}. {step}" for index, step in enumerate(preview["check_steps"], start=1))
     return f"""
 💞 Инструкция к любимому мужчине
-🔑 Первый ключ к его эмоциональному комфорту
+**Первый ключ к его эмоциональному комфорту**
 
 Его эмоциональная стихия — **{element_ru}**.
 
