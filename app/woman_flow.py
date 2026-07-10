@@ -80,6 +80,48 @@ PLANET_PAYWALL_COPY = {
     "planet_jupiter": ("🪐 Юпитер", "ваш Юпитер"),
 }
 
+
+def planet_product_key_to_block(product_key: str) -> str | None:
+    for block, key in PAID_PLANET_PRODUCTS.items():
+        if key == product_key:
+            return block
+    return None
+
+
+def planet_display_label(block: str) -> str:
+    return {
+        "venus": "Венеру",
+        "mercury": "Меркурий",
+        "mars": "Марс",
+        "jupiter": "Юпитер",
+    }.get(block, "планету")
+
+
+def planet_hint_label(block: str) -> str:
+    return {
+        "venus": "Венере",
+        "mercury": "Меркурию",
+        "mars": "Марсу",
+        "jupiter": "Юпитеру",
+    }.get(block, "планете")
+
+
+def compact_planets_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("💗 Венера", callback_data="p:venus"),
+                InlineKeyboardButton("🗣 Меркурий", callback_data="p:mercury"),
+            ],
+            [
+                InlineKeyboardButton("🔥 Марс", callback_data="p:mars"),
+                InlineKeyboardButton("🪐 Юпитер", callback_data="p:jupiter"),
+            ],
+            [InlineKeyboardButton("📖 Всё меню", callback_data="premium:back")],
+        ]
+    )
+
+
 MERCURY_BROADCAST_TEXT = """
 🗣 Ретроградный Меркурий — окно возможностей
 
@@ -331,18 +373,25 @@ def detail_card_keyboard(block: str, locked: bool = False) -> InlineKeyboardMark
         "bridge": "💞 Открыть полный эмоциональный мост",
     }
     if locked and block in PAID_PLANET_PRODUCTS:
-        primary_button = InlineKeyboardButton(
-            "🔓 Открыть за 50 ₽ · ваша планета бесплатно",
-            callback_data=f"premium:planet:{block}",
+        return InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        f"🔓 Открыть {planet_display_label(block)} за 50 ₽",
+                        callback_data=f"premium:planet:{block}",
+                    )
+                ],
+                [InlineKeyboardButton("👀 Что внутри", callback_data=f"premium:planet:{block}")],
+                [InlineKeyboardButton("⬅️ К планетам", callback_data="premium:planets")],
+            ]
         )
-    else:
-        primary_button = InlineKeyboardButton(
-            labels.get(block, "✨ Открыть подробности"), web_app=detail_webapp_info(block)
-        )
+    primary_button = InlineKeyboardButton(
+        labels.get(block, "✨ Открыть подробности"), web_app=detail_webapp_info(block)
+    )
     return InlineKeyboardMarkup(
         [
             [primary_button],
-            *read_menu_keyboard().inline_keyboard,
+            [InlineKeyboardButton("📖 Меню", callback_data="premium:back")],
         ]
     )
 
@@ -378,17 +427,17 @@ def premium_paywall_text(product_key: str) -> str:
     if product_key in PLANET_PAYWALL_COPY:
         planet_label, free_label = PLANET_PAYWALL_COPY[product_key]
         return f"""
-{planet_label}: подробный блок пары
+{planet_label}: один понятный шаг для пары
 
-Откройте подробную планету мужчины за 50 ₽ — а {free_label} добавим бесплатно. Так разбор становится не односторонним: вы видите не только его сценарий, но и ваш естественный способ отвечать, говорить, сближаться и поддерживать контакт.
+Откройте блок за 50 ₽ — а {free_label} добавим бесплатно, чтобы сравнить не только его сценарий, но и ваш способ отвечать и сближаться.
 
-Внутри:
-• его подробная планета: что включает, что закрывает и какой шаг работает мягче;
-• ваша планета бесплатно — чтобы сравнить ритмы без отдельной оплаты;
-• практичный мост для пары: как применить подсказку в переписке, разговоре или встрече;
-• короткая формулировка без мистики и давления: что попробовать сегодня.
+Что получите:
+• его подробную планету: где включается тепло, разговор, действие или рост;
+• вашу планету бесплатно — для честного сравнения ритмов;
+• практичный мост: как применить подсказку в переписке, разговоре или встрече;
+• короткий шаг на сегодня без мистики, давления и большого Premium-разбора.
 
-Формат аккуратный: одна планета — один понятный фокус за 50 ₽, без необходимости сразу покупать большой разбор.
+Разбор останется в этом чате и будет привязан к текущей карте пары.
 """.strip()
     if product_key == "message":
         return """
@@ -419,6 +468,34 @@ def premium_paywall_text(product_key: str) -> str:
 """.strip()
 
 
+def yookassa_payment_keyboard(product_key: str, payment_id: str, confirmation_url: str) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton("Оплатить в ЮKassa", url=confirmation_url)],
+        [InlineKeyboardButton("✅ Проверить оплату", callback_data=f"premium:check:{payment_id}")],
+    ]
+    if product_key in PLANET_PAYWALL_COPY:
+        rows.append([InlineKeyboardButton("⬅️ К планетам", callback_data="premium:planets")])
+    else:
+        rows.append([InlineKeyboardButton("📖 Меню", callback_data="premium:back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def payment_recovery_keyboard(product_key: str, payment_id: str | None = None) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    if payment_id:
+        rows.append([InlineKeyboardButton("✅ Проверить оплату ещё раз", callback_data=f"premium:check:{payment_id}")])
+    rows.append([InlineKeyboardButton("🔁 Создать ссылку заново", callback_data=f"premium:buy:{product_key}")])
+    if product_key in PLANET_PAYWALL_COPY:
+        block = planet_product_key_to_block(product_key) or "moon"
+        rows.append(
+            [InlineKeyboardButton(f"👀 Бесплатная подсказка по {planet_hint_label(block)}", callback_data=f"p:{block}")]
+        )
+        rows.append([InlineKeyboardButton("⬅️ К планетам", callback_data="premium:planets")])
+    else:
+        rows.append([InlineKeyboardButton("📖 Меню", callback_data="premium:back")])
+    return InlineKeyboardMarkup(rows)
+
+
 def premium_keyboard(product_key: str) -> InlineKeyboardMarkup:
     product = get_product(product_key)
     if product and settings.yookassa_enabled:
@@ -426,11 +503,21 @@ def premium_keyboard(product_key: str) -> InlineKeyboardMarkup:
     else:
         price = f"{product.stars} ⭐️" if product else "⭐️"
     if product_key in PLANET_PAYWALL_COPY:
-        buy_label = f"Открыть планету за {price} · ваша бесплатно"
-        secondary_label = "Посмотреть бесплатные подсказки"
-    else:
-        buy_label = f"Получить Premium за {price}"
-        secondary_label = "Сначала посмотреть блоки"
+        block = planet_product_key_to_block(product_key) or "moon"
+        buy_label = f"🔓 Открыть {planet_display_label(block)} за {price}"
+        return InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton(buy_label, callback_data=f"premium:buy:{product_key}")],
+                [
+                    InlineKeyboardButton(
+                        f"👀 Бесплатная подсказка по {planet_hint_label(block)}", callback_data=f"p:{block}"
+                    )
+                ],
+                [InlineKeyboardButton("⬅️ К планетам", callback_data="premium:planets")],
+            ]
+        )
+    buy_label = f"Получить Premium за {price}"
+    secondary_label = "Сначала посмотреть блоки"
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton(buy_label, callback_data=f"premium:buy:{product_key}")],
@@ -1254,6 +1341,15 @@ async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 pass
         await _tracked_reply_text(update, context, "📖 Меню разбора", reply_markup=read_menu_keyboard())
         return
+    if product_key == "planets":
+        await _track_event(update, "planet_compact_menu_opened")
+        await _tracked_reply_text(
+            update,
+            context,
+            "Выберите планету — один фокус, один понятный следующий шаг.",
+            reply_markup=compact_planets_keyboard(),
+        )
+        return
     if product_key.startswith("planet:"):
         planet_code = product_key.replace("planet:", "", 1)
         product_key = PAID_PLANET_PRODUCTS.get(planet_code, "details")
@@ -1304,16 +1400,16 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await _tracked_reply_text(
                 update,
                 context,
-                "Не получилось создать платёж ЮKassa. Попробуйте ещё раз чуть позже.",
-                reply_markup=premium_keyboard(product_key),
+                "Не получилось создать платёж ЮKassa. Разбор не потерян — можно создать ссылку заново или вернуться к текущей подсказке.",
+                reply_markup=payment_recovery_keyboard(product_key),
             )
             return
         if not payment.confirmation_url or not payment.payment_id:
             await _tracked_reply_text(
                 update,
                 context,
-                "ЮKassa не вернула ссылку на оплату. Попробуйте ещё раз чуть позже.",
-                reply_markup=premium_keyboard(product_key),
+                "ЮKassa не вернула ссылку на оплату. Разбор не потерян — попробуйте создать ссылку заново.",
+                reply_markup=payment_recovery_keyboard(product_key),
             )
             return
         context.user_data[PENDING_YOOKASSA_PAYMENT] = {
@@ -1325,13 +1421,7 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             update,
             context,
             f"Оплата {product.title}: {product.rubles} ₽. После оплаты вернитесь сюда и нажмите проверку.",
-            reply_markup=InlineKeyboardMarkup(
-                [
-                    [InlineKeyboardButton("Оплатить в ЮKassa", url=payment.confirmation_url)],
-                    [InlineKeyboardButton("✅ Проверить оплату", callback_data=f"premium:check:{payment.payment_id}")],
-                    [InlineKeyboardButton("📖 Меню", callback_data="premium:back")],
-                ]
-            ),
+            reply_markup=yookassa_payment_keyboard(product_key, payment.payment_id, payment.confirmation_url),
         )
         return
     await _track_event(update, "premium_invoice_opened", product_key=product_key, report_id=report_id)
@@ -1394,7 +1484,7 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
     product_key = product_key or payment.product_key
     report_id = report_id or payment.report_id
     user_id = _user_id(update)
-    if product_key not in {"details", "message"} or report_id <= 0:
+    if product_key not in {"details", "message", *PAID_PLANET_PRODUCTS.values()} or report_id <= 0:
         await _tracked_reply_text(
             update, context, "Не получилось связать платёж с Premium-разбором. Откройте оплату ещё раз."
         )
@@ -1409,10 +1499,8 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
         await _tracked_reply_text(
             update,
             context,
-            "Пока не вижу успешную оплату. Если вы только что оплатили, подождите несколько секунд и нажмите проверку ещё раз.",
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("✅ Проверить оплату", callback_data=f"premium:check:{payment_id}")]]
-            ),
+            "Пока не вижу успешную оплату. Если вы только что оплатили, подождите несколько секунд и нажмите проверку ещё раз. Разбор не потерян.",
+            reply_markup=payment_recovery_keyboard(product_key, payment_id),
         )
         return
     if user_id is not None:
@@ -1424,8 +1512,8 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
     await _tracked_reply_text(
         update,
         context,
-        "Готово — Premium открыт для этой карты пары. Выберите, что посмотреть первым.",
-        reply_markup=after_bridge_keyboard(),
+        "Готово — доступ открыт для этой карты пары. Выберите следующий понятный шаг.",
+        reply_markup=compact_planets_keyboard() if product_key in PLANET_PAYWALL_COPY else after_bridge_keyboard(),
     )
 
 
@@ -1466,8 +1554,8 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await _tracked_reply_text(
         update,
         context,
-        "Готово — Premium открыт для этой карты пары. Выберите, что посмотреть первым.",
-        reply_markup=after_bridge_keyboard(),
+        "Готово — доступ открыт для этой карты пары. Выберите следующий понятный шаг.",
+        reply_markup=compact_planets_keyboard() if product_key in PLANET_PAYWALL_COPY else after_bridge_keyboard(),
     )
 
 
@@ -1589,7 +1677,7 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
     app.add_handler(
         CallbackQueryHandler(
-            premium_offer, pattern=r"^premium:(details|message|back|planet:(venus|mercury|mars|jupiter))$"
+            premium_offer, pattern=r"^premium:(details|message|back|planets|planet:(venus|mercury|mars|jupiter))$"
         )
     )
     app.add_handler(
