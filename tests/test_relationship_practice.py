@@ -174,12 +174,16 @@ def test_free_preview_uses_instruction_positioning_visible_after_birth_date() ->
 
     text = format_free_preview(report)
 
-    assert "Инструкция к любимому мужчине" in text
-    assert "Его эмоциональная стихия — **Воздух**" in text
+    assert "💞 Инструкция к любимому мужчине" in text
+    assert "🔑 Первый ключ к его эмоциональному комфорту" in text
+    assert "🌙 Его эмоциональная стихия — Воздух." in text
+    assert "✨ Что это даёт вам на практике" in text
+    assert "🧭 Его ключ:" in text
+    assert "🤍 Мягкий ключ на сегодня" in text
+    assert "🔎 Как проверить, работает ли этот ключ" in text
+    assert "💞 Хотите увидеть ваш общий эмоциональный мост?" in text
     assert "меньше игры в угадайку" in text
-    assert "Как проверить, работает ли этот ключ" in text
-    assert "Хотите увидеть ваш общий эмоциональный мост?" in text
-
+    assert "**" not in text
 
 def test_message_guidance_shows_saved_live_templates_when_report_has_them() -> None:
     from app.astro.meanings import MESSAGE_TEMPLATES

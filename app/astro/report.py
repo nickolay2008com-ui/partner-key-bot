@@ -458,28 +458,28 @@ def format_free_preview(report: PartnerReport) -> str:
     check_steps = "\n".join(f"{index}. {step}" for index, step in enumerate(preview["check_steps"], start=1))
     return f"""
 💞 Инструкция к любимому мужчине
-**Первый ключ к его эмоциональному комфорту**
+🔑 Первый ключ к его эмоциональному комфорту
 
-Его эмоциональная стихия — **{element_ru}**.
+🌙 Его эмоциональная стихия — {element_ru}.
 
 {preview["opening"]}
 
-**Что это даёт вам на практике**
+✨ Что это даёт вам на практике
 
 {preview["practice"]}
 
-Его ключ:
-**{preview["key"]}**
+🧭 Его ключ:
+{preview["key"]}
 
 {preview["examples"]}
 
-**Что может закрывать его**
+⚠️ Что может закрывать его
 
 {preview["closing"]}
 
 {preview["not_indifference"]}
 
-**Мягкий ключ на сегодня**
+🤍 Мягкий ключ на сегодня
 
 {preview["soft_intro"]}
 
@@ -487,7 +487,7 @@ def format_free_preview(report: PartnerReport) -> str:
 
 {preview["before_talk"]}
 
-**Как проверить, работает ли этот ключ**
+🔎 Как проверить, работает ли этот ключ
 
 {check_steps}
 
@@ -495,15 +495,14 @@ def format_free_preview(report: PartnerReport) -> str:
 
 {preview["translation"]}
 
-Добавьте свою дату рождения, чтобы увидеть ваш **общий эмоциональный мост**: {preview["bridge"]}
+🤝 Добавьте свою дату рождения, чтобы увидеть ваш общий эмоциональный мост: {preview["bridge"]}
 
 Сформировано по Луне в стихии {element_ru}.
 
-💞 **Хотите увидеть ваш общий эмоциональный мост?**
+💞 Хотите увидеть ваш общий эмоциональный мост?
 
 {preview["cta"]}
 """.strip()
-
 
 def format_message_guidance(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
