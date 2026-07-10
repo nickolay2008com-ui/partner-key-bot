@@ -541,6 +541,47 @@ def format_moon_detail(report: PartnerReport) -> str:
 """.strip()
 
 
+def format_moon_deep_detail(report: PartnerReport) -> str:
+    meaning = MOON_MEANINGS[report.emotional_language]
+    sign_detail = MOON_SIGN_DETAILS.get(_sign_key(report, "moon"), "Точный знак Луны уточняет бытовой формат спокойствия: темп, тон и проявления заботы, которые человек легче принимает.")
+    precision_note = format_moon_precision_note(report)
+    precision_block = f"\n\n{precision_note}" if precision_note else ""
+    alternate = ""
+    if report.moon_status == "changed_during_day":
+        variant_lines = []
+        for variant in _moon_variants(report):
+            variant_lines.append(format_moon_person_mechanic(variant, role="Если"))
+        alternate = "\n\nЕсли Луна меняла знак в день рождения:\n" + "\n\n".join(variant_lines)
+    return f"""
+🌙 Луна мужчины глубже: {report.partner_name}
+
+Луна — это место, где мужчина перестаёт держать оборону. Здесь видно, когда ему эмоционально комфортно: в каком темпе он расслабляется, как принимает заботу и рядом с чем начинает наполняться.
+
+Стихия Луны: {_element_ru(report, "moon")}
+{meaning.core}
+
+В жизни это выглядит так:
+{meaning.how_it_shows}
+
+Когда ему хорошо:
+{meaning.needs}
+
+Когда он может закрываться:
+{meaning.what_not_to_do}
+
+Луна в знаке: {_sign_ru(report, "moon")}{precision_block}
+{sign_detail}
+
+Простые примеры:
+• если он устал — сначала дайте подходящий ритм Луны, а уже потом разговор;
+• если нужно сблизиться — выбирайте не давление, а формат, где ему безопасно ответить;
+• если контакт стал холоднее — проверьте, не стало ли слишком много хаоса, контроля или ожиданий без ясности.
+
+Мягкий ключ:
+{meaning.first_step}{alternate}
+""".strip()
+
+
 def format_venus_detail(report: PartnerReport) -> str:
     venus_basis = _basis(report, "venus", "Венера")
     return f"""
