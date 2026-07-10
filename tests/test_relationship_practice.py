@@ -128,3 +128,17 @@ def test_message_guidance_is_general_and_not_ready_script() -> None:
     assert "Не нужен идеальный готовый текст" in text
     assert "Вариант 1" not in text
     assert "GPT" not in text
+
+
+def test_bridge_summary_keyboard_keeps_planet_navigation_visible() -> None:
+    from app.woman_flow import bridge_summary_keyboard
+
+    keyboard = bridge_summary_keyboard().inline_keyboard
+    button_texts = [button.text for row in keyboard for button in row]
+
+    assert button_texts[0] == "💞 Открыть полный эмоциональный мост"
+    assert "1️⃣ Луна: где ему спокойно" in button_texts
+    assert "2️⃣ Венера: что включает тепло" in button_texts
+    assert "3️⃣ Меркурий: как договориться" in button_texts
+    assert "4️⃣ Марс: как поддержать действие" in button_texts
+    assert "5️⃣ Юпитер: куда расти вместе" in button_texts
