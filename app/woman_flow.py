@@ -66,6 +66,20 @@ PENDING_YOOKASSA_PAYMENT = "pending_yookassa_payment"
 DAILY_KEY_HOUR = 8
 DAILY_KEY_MINUTE = 0
 MERCURY_BROADCAST_KEY = "mercury_retrograde_opportunity_2026_07"
+
+PAID_PLANET_PRODUCTS = {
+    "venus": "planet_venus",
+    "mercury": "planet_mercury",
+    "mars": "planet_mars",
+    "jupiter": "planet_jupiter",
+}
+PLANET_PAYWALL_COPY = {
+    "planet_venus": ("💗 Венера", "женская Венера"),
+    "planet_mercury": ("🗣 Меркурий", "ваш Меркурий"),
+    "planet_mars": ("🔥 Марс", "ваш Марс"),
+    "planet_jupiter": ("🪐 Юпитер", "ваш Юпитер"),
+}
+
 MERCURY_BROADCAST_TEXT = """
 🗣 Ретроградный Меркурий — окно возможностей
 
@@ -290,7 +304,7 @@ def after_bridge_keyboard() -> InlineKeyboardMarkup:
     return read_menu_keyboard()
 
 
-def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
+def detail_card_keyboard(block: str, locked: bool = False) -> InlineKeyboardMarkup:
     labels = {
         "moon": "🌙 Луна (глубже)",
         "moon_deep": "🌙 Луна мужчины глубже",
@@ -302,9 +316,18 @@ def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
         "full": "📖 Открыть расширенную карту",
         "bridge": "💞 Открыть полный эмоциональный мост",
     }
+    if locked and block in PAID_PLANET_PRODUCTS:
+        primary_button = InlineKeyboardButton(
+            "🔓 Открыть за 50 ₽ · ваша планета бесплатно",
+            callback_data=f"premium:planet:{block}",
+        )
+    else:
+        primary_button = InlineKeyboardButton(
+            labels.get(block, "✨ Открыть подробности"), web_app=detail_webapp_info(block)
+        )
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(labels.get(block, "✨ Открыть подробности"), web_app=detail_webapp_info(block))],
+            [primary_button],
             *read_menu_keyboard().inline_keyboard,
         ]
     )
@@ -338,6 +361,21 @@ async def _send_bridge_teaser_with_menu(update: Update, context: ContextTypes.DE
 
 
 def premium_paywall_text(product_key: str) -> str:
+    if product_key in PLANET_PAYWALL_COPY:
+        planet_label, free_label = PLANET_PAYWALL_COPY[product_key]
+        return f"""
+{planet_label}: подробный блок пары
+
+Откройте подробную планету мужчины за 50 ₽ — а {free_label} добавим бесплатно. Так разбор становится не односторонним: вы видите не только его сценарий, но и ваш естественный способ отвечать, говорить, сближаться и поддерживать контакт.
+
+Внутри:
+• его подробная планета: что включает, что закрывает и какой шаг работает мягче;
+• ваша планета бесплатно — чтобы сравнить ритмы без отдельной оплаты;
+• практичный мост для пары: как применить подсказку в переписке, разговоре или встрече;
+• короткая формулировка без мистики и давления: что попробовать сегодня.
+
+Формат аккуратный: одна планета — один понятный фокус за 50 ₽, без необходимости сразу покупать большой разбор.
+""".strip()
     if product_key == "message":
         return """
 ✍️ Premium-сообщение с эффектом
@@ -373,10 +411,16 @@ def premium_keyboard(product_key: str) -> InlineKeyboardMarkup:
         price = f"{product.rubles} ₽"
     else:
         price = f"{product.stars} ⭐️" if product else "⭐️"
+    if product_key in PLANET_PAYWALL_COPY:
+        buy_label = f"Открыть планету за {price} · ваша бесплатно"
+        secondary_label = "Посмотреть бесплатные подсказки"
+    else:
+        buy_label = f"Получить Premium за {price}"
+        secondary_label = "Сначала посмотреть блоки"
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(f"Получить Premium за {price}", callback_data=f"premium:buy:{product_key}")],
-            [InlineKeyboardButton("Сначала посмотреть блоки", callback_data="p:moon")],
+            [InlineKeyboardButton(buy_label, callback_data=f"premium:buy:{product_key}")],
+            [InlineKeyboardButton(secondary_label, callback_data="p:moon")],
             [InlineKeyboardButton("📖 Меню", callback_data="premium:back")],
         ]
     )
@@ -1148,11 +1192,13 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply_markup=after_bridge_keyboard(),
         )
         return
+    product_key = PAID_PLANET_PRODUCTS.get(code)
+    locked = bool(product_key) and not await _has_premium_access(update, context, product_key, report_id)
     await _tracked_reply_text(
         update,
         context,
         format_planet_short_card(man_report, code),
-        reply_markup=detail_card_keyboard(code),
+        reply_markup=detail_card_keyboard(code, locked=locked),
     )
 
 
@@ -1188,7 +1234,10 @@ async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 pass
         await _tracked_reply_text(update, context, "📖 Меню разбора", reply_markup=read_menu_keyboard())
         return
-    if product_key not in {"details", "message"}:
+    if product_key.startswith("planet:"):
+        planet_code = product_key.replace("planet:", "", 1)
+        product_key = PAID_PLANET_PRODUCTS.get(planet_code, "details")
+    if product_key not in {"details", "message", *PAID_PLANET_PRODUCTS.values()}:
         product_key = "details"
     await _track_event(update, "premium_paywall_viewed", product_key=product_key)
     await _tracked_reply_text(
@@ -1518,8 +1567,17 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(daily_key, pattern=r"^daily_key$"))
     app.add_handler(CallbackQueryHandler(about, pattern=r"^help:about$"))
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
-    app.add_handler(CallbackQueryHandler(premium_offer, pattern=r"^premium:(details|message|back)$"))
-    app.add_handler(CallbackQueryHandler(premium_buy, pattern=r"^premium:buy:(details|message)$"))
+    app.add_handler(
+        CallbackQueryHandler(
+            premium_offer, pattern=r"^premium:(details|message|back|planet:(venus|mercury|mars|jupiter))$"
+        )
+    )
+    app.add_handler(
+        CallbackQueryHandler(
+            premium_buy,
+            pattern=r"^premium:buy:(details|message|planet_venus|planet_mercury|planet_mars|planet_jupiter)$",
+        )
+    )
     app.add_handler(CallbackQueryHandler(yookassa_payment_check, pattern=r"^premium:check(?::.+)?$"))
     app.add_handler(
         CallbackQueryHandler(
