@@ -167,6 +167,33 @@ def test_premium_keyboard_uses_read_menu_label() -> None:
     assert "⬅️ Назад к карте" not in button_texts
 
 
+def test_planet_paywall_is_packaged_as_50_rub_with_free_woman_planet(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from app.payments import get_product
+    import app.woman_flow as woman_flow
+    from app.woman_flow import detail_card_keyboard, premium_keyboard, premium_paywall_text
+
+    monkeypatch.setattr(woman_flow, "settings", SimpleNamespace(yookassa_enabled=True))
+
+    product = get_product("planet_venus")
+    assert product is not None
+    assert product.rubles == 50
+
+    locked_buttons = [
+        button.text for row in detail_card_keyboard("venus", locked=True).inline_keyboard for button in row
+    ]
+    assert locked_buttons[0] == "🔓 Открыть за 50 ₽ · ваша планета бесплатно"
+
+    paywall = premium_paywall_text("planet_venus")
+    assert "за 50 ₽" in paywall
+    assert "женская Венера" in paywall
+    assert "ваша планета бесплатно" in paywall
+
+    buy_buttons = [button.text for row in premium_keyboard("planet_venus").inline_keyboard for button in row]
+    assert "Открыть планету за 50 ₽ · ваша бесплатно" in buy_buttons
+
+
 def test_free_preview_uses_instruction_positioning_visible_after_birth_date() -> None:
     from app.astro.report import format_free_preview
 
