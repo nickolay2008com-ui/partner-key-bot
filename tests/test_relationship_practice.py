@@ -137,11 +137,11 @@ def test_bridge_summary_keyboard_keeps_planet_navigation_visible() -> None:
     button_texts = [button.text for row in keyboard for button in row]
 
     assert button_texts[0] == "💞 Открыть полный эмоциональный мост"
-    assert "1️⃣ Луна: где ему спокойно" in button_texts
-    assert "2️⃣ Венера: что включает тепло" in button_texts
-    assert "3️⃣ Меркурий: как договориться" in button_texts
-    assert "4️⃣ Марс: как поддержать действие" in button_texts
-    assert "5️⃣ Юпитер: куда расти вместе" in button_texts
+    assert "1️⃣ Луна: где ему спокойно" not in button_texts
+    assert "1️⃣ Венера: что включает тепло" in button_texts
+    assert "2️⃣ Меркурий: как договориться" in button_texts
+    assert "3️⃣ Марс: как поддержать действие" in button_texts
+    assert "4️⃣ Юпитер: куда расти вместе" in button_texts
 
 
 def test_detail_card_keyboard_embeds_read_menu_instead_of_back_button() -> None:
@@ -152,9 +152,9 @@ def test_detail_card_keyboard_embeds_read_menu_instead_of_back_button() -> None:
 
     assert button_texts[0] == "🌙 Луна (глубже)"
     assert "⬅️ Назад к карте" not in button_texts
-    assert "1️⃣ Луна: где ему спокойно" in button_texts
-    assert "2️⃣ Венера: что включает тепло" in button_texts
-    assert "5️⃣ Юпитер: куда расти вместе" in button_texts
+    assert "1️⃣ Луна: где ему спокойно" not in button_texts
+    assert "1️⃣ Венера: что включает тепло" in button_texts
+    assert "4️⃣ Юпитер: куда расти вместе" in button_texts
     assert "💞 Новый разбор" in button_texts
 
 
