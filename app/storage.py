@@ -123,9 +123,7 @@ class ReportsStore:
                 )
                 """
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_premium_entitlements_user_id ON premium_entitlements(user_id)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_premium_entitlements_user_id ON premium_entitlements(user_id)")
 
     def _init_postgres_db(self) -> None:
         with self._connect_postgres() as conn:
@@ -201,9 +199,7 @@ class ReportsStore:
                 )
                 """
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_premium_entitlements_user_id ON premium_entitlements(user_id)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_premium_entitlements_user_id ON premium_entitlements(user_id)")
 
     def register_user(self, user_id: int) -> None:
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -492,9 +488,7 @@ class ReportsStore:
                 (user_id, event_name, payload, now),
             )
 
-    def grant_entitlement(
-        self, user_id: int, product_key: str, report_id: int, payment_payload: str = ""
-    ) -> None:
+    def grant_entitlement(self, user_id: int, product_key: str, report_id: int, payment_payload: str = "") -> None:
         self.register_user(user_id)
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         query = """

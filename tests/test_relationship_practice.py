@@ -73,7 +73,6 @@ def test_couple_moon_bridge_short_card_points_to_full_html() -> None:
     assert "его Луна в Овен" in text
 
 
-
 def test_couple_moon_bridge_short_card_leads_with_benefit_before_technical_note() -> None:
     variants = [
         {"sign_key": "aries", "sign_ru": "Овен", "element": "fire", "element_ru": "Огонь"},
@@ -87,6 +86,7 @@ def test_couple_moon_bridge_short_card_leads_with_benefit_before_technical_note(
     assert "Техническое уточнение" in text
     assert text.index("Коротко:") < text.index("Техническое уточнение")
     assert text.index("Что сделать сейчас:") < text.index("Техническое уточнение")
+
 
 def test_moon_variant_cards_include_all_transition_combinations() -> None:
     variants = [
@@ -185,14 +185,13 @@ def test_free_preview_uses_instruction_positioning_visible_after_birth_date() ->
     assert "меньше игры в угадайку" in text
     assert "**" not in text
 
+
 def test_message_guidance_shows_saved_live_templates_when_report_has_them() -> None:
     from app.astro.meanings import MESSAGE_TEMPLATES
     from app.astro.report import format_message_guidance
 
     report = _report("Андрей", "gemini", "Близнецы", "air", "Воздух")
-    report = PartnerReport(
-        **{**report.to_dict(), "message_templates": MESSAGE_TEMPLATES["air"]}
-    )
+    report = PartnerReport(**{**report.to_dict(), "message_templates": MESSAGE_TEMPLATES["air"]})
 
     text = format_message_guidance(report)
 

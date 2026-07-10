@@ -140,13 +140,18 @@ def _retrograde_note_by_key(key: str, label: str, is_retrograde: bool, motion_st
         "mars": "Ретроградность разворачивает действие внутрь: энергия может копиться или идти рывками, поэтому лучше предлагать маленький понятный шаг бережно.",
         "jupiter": "Ретроградность показывает рост через личный смысл: человеку важно сначала внутренне поверить в горизонт, а потом расширяться наружу.",
     }
-    text = notes.get(key, "Ретроградность делает проявление планеты более внутренним: сначала тема перерабатывается внутри, затем проявляется наружу.")
+    text = notes.get(
+        key,
+        "Ретроградность делает проявление планеты более внутренним: сначала тема перерабатывается внутри, затем проявляется наружу.",
+    )
     return f"\n\n↩️ Ретроградность ({label}):\n{text}"
 
 
 def _report_retrograde_note(report: PartnerReport, key: str, label: str) -> str:
     placement = _report_placement(report, key)
-    return _retrograde_note_by_key(key, label, bool(placement.get("is_retrograde", False)), str(placement.get("motion_status", "stable")))
+    return _retrograde_note_by_key(
+        key, label, bool(placement.get("is_retrograde", False)), str(placement.get("motion_status", "stable"))
+    )
 
 
 def _rhythm_without_placement_badge(report: PartnerReport, meaning_core: str) -> str:
@@ -503,6 +508,7 @@ def format_free_preview(report: PartnerReport) -> str:
 
 {preview["cta"]}
 """.strip()
+
 
 def format_message_guidance(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]

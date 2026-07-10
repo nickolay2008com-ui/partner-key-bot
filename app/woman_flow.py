@@ -1259,7 +1259,7 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             reply_markup=InlineKeyboardMarkup(
                 [
                     [InlineKeyboardButton("Оплатить в ЮKassa", url=payment.confirmation_url)],
-                    [InlineKeyboardButton("✅ Проверить оплату", callback_data="premium:check")],
+                    [InlineKeyboardButton("✅ Проверить оплату", callback_data=f"premium:check:{payment.payment_id}")],
                     [InlineKeyboardButton("📖 Меню", callback_data="premium:back")],
                 ]
             ),
@@ -1282,21 +1282,33 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
     if query:
         await query.answer()
     await _remember_user(update)
+    callback_payment_id = ""
+    if query and query.data:
+        callback_payment_id = (
+            query.data.replace("premium:check:", "", 1) if query.data.startswith("premium:check:") else ""
+        )
     pending = context.user_data.get(PENDING_YOOKASSA_PAYMENT)
-    if not isinstance(pending, dict) or not settings.yookassa_enabled:
+    if not settings.yookassa_enabled:
         await _tracked_reply_text(
-            update, context, "Активный платёж не найден. Откройте оплату ещё раз.", reply_markup=after_bridge_keyboard()
+            update,
+            context,
+            "Оплата ЮKassa сейчас не настроена. Откройте оплату ещё раз.",
+            reply_markup=after_bridge_keyboard(),
         )
         return
-    payment_id = str(pending.get("payment_id", ""))
-    product_key = str(pending.get("product_key", ""))
-    try:
-        report_id = int(pending.get("report_id", 0))
-    except (TypeError, ValueError):
-        report_id = 0
-    if not payment_id or product_key not in {"details", "message"} or report_id <= 0:
+    payment_id = callback_payment_id
+    product_key = ""
+    report_id = 0
+    if isinstance(pending, dict) and (not payment_id or payment_id == str(pending.get("payment_id", ""))):
+        payment_id = str(pending.get("payment_id", ""))
+        product_key = str(pending.get("product_key", ""))
+        try:
+            report_id = int(pending.get("report_id", 0))
+        except (TypeError, ValueError):
+            report_id = 0
+    if not payment_id:
         await _tracked_reply_text(
-            update, context, "Платёжные данные устарели. Откройте оплату ещё раз.", reply_markup=after_bridge_keyboard()
+            update, context, "Активный платёж не найден. Откройте оплату ещё раз.", reply_markup=after_bridge_keyboard()
         )
         return
     try:
@@ -1310,6 +1322,17 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
         logger.exception("YOOKASSA_CHECK_FAILED")
         await _tracked_reply_text(update, context, "Не получилось проверить оплату. Попробуйте ещё раз через минуту.")
         return
+    product_key = product_key or payment.product_key
+    report_id = report_id or payment.report_id
+    user_id = _user_id(update)
+    if product_key not in {"details", "message"} or report_id <= 0:
+        await _tracked_reply_text(
+            update, context, "Не получилось связать платёж с Premium-разбором. Откройте оплату ещё раз."
+        )
+        return
+    if payment.telegram_user_id and user_id is not None and payment.telegram_user_id != user_id:
+        await _tracked_reply_text(update, context, "Этот платёж создан для другого Telegram-пользователя.")
+        return
     await _track_event(
         update, "premium_yookassa_payment_checked", product_key=product_key, report_id=report_id, status=payment.status
     )
@@ -1319,11 +1342,10 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
             context,
             "Пока не вижу успешную оплату. Если вы только что оплатили, подождите несколько секунд и нажмите проверку ещё раз.",
             reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("✅ Проверить оплату", callback_data="premium:check")]]
+                [[InlineKeyboardButton("✅ Проверить оплату", callback_data=f"premium:check:{payment_id}")]]
             ),
         )
         return
-    user_id = _user_id(update)
     if user_id is not None:
         await asyncio.to_thread(get_store().grant_entitlement, user_id, product_key, report_id, payment.payment_id)
     context.user_data.pop(PENDING_YOOKASSA_PAYMENT, None)
@@ -1498,7 +1520,7 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
     app.add_handler(CallbackQueryHandler(premium_offer, pattern=r"^premium:(details|message|back)$"))
     app.add_handler(CallbackQueryHandler(premium_buy, pattern=r"^premium:buy:(details|message)$"))
-    app.add_handler(CallbackQueryHandler(yookassa_payment_check, pattern=r"^premium:check$"))
+    app.add_handler(CallbackQueryHandler(yookassa_payment_check, pattern=r"^premium:check(?::.+)?$"))
     app.add_handler(
         CallbackQueryHandler(
             product_detail,
