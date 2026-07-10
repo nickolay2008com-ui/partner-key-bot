@@ -165,3 +165,31 @@ def test_premium_keyboard_uses_read_menu_label() -> None:
 
     assert "📖 Меню" in button_texts
     assert "⬅️ Назад к карте" not in button_texts
+
+
+def test_free_preview_uses_instruction_positioning_visible_after_birth_date() -> None:
+    from app.astro.report import format_free_preview
+
+    report = _report("Андрей", "gemini", "Близнецы", "air", "Воздух")
+
+    text = format_free_preview(report)
+
+    assert "Инструкция к вашему мужчине: первый ключ" in text
+    assert "квест «угадай по молчанию»" in text
+    assert "Как применять без магии и угадайки:" in text
+
+
+def test_message_guidance_shows_saved_live_templates_when_report_has_them() -> None:
+    from app.astro.meanings import MESSAGE_TEMPLATES
+    from app.astro.report import format_message_guidance
+
+    report = _report("Андрей", "gemini", "Близнецы", "air", "Воздух")
+    report = PartnerReport(
+        **{**report.to_dict(), "message_templates": MESSAGE_TEMPLATES["air"]}
+    )
+
+    text = format_message_guidance(report)
+
+    assert "Варианты живого сообщения:" in text
+    assert "квеста «угадай по молчанию»" in text
+    assert "• " in text
