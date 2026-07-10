@@ -274,11 +274,10 @@ def read_menu_keyboard() -> InlineKeyboardMarkup:
     """Menu shown inside the relationship reading after short detail cards."""
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("1️⃣ Луна: где ему спокойно", callback_data="p:moon")],
-            [InlineKeyboardButton("2️⃣ Венера: что включает тепло", callback_data="p:venus")],
-            [InlineKeyboardButton("3️⃣ Меркурий: как договориться", callback_data="p:mercury")],
-            [InlineKeyboardButton("4️⃣ Марс: как поддержать действие", callback_data="p:mars")],
-            [InlineKeyboardButton("5️⃣ Юпитер: куда расти вместе", callback_data="p:jupiter")],
+            [InlineKeyboardButton("1️⃣ Венера: что включает тепло", callback_data="p:venus")],
+            [InlineKeyboardButton("2️⃣ Меркурий: как договориться", callback_data="p:mercury")],
+            [InlineKeyboardButton("3️⃣ Марс: как поддержать действие", callback_data="p:mars")],
+            [InlineKeyboardButton("4️⃣ Юпитер: куда расти вместе", callback_data="p:jupiter")],
             [InlineKeyboardButton("🔓 Premium: мощная карта гармонии", callback_data="p:full")],
             [InlineKeyboardButton("👤 Premium: глубокие портреты пары", callback_data="p:portrait")],
             [InlineKeyboardButton("✍️ Premium: сообщение с эффектом", callback_data="message")],
