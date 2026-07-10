@@ -174,9 +174,13 @@ def test_free_preview_uses_instruction_positioning_visible_after_birth_date() ->
 
     text = format_free_preview(report)
 
-    assert "Инструкция к вашему мужчине: первый ключ" in text
-    assert "квест «угадай по молчанию»" in text
-    assert "Как применять без магии и угадайки:" in text
+    assert "💞 Инструкция к любимому мужчине" in text
+    assert "🔑 Первый ключ к его эмоциональному комфорту" in text
+    assert "**Первый ключ к его эмоциональному комфорту**" not in text
+    assert "Его эмоциональная стихия — **Воздух**" in text
+    assert "меньше игры в угадайку" in text
+    assert "Как проверить, работает ли этот ключ" in text
+    assert "Хотите увидеть ваш общий эмоциональный мост?" in text
 
 
 def test_message_guidance_shows_saved_live_templates_when_report_has_them() -> None:
