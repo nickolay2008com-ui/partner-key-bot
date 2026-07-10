@@ -170,6 +170,18 @@ def test_detail_card_keyboard_embeds_read_menu_instead_of_back_button() -> None:
     assert "💞 Новый разбор" in button_texts
 
 
+def test_after_free_actions_can_be_sent_as_separate_button_blocks() -> None:
+    from app.woman_flow import after_free_deep_keyboard, after_free_followup_keyboard
+
+    deep_buttons = [button.text for row in after_free_deep_keyboard().inline_keyboard for button in row]
+    followup_buttons = [button.text for row in after_free_followup_keyboard().inline_keyboard for button in row]
+
+    assert deep_buttons == ["🌙 Луна мужчины глубже"]
+    assert followup_buttons == ["💞 Добавить себя и увидеть мост", "💞 Новый разбор"]
+    assert "💞 Добавить себя и увидеть мост" not in deep_buttons
+    assert "💞 Новый разбор" not in deep_buttons
+
+
 def test_premium_keyboard_uses_read_menu_label() -> None:
     from app.woman_flow import premium_keyboard
 

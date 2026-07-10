@@ -274,12 +274,26 @@ def profile_only_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="cancel")]])
 
 
+def after_free_deep_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton("🌙 Луна мужчины глубже", web_app=detail_webapp_info("moon_deep"))]]
+    )
+
+
+def after_free_followup_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("💞 Добавить себя и увидеть мост", callback_data="add_me")],
+            [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
+        ]
+    )
+
+
 def after_free_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🌙 Луна мужчины глубже", web_app=detail_webapp_info("moon_deep"))],
-            [InlineKeyboardButton("💞 Добавить себя и увидеть мост", callback_data="add_me")],
-            [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
+            *after_free_deep_keyboard().inline_keyboard,
+            *after_free_followup_keyboard().inline_keyboard,
         ]
     )
 
@@ -780,7 +794,13 @@ async def _build_man_report_from_date(
             pass
         text = format_free_preview(report)
         await _track_event(update, "man_free_report_generated")
-        await _send_long(update, context, text, reply_markup=after_free_keyboard())
+        await _send_long(update, context, text, reply_markup=after_free_deep_keyboard())
+        await _tracked_reply_text(
+            update,
+            context,
+            "👇 Добавьте свою дату для моста пары или начните новый разбор.",
+            reply_markup=after_free_followup_keyboard(),
+        )
     except Exception:
         logger.exception("Failed to build man report")
         try:
