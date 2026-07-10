@@ -19,6 +19,7 @@ from app.astro.product_blocks import (
     format_jupiter_detail,
     format_mars_detail,
     format_mercury_detail,
+    format_moon_deep_detail,
     format_moon_detail,
     format_venus_detail,
 )
@@ -350,6 +351,7 @@ WEBAPP_HTML = r"""<!doctype html>
 
 DETAIL_LABELS = {
     "moon": "🌙 Луна: где ему спокойно",
+    "moon_deep": "🌙 Луна мужчины глубже",
     "venus": "💗 Венера: что включает тепло",
     "mercury": "🗣 Меркурий: как договориться",
     "mars": "🔥 Марс: как поддержать действие",
@@ -392,6 +394,7 @@ def _detail_text(user_id: int, block: str) -> str:
         return format_couple_portraits(man_report, woman_report)
     formatters = {
         "moon": format_moon_detail,
+        "moon_deep": format_moon_deep_detail,
         "venus": format_venus_detail,
         "mercury": format_mercury_detail,
         "mars": format_mars_detail,

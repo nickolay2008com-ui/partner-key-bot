@@ -263,6 +263,7 @@ def profile_only_keyboard() -> InlineKeyboardMarkup:
 def after_free_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
+            [InlineKeyboardButton("🌙 Луна мужчины глубже", web_app=detail_webapp_info("moon_deep"))],
             [InlineKeyboardButton("💞 Добавить себя и увидеть мост", callback_data="add_me")],
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
         ]
@@ -288,6 +289,7 @@ def after_bridge_keyboard() -> InlineKeyboardMarkup:
 def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
     labels = {
         "moon": "🌙 Луна (глубже)",
+        "moon_deep": "🌙 Луна мужчины глубже",
         "venus": "💗 Открыть подробную Венеру",
         "mercury": "🗣 Открыть подробный Меркурий",
         "mars": "🔥 Открыть подробный Марс",

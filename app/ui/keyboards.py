@@ -16,6 +16,7 @@ def detail_webapp_info(block: str) -> WebAppInfo:
 
 V2_PRODUCT_BUTTONS = [
     [InlineKeyboardButton("1️⃣ Луна: где ему спокойно", web_app=detail_webapp_info("moon"))],
+    [InlineKeyboardButton("🌙 Луна мужчины глубже", web_app=detail_webapp_info("moon_deep"))],
     [InlineKeyboardButton("2️⃣ Венера: что включает тепло", web_app=detail_webapp_info("venus"))],
     [InlineKeyboardButton("3️⃣ Меркурий: как договориться", web_app=detail_webapp_info("mercury"))],
     [InlineKeyboardButton("4️⃣ Марс: как поддержать действие", web_app=detail_webapp_info("mars"))],
