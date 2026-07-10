@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from urllib.parse import urlencode
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+
+from app.config import settings
+
+
+def detail_webapp_info(block: str) -> WebAppInfo:
+    base_url = settings.webapp_url.rstrip("/")
+    if base_url.endswith("/webapp"):
+        base_url = base_url[: -len("/webapp")]
+    return WebAppInfo(url=f"{base_url}/webapp/detail?{urlencode({'block': block})}")
 
 
 V2_PRODUCT_BUTTONS = [
@@ -27,7 +38,7 @@ def main_menu() -> InlineKeyboardMarkup:
 def report_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🔍 Показать глубже", callback_data="report:details")],
+            [InlineKeyboardButton("🔍 Показать глубже", web_app=detail_webapp_info("details"))],
             [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
             [InlineKeyboardButton("💞 Разобрать другого", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],

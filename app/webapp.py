@@ -357,6 +357,7 @@ DETAIL_LABELS = {
     "portrait": "👤 Портреты в отношениях",
     "full": "📖 Карта гармонии пары",
     "bridge": "💞 Эмоциональный мост",
+    "details": "🔍 Глубже о его эмоциональном ритме",
 }
 
 
@@ -375,6 +376,8 @@ def _detail_text(user_id: int, block: str) -> str:
     man_report = _report_from_payload(store.latest_report_payload(user_id))
     if man_report is None:
         raise ValueError("Сначала соберите разбор в боте — тогда здесь откроется подробная карта.")
+    if block == "details":
+        return man_report.text
     if block in {"portrait", "full", "bridge"}:
         profile = store.get_profile(user_id)
         self_birth_date = profile.get("self_birth_date", "")
