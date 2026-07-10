@@ -270,7 +270,8 @@ def after_free_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def after_bridge_keyboard() -> InlineKeyboardMarkup:
+def read_menu_keyboard() -> InlineKeyboardMarkup:
+    """Menu shown inside the relationship reading after short detail cards."""
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("1️⃣ Луна: где ему спокойно", callback_data="p:moon")],
@@ -284,6 +285,10 @@ def after_bridge_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
         ]
     )
+
+
+def after_bridge_keyboard() -> InlineKeyboardMarkup:
+    return read_menu_keyboard()
 
 
 def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
@@ -301,7 +306,7 @@ def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton(labels.get(block, "✨ Открыть подробности"), web_app=detail_webapp_info(block))],
-            [InlineKeyboardButton("⬅️ Назад к карте", callback_data="premium:back")],
+            *read_menu_keyboard().inline_keyboard,
         ]
     )
 
@@ -356,7 +361,7 @@ def premium_keyboard(product_key: str) -> InlineKeyboardMarkup:
         [
             [InlineKeyboardButton(f"Получить Premium за {price}", callback_data=f"premium:buy:{product_key}")],
             [InlineKeyboardButton("Сначала посмотреть блоки", callback_data="p:moon")],
-            [InlineKeyboardButton("⬅️ Назад к карте", callback_data="premium:back")],
+            [InlineKeyboardButton("📖 Меню", callback_data="premium:back")],
         ]
     )
 
@@ -1165,7 +1170,13 @@ async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     data = update.callback_query.data if update.callback_query else ""
     product_key = (data or "").replace("premium:", "")
     if product_key == "back":
-        await _tracked_reply_text(update, context, "Вернул к карте пары.", reply_markup=after_bridge_keyboard())
+        if update.callback_query and update.callback_query.message:
+            try:
+                await update.callback_query.message.delete()
+                _forget_bot_message(context, update.callback_query.message)
+            except Exception:
+                pass
+        await _tracked_reply_text(update, context, "📖 Меню разбора", reply_markup=read_menu_keyboard())
         return
     if product_key not in {"details", "message"}:
         product_key = "details"
@@ -1239,7 +1250,7 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 [
                     [InlineKeyboardButton("Оплатить в ЮKassa", url=payment.confirmation_url)],
                     [InlineKeyboardButton("✅ Проверить оплату", callback_data="premium:check")],
-                    [InlineKeyboardButton("⬅️ Назад к карте", callback_data="premium:back")],
+                    [InlineKeyboardButton("📖 Меню", callback_data="premium:back")],
                 ]
             ),
         )
