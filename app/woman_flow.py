@@ -287,7 +287,7 @@ def after_bridge_keyboard() -> InlineKeyboardMarkup:
 
 def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
     labels = {
-        "moon": "🌙 Открыть подробную Луну",
+        "moon": "🌙 Луна (глубже)",
         "venus": "💗 Открыть подробную Венеру",
         "mercury": "🗣 Открыть подробный Меркурий",
         "mars": "🔥 Открыть подробный Марс",
