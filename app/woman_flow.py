@@ -311,13 +311,30 @@ def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
 
 
 def bridge_summary_keyboard() -> InlineKeyboardMarkup:
-    """Keep the planet navigation visible immediately after the bridge teaser."""
+    """CTA shown on the bridge teaser; navigation is sent as a separate menu."""
     return InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("💞 Открыть полный эмоциональный мост", web_app=detail_webapp_info("bridge"))],
-            *after_bridge_keyboard().inline_keyboard,
-        ]
+        [[InlineKeyboardButton("💞 Открыть полный эмоциональный мост", web_app=detail_webapp_info("bridge"))]]
     )
+
+
+async def _delete_callback_menu_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Remove the tapped inline menu before rendering the next content card."""
+    query = update.callback_query
+    if not query or not query.message:
+        return
+    try:
+        await query.message.delete()
+        _forget_bot_message(context, query.message)
+    except Exception:
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+
+
+async def _send_bridge_teaser_with_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str) -> None:
+    await _send_long(update, context, text, reply_markup=bridge_summary_keyboard())
+    await _tracked_reply_text(update, context, "📖 Меню разбора", reply_markup=read_menu_keyboard())
 
 
 def premium_paywall_text(product_key: str) -> str:
@@ -770,11 +787,10 @@ async def _build_bridge_from_date(
         except Exception:
             pass
         await _track_event(update, "couple_bridge_generated")
-        await _send_long(
+        await _send_bridge_teaser_with_menu(
             update,
             context,
             format_couple_moon_bridge_short_card(man_report, woman_report),
-            reply_markup=bridge_summary_keyboard(),
         )
     except Exception:
         logger.exception("Failed to build bridge")
@@ -1085,6 +1101,7 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     }
     code = legacy_code_map.get(raw_code, raw_code.replace("p:", ""))
     await _track_event(update, "product_block_opened", block=code, source=raw_code)
+    await _delete_callback_menu_message(update, context)
     man_report = await _load_latest_man_report(update, context)
     if man_report is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
@@ -1122,11 +1139,10 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return
     if code == "bridge":
-        await _tracked_reply_text(
+        await _send_bridge_teaser_with_menu(
             update,
             context,
             format_couple_moon_bridge_short_card(man_report, woman_report),
-            reply_markup=bridge_summary_keyboard(),
         )
         return
     if code not in {"moon", "venus", "mercury", "mars", "jupiter"}:
