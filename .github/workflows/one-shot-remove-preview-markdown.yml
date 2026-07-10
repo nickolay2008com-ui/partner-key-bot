@@ -1,0 +1,133 @@
+name: One-shot preview formatting update
+
+on:
+  push:
+    branches:
+      - chore/remove-preview-markdown
+
+permissions:
+  contents: write
+
+jobs:
+  update-template:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/remove-preview-markdown
+          fetch-depth: 0
+
+      - name: Update source template and regression test
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          report_path = Path("app/astro/report.py")
+          report_text = report_path.read_text(encoding="utf-8")
+          report_start = report_text.index("def format_free_preview(")
+          report_end = report_text.index("\n\ndef format_message_guidance(", report_start)
+          report_replacement = '''def format_free_preview(report: PartnerReport) -> str:
+              preview = FREE_PREVIEW_BLOCKS.get(report.emotional_language, FREE_PREVIEW_BLOCKS["earth"])
+              element_ru = str(_report_placement(report, "moon").get("element_ru", preview["element_ru"]))
+              phrases = "\\n".join(preview["phrases"])
+              check_steps = "\\n".join(f"{index}. {step}" for index, step in enumerate(preview["check_steps"], start=1))
+              return f"""
+          💞 Инструкция к любимому мужчине
+          🔑 Первый ключ к его эмоциональному комфорту
+
+          🌙 Его эмоциональная стихия — {element_ru}.
+
+          {preview["opening"]}
+
+          ✨ Что это даёт вам на практике
+
+          {preview["practice"]}
+
+          🧭 Его ключ:
+          {preview["key"]}
+
+          {preview["examples"]}
+
+          ⚠️ Что может закрывать его
+
+          {preview["closing"]}
+
+          {preview["not_indifference"]}
+
+          🤍 Мягкий ключ на сегодня
+
+          {preview["soft_intro"]}
+
+          {phrases}
+
+          {preview["before_talk"]}
+
+          🔎 Как проверить, работает ли этот ключ
+
+          {check_steps}
+
+          Это не инструкция, как стать удобной.
+
+          {preview["translation"]}
+
+          🤝 Добавьте свою дату рождения, чтобы увидеть ваш общий эмоциональный мост: {preview["bridge"]}
+
+          Сформировано по Луне в стихии {element_ru}.
+
+          💞 Хотите увидеть ваш общий эмоциональный мост?
+
+          {preview["cta"]}
+          """.strip()'''
+          report_replacement = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in report_replacement.splitlines()
+          )
+          report_text = report_text[:report_start] + report_replacement.rstrip() + report_text[report_end:]
+          report_path.write_text(report_text, encoding="utf-8")
+
+          test_path = Path("tests/test_relationship_practice.py")
+          test_text = test_path.read_text(encoding="utf-8")
+          test_start = test_text.index("def test_free_preview_uses_instruction_positioning_visible_after_birth_date()")
+          test_end = test_text.index("\n\ndef test_message_guidance_shows_saved_live_templates", test_start)
+          test_replacement = '''def test_free_preview_uses_instruction_positioning_visible_after_birth_date() -> None:
+              from app.astro.report import format_free_preview
+
+              report = _report("Андрей", "gemini", "Близнецы", "air", "Воздух")
+
+              text = format_free_preview(report)
+
+              assert "💞 Инструкция к любимому мужчине" in text
+              assert "🔑 Первый ключ к его эмоциональному комфорту" in text
+              assert "🌙 Его эмоциональная стихия — Воздух." in text
+              assert "✨ Что это даёт вам на практике" in text
+              assert "🧭 Его ключ:" in text
+              assert "🤍 Мягкий ключ на сегодня" in text
+              assert "🔎 Как проверить, работает ли этот ключ" in text
+              assert "💞 Хотите увидеть ваш общий эмоциональный мост?" in text
+              assert "меньше игры в угадайку" in text
+              assert "**" not in text'''
+          test_replacement = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in test_replacement.splitlines()
+          )
+          test_text = test_text[:test_start] + test_replacement.rstrip() + test_text[test_end:]
+          test_path.write_text(test_text, encoding="utf-8")
+
+          preview_block = report_text[report_start:report_end]
+          assert "**" not in preview_block
+          assert "🔑 Первый ключ к его эмоциональному комфорту" in preview_block
+          PY
+
+          python -m py_compile app/astro/report.py tests/test_relationship_practice.py
+
+      - name: Commit only the real source changes
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-remove-preview-markdown.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/astro/report.py tests/test_relationship_practice.py .github/workflows/one-shot-remove-preview-markdown.yml
+          git diff --cached --check
+          git commit -m "Replace preview Markdown emphasis with concise emojis"
+          git push origin HEAD:chore/remove-preview-markdown
