@@ -3,7 +3,11 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from app.astro.calculator import Placement
-from app.astro.product_blocks import format_couple_moon_bridge, format_couple_moon_bridge_short_card, format_moon_variant_cards
+from app.astro.product_blocks import (
+    format_couple_moon_bridge,
+    format_couple_moon_bridge_short_card,
+    format_moon_variant_cards,
+)
 from app.astro.report import PartnerReport
 from app.relationship_practice import format_star_goal
 
@@ -156,18 +160,17 @@ def test_bridge_summary_keyboard_separates_full_bridge_cta_from_menu() -> None:
     assert "4️⃣ Юпитер: куда вести вашу пару" in menu_buttons
 
 
-def test_detail_card_keyboard_embeds_read_menu_instead_of_back_button() -> None:
+def test_detail_card_keyboard_keeps_content_cta_separate_from_full_menu() -> None:
     from app.woman_flow import detail_card_keyboard
 
     keyboard = detail_card_keyboard("moon").inline_keyboard
     button_texts = [button.text for row in keyboard for button in row]
 
-    assert button_texts[0] == "🌙 Луна (глубже)"
+    assert button_texts == ["🌙 Луна (глубже)", "📖 Меню"]
     assert "⬅️ Назад к карте" not in button_texts
-    assert "1️⃣ Луна: где ему спокойно" not in button_texts
-    assert "1️⃣ Венера: как включить его нежность" in button_texts
-    assert "4️⃣ Юпитер: куда вести вашу пару" in button_texts
-    assert "💞 Новый разбор" in button_texts
+    assert "1️⃣ Венера: как включить его нежность" not in button_texts
+    assert "4️⃣ Юпитер: куда вести вашу пару" not in button_texts
+    assert "💞 Новый разбор" not in button_texts
 
 
 def test_after_free_actions_can_be_sent_as_separate_button_blocks() -> None:
@@ -207,15 +210,39 @@ def test_planet_paywall_is_packaged_as_50_rub_with_free_woman_planet(monkeypatch
     locked_buttons = [
         button.text for row in detail_card_keyboard("venus", locked=True).inline_keyboard for button in row
     ]
-    assert locked_buttons[0] == "🔓 Открыть за 50 ₽ · ваша планета бесплатно"
+    assert locked_buttons == ["🔓 Открыть Венеру за 50 ₽", "👀 Что внутри", "⬅️ К планетам"]
 
     paywall = premium_paywall_text("planet_venus")
     assert "за 50 ₽" in paywall
     assert "женская Венера" in paywall
-    assert "ваша планета бесплатно" in paywall
+    assert "Разбор останется в этом чате" in paywall
 
     buy_buttons = [button.text for row in premium_keyboard("planet_venus").inline_keyboard for button in row]
-    assert "Открыть планету за 50 ₽ · ваша бесплатно" in buy_buttons
+    assert "🔓 Открыть Венеру за 50 ₽" in buy_buttons
+    assert "👀 Бесплатная подсказка по Венере" in buy_buttons
+    assert "⬅️ К планетам" in buy_buttons
+    assert "📖 Меню" not in buy_buttons
+
+
+def test_planet_payment_recovery_keeps_user_in_current_planet_context() -> None:
+    from app.woman_flow import payment_recovery_keyboard, yookassa_payment_keyboard
+
+    recovery_buttons = [
+        button.text for row in payment_recovery_keyboard("planet_jupiter", "pay_1").inline_keyboard for button in row
+    ]
+    assert recovery_buttons == [
+        "✅ Проверить оплату ещё раз",
+        "🔁 Создать ссылку заново",
+        "👀 Бесплатная подсказка по Юпитеру",
+        "⬅️ К планетам",
+    ]
+
+    payment_buttons = [
+        button.text
+        for row in yookassa_payment_keyboard("planet_jupiter", "pay_1", "https://pay.example").inline_keyboard
+        for button in row
+    ]
+    assert payment_buttons == ["Оплатить в ЮKassa", "✅ Проверить оплату", "⬅️ К планетам"]
 
 
 def test_free_preview_uses_instruction_positioning_visible_after_birth_date() -> None:
