@@ -198,11 +198,19 @@ def _is_retrograde(report: PartnerReport, key: str) -> bool:
     return bool(_placement(report, key).get("is_retrograde", False))
 
 
+def _motion_status(report: PartnerReport, key: str) -> str:
+    return str(_placement(report, key).get("motion_status", "stable"))
+
+
 def _retrograde_label(report: PartnerReport, key: str) -> str:
+    if _motion_status(report, key) == "changed_during_day":
+        return "смена движения в течение дня (нужно время рождения)"
     return "ретроградное положение" if _is_retrograde(report, key) else "прямое движение"
 
 
 def _retrograde_note(report: PartnerReport, key: str, label: str) -> str:
+    if _motion_status(report, key) == "changed_during_day":
+        return f"\n\n↩️ Точность ретроградности ({label}):\nВ этот день планета меняла направление. Без точного времени рождения нельзя честно выбрать один вариант: прямое движение читается как более внешнее проявление, ретроградное — как более внутренняя переработка темы."
     if not _is_retrograde(report, key):
         return ""
     notes = {
