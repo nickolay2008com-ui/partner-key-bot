@@ -129,7 +129,7 @@ PLANET_ACTION_KEYS = {
             "Что снижает силу: напор, обесценивание темпа и конфликт ради самого конфликта.\n"
             "Мини-шаг: назвать желание, границу и одно действие, которое можно сделать уже сейчас."
         ),
-    }
+    },
 }
 
 
@@ -570,7 +570,10 @@ def format_moon_detail(report: PartnerReport) -> str:
 
 def format_moon_deep_detail(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
-    sign_detail = MOON_SIGN_DETAILS.get(_sign_key(report, "moon"), "Точный знак Луны уточняет бытовой формат спокойствия: темп, тон и проявления заботы, которые человек легче принимает.")
+    sign_detail = MOON_SIGN_DETAILS.get(
+        _sign_key(report, "moon"),
+        "Точный знак Луны уточняет бытовой формат спокойствия: темп, тон и проявления заботы, которые человек легче принимает.",
+    )
     precision_note = format_moon_precision_note(report)
     precision_block = f"\n\n{precision_note}" if precision_note else ""
     alternate = ""

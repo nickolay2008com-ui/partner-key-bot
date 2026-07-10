@@ -39,6 +39,25 @@ class YooKassaPayment:
     status: str
     confirmation_url: str | None = None
     paid: bool = False
+    metadata: dict[str, str] | None = None
+
+    @property
+    def product_key(self) -> str:
+        return (self.metadata or {}).get("product_key", "")
+
+    @property
+    def report_id(self) -> int:
+        try:
+            return int((self.metadata or {}).get("report_id", "0"))
+        except ValueError:
+            return 0
+
+    @property
+    def telegram_user_id(self) -> int:
+        try:
+            return int((self.metadata or {}).get("telegram_user_id", "0"))
+        except ValueError:
+            return 0
 
 
 PRODUCTS: dict[str, Product] = {
@@ -125,20 +144,24 @@ def create_yookassa_payment(
     }
     raw = _yookassa_request(shop_id, secret_key, "POST", YOOKASSA_API_URL, payload)
     confirmation = raw.get("confirmation") if isinstance(raw.get("confirmation"), dict) else {}
+    metadata = raw.get("metadata") if isinstance(raw.get("metadata"), dict) else {}
     return YooKassaPayment(
         payment_id=str(raw.get("id", "")),
         status=str(raw.get("status", "")),
         confirmation_url=confirmation.get("confirmation_url"),
         paid=bool(raw.get("paid")),
+        metadata={str(key): str(value) for key, value in metadata.items()},
     )
 
 
 def get_yookassa_payment(*, shop_id: str, secret_key: str, payment_id: str) -> YooKassaPayment:
     raw = _yookassa_request(shop_id, secret_key, "GET", f"{YOOKASSA_API_URL}/{payment_id}")
     confirmation = raw.get("confirmation") if isinstance(raw.get("confirmation"), dict) else {}
+    metadata = raw.get("metadata") if isinstance(raw.get("metadata"), dict) else {}
     return YooKassaPayment(
         payment_id=str(raw.get("id", payment_id)),
         status=str(raw.get("status", "")),
         confirmation_url=confirmation.get("confirmation_url"),
         paid=bool(raw.get("paid")),
+        metadata={str(key): str(value) for key, value in metadata.items()},
     )
