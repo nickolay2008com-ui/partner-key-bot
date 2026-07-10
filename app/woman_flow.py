@@ -541,7 +541,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _clear_flow_state(context)
     await _track_event(update, "menu_opened", source="start")
     text = (
-        "💞 Карта гармонии пары\n\n"
+        "💞 Ключ к мужчине\n\n"
+        "Инструкция к вашему мужчине.\n\n"
         "За 1 минуту покажу не «подходит / не подходит», а понятный следующий шаг: "
         "где мужчине спокойнее, где вам теплее и как говорить бережно.\n\n"
         "Как это работает:\n"
