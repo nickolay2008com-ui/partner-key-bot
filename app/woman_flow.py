@@ -721,7 +721,7 @@ async def _build_man_report_from_date(
             f"{format_free_preview(report)}\n\n"
             "💞 Хотите увидеть ваш общий эмоциональный мост?\n"
             "Добавьте вашу дату рождения — я покажу, где спокойнее ему, где хорошо вам, "
-            "и какой ритм помогает быть ближе в спокойном темпе."
+            "и какой ритм помогает двигаться с удовольствием."
         )
         await _track_event(update, "man_free_report_generated")
         await _send_long(update, context, text, reply_markup=after_free_keyboard())

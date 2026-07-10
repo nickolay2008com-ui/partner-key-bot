@@ -353,8 +353,9 @@ def format_person_portrait(report: PartnerReport, heading: str | None = None) ->
 def format_free_preview(report: PartnerReport) -> str:
     meaning = MOON_MEANINGS[report.emotional_language]
     rhythm = _rhythm_without_placement_badge(report, meaning.core)
+    moon_element = str(_report_placement(report, "moon").get("element_ru", "стихия не определена"))
     return f"""
-💞 Эмоциональный ритм мужчины: {report.partner_name}
+💞 Эмоциональный ритм мужчины:
 
 {rhythm}
 
@@ -367,6 +368,9 @@ def format_free_preview(report: PartnerReport) -> str:
 Это не инструкция, как стать удобной. Это первый перевод его эмоционального ритма: в какой атмосфере ему легче расслабиться, доверять и быть ближе.
 
 Дальше можно добавить вашу дату и увидеть уже не только его ритм, а ваш общий эмоциональный мост.
+
+Сформировано на основе энергии Луны в стихии "{moon_element}"
+Луна отвечает за эмоциональный комфорт — когда человеку хорошо, комфортно.
 """.strip()
 
 
