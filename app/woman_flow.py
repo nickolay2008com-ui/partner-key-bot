@@ -781,6 +781,21 @@ async def _tracked_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE
     return sent
 
 
+async def _tracked_replace_callback_text(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, **kwargs: Any
+) -> Any:
+    """Edit the tapped bot message instead of stacking duplicate payment cards."""
+    query = update.callback_query
+    if query and query.message:
+        try:
+            edited = await query.edit_message_text(text, **kwargs)
+            _remember_bot_message(context, edited or query.message)
+            return edited
+        except Exception:
+            logger.exception("CALLBACK_MESSAGE_EDIT_FAILED")
+    return await _tracked_reply_text(update, context, text, **kwargs)
+
+
 def _state_lost_text() -> str:
     return (
         "Я не вижу активного шага разбора. Возможно, бот перезапустился после обновления или это старая кнопка. "
@@ -1397,7 +1412,7 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         except RuntimeError:
             logger.exception("YOOKASSA_CREATE_FAILED")
             await _track_event(update, "premium_yookassa_create_failed", product_key=product_key, report_id=report_id)
-            await _tracked_reply_text(
+            await _tracked_replace_callback_text(
                 update,
                 context,
                 "Не получилось создать платёж ЮKassa. Разбор не потерян — можно создать ссылку заново или вернуться к текущей подсказке.",
@@ -1405,7 +1420,7 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
             return
         if not payment.confirmation_url or not payment.payment_id:
-            await _tracked_reply_text(
+            await _tracked_replace_callback_text(
                 update,
                 context,
                 "ЮKassa не вернула ссылку на оплату. Разбор не потерян — попробуйте создать ссылку заново.",
@@ -1417,7 +1432,7 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "product_key": product_key,
             "report_id": report_id,
         }
-        await _tracked_reply_text(
+        await _tracked_replace_callback_text(
             update,
             context,
             f"Оплата {product.title}: {product.rubles} ₽. После оплаты вернитесь сюда и нажмите проверку.",
@@ -1479,7 +1494,12 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
         )
     except RuntimeError:
         logger.exception("YOOKASSA_CHECK_FAILED")
-        await _tracked_reply_text(update, context, "Не получилось проверить оплату. Попробуйте ещё раз через минуту.")
+        await _tracked_replace_callback_text(
+            update,
+            context,
+            "Не получилось проверить оплату. Попробуйте ещё раз через минуту. Разбор не потерян.",
+            reply_markup=payment_recovery_keyboard(product_key, payment_id),
+        )
         return
     product_key = product_key or payment.product_key
     report_id = report_id or payment.report_id
@@ -1496,7 +1516,7 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
         update, "premium_yookassa_payment_checked", product_key=product_key, report_id=report_id, status=payment.status
     )
     if not payment.paid or payment.status != "succeeded":
-        await _tracked_reply_text(
+        await _tracked_replace_callback_text(
             update,
             context,
             "Пока не вижу успешную оплату. Если вы только что оплатили, подождите несколько секунд и нажмите проверку ещё раз. Разбор не потерян.",
