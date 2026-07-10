@@ -25,7 +25,7 @@ app/
   services/              # внешние сервисы и AI-клиенты
   ui/                    # клавиатуры и элементы Telegram-интерфейса
   astro/                 # доменная логика текущего сценария
-  woman_flow.py          # основной production entrypoint
+  bot.py                 # основной production entrypoint
 ```
 
 Доменная логика может быть заменена или расширена без изменения инфраструктурных частей: конфигурации, хранения данных, Telegram-обвязки, Web App и деплоя.
@@ -37,7 +37,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-python -m app.woman_flow
+python -m app.bot
 ```
 
 Минимально нужен `TELEGRAM_BOT_TOKEN` в `.env`.
@@ -72,14 +72,10 @@ python -m app.woman_flow
 Railway запускает основной сценарий командой:
 
 ```bash
-python -m app.woman_flow
+python -m app.bot
 ```
 
-Внутри процесса поднимается HTTP-сервер на `PORT` и отдаёт постоянные endpoints:
-
-- `/healthz` — healthcheck;
-- `/webapp` — Telegram Web App;
-- `/api/profile` — API профиля пользователя.
+Основной production-сценарий работает как Telegram long polling bot. HTTP/Web App endpoints остаются в `app.webapp`, но не поднимаются этим entrypoint автоматически.
 
 Dockerfile содержит базовый `CMD`, но при деплое на Railway используется `startCommand` из `railway.json`.
 
