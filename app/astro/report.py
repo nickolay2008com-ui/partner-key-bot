@@ -116,14 +116,21 @@ def _report_basis(report: PartnerReport, key: str, label: str) -> str:
 
 
 def _placement_motion(placement: Placement) -> str:
+    if placement.motion_status == "changed_during_day":
+        return "смена движения в течение дня (без времени рождения возможны оба варианта)"
     return "ретроградное положение" if placement.is_retrograde else "прямое движение"
 
 
 def _report_motion(report: PartnerReport, key: str) -> str:
-    return "ретроградное положение" if bool(_report_placement(report, key).get("is_retrograde", False)) else "прямое движение"
+    placement = _report_placement(report, key)
+    if placement.get("motion_status") == "changed_during_day":
+        return "смена движения в течение дня (без времени рождения возможны оба варианта)"
+    return "ретроградное положение" if bool(placement.get("is_retrograde", False)) else "прямое движение"
 
 
-def _retrograde_note_by_key(key: str, label: str, is_retrograde: bool) -> str:
+def _retrograde_note_by_key(key: str, label: str, is_retrograde: bool, motion_status: str = "stable") -> str:
+    if motion_status == "changed_during_day":
+        return f"\n\n↩️ Точность ретроградности ({label}):\nВ этот день планета меняла направление. Без точного времени рождения нельзя честно выбрать один вариант, поэтому трактовку лучше читать как развилку: прямое движение даёт более внешнее проявление, ретроградное — более внутреннюю переработку темы."
     if not is_retrograde:
         return ""
     notes = {
@@ -137,7 +144,8 @@ def _retrograde_note_by_key(key: str, label: str, is_retrograde: bool) -> str:
 
 
 def _report_retrograde_note(report: PartnerReport, key: str, label: str) -> str:
-    return _retrograde_note_by_key(key, label, bool(_report_placement(report, key).get("is_retrograde", False)))
+    placement = _report_placement(report, key)
+    return _retrograde_note_by_key(key, label, bool(placement.get("is_retrograde", False)), str(placement.get("motion_status", "stable")))
 
 
 def _rhythm_without_placement_badge(report: PartnerReport, meaning_core: str) -> str:
@@ -249,7 +257,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 {BEST_FLOW["venus"]}
 
 Тональность с учётом знака:
-{venus_detail}{_retrograde_note_by_key("venus", "Венера", venus.is_retrograde)}
+{venus_detail}{_retrograde_note_by_key("venus", "Венера", venus.is_retrograde, venus.motion_status)}
 
 Практический ключ:
 {PRACTICAL_KEYS["venus"]}
@@ -265,7 +273,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 {BEST_FLOW["mercury"]}
 
 Тональность с учётом знака:
-{mercury_detail}{_retrograde_note_by_key("mercury", "Меркурий", mercury.is_retrograde)}
+{mercury_detail}{_retrograde_note_by_key("mercury", "Меркурий", mercury.is_retrograde, mercury.motion_status)}
 
 Практический ключ:
 {PRACTICAL_KEYS["mercury"]}
@@ -281,7 +289,7 @@ def build_partner_report(chart: PartnerChart, partner_name: str | None = None) -
 {BEST_FLOW["mars"]}
 
 Тональность с учётом знака:
-{mars_detail}{_retrograde_note_by_key("mars", "Марс", mars.is_retrograde)}
+{mars_detail}{_retrograde_note_by_key("mars", "Марс", mars.is_retrograde, mars.motion_status)}
 
 Практический ключ:
 {PRACTICAL_KEYS["mars"]}

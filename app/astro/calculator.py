@@ -37,6 +37,7 @@ class Placement:
     element: str
     element_ru: str
     is_retrograde: bool
+    motion_status: str = "stable"
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -97,6 +98,22 @@ def _julian_day(day: date, hour_utc: float) -> float:
     return swe.julday(day.year, day.month, day.day, hour_utc)
 
 
+def _planet_speed(day: date, planet: str, hour_utc: float) -> float:
+    jd = _julian_day(day, hour_utc)
+    result, _flags = swe.calc_ut(jd, PLANET_IDS[planet], CALC_FLAGS)
+    return float(result[3])
+
+
+def _motion_status_for_day(day: date, planet: str, noon_speed: float) -> str:
+    if planet in {"sun", "moon"}:
+        return "stable"
+    start_retrograde = _planet_speed(day, planet, 0.0) < 0
+    end_retrograde = _planet_speed(day, planet, 23.999) < 0
+    if start_retrograde != end_retrograde:
+        return "changed_during_day"
+    return "stable_retrograde" if noon_speed < 0 else "stable_direct"
+
+
 def calculate_placement(day: date, planet: str, hour_utc: float = 12.0) -> Placement:
     if planet not in PLANET_IDS:
         raise ValueError(f"Неизвестная планета: {planet}")
@@ -119,6 +136,7 @@ def calculate_placement(day: date, planet: str, hour_utc: float = 12.0) -> Place
         element=sign.element,
         element_ru=sign.element_ru,
         is_retrograde=speed_longitude < 0,
+        motion_status=_motion_status_for_day(day, planet, speed_longitude),
     )
 
 
