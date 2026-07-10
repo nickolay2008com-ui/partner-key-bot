@@ -4,7 +4,7 @@
     "builder": "DOCKERFILE"
   },
   "deploy": {
-    "startCommand": "python -m app.bot",
+    "startCommand": "python -m app.woman_flow",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }

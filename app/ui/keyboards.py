@@ -15,12 +15,13 @@ def detail_webapp_info(block: str) -> WebAppInfo:
 
 
 V2_PRODUCT_BUTTONS = [
-    [InlineKeyboardButton("🌙 Точная Луна мужчины", callback_data="v2:moon_detail")],
-    [InlineKeyboardButton("💞 Как сделать хорошо обоим", callback_data="v2:couple_moon")],
-    [InlineKeyboardButton("💗 Где ему приятно: Венера", callback_data="v2:venus")],
-    [InlineKeyboardButton("🗣 Как с ним говорить: Меркурий", callback_data="v2:mercury")],
-    [InlineKeyboardButton("🔥 Как поддержать его силу: Марс", callback_data="v2:mars")],
-    [InlineKeyboardButton("📖 Весь разбор пары", callback_data="v2:full_report")],
+    [InlineKeyboardButton("1️⃣ Луна: где ему спокойно", web_app=detail_webapp_info("moon"))],
+    [InlineKeyboardButton("2️⃣ Венера: что включает тепло", web_app=detail_webapp_info("venus"))],
+    [InlineKeyboardButton("3️⃣ Меркурий: как договориться", web_app=detail_webapp_info("mercury"))],
+    [InlineKeyboardButton("4️⃣ Марс: как поддержать действие", web_app=detail_webapp_info("mars"))],
+    [InlineKeyboardButton("5️⃣ Юпитер: куда расти вместе", web_app=detail_webapp_info("jupiter"))],
+    [InlineKeyboardButton("🔓 Premium: мощная карта гармонии", web_app=detail_webapp_info("full"))],
+    [InlineKeyboardButton("👤 Premium: глубокие портреты пары", web_app=detail_webapp_info("portrait"))],
 ]
 
 
@@ -39,7 +40,8 @@ def report_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("🔍 Показать глубже", web_app=detail_webapp_info("details"))],
-            [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
+            *V2_PRODUCT_BUTTONS,
+            [InlineKeyboardButton("✍️ Premium: сообщение с эффектом", callback_data="report:message")],
             [InlineKeyboardButton("💞 Разобрать другого", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],
         ]
@@ -80,7 +82,8 @@ def v2_after_teaser_keyboard() -> InlineKeyboardMarkup:
 def after_details_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("✍️ Что написать?", callback_data="report:message")],
+            *V2_PRODUCT_BUTTONS,
+            [InlineKeyboardButton("✍️ Premium: сообщение с эффектом", callback_data="report:message")],
             [InlineKeyboardButton("💞 Разобрать другого", callback_data="partner:start")],
             [InlineKeyboardButton("🗂 История", callback_data="history:show")],
         ]

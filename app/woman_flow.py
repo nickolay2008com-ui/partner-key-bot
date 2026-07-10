@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import platform
+from datetime import datetime, time, timedelta
 from typing import Any
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 from telegram import (
     InlineKeyboardButton,
@@ -13,6 +16,7 @@ from telegram import (
     WebAppInfo,
 )
 from telegram.constants import ChatAction
+from telegram.error import TelegramError
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -59,6 +63,47 @@ LAST_WOMAN_REPORT = "last_woman_report"
 LAST_MAN_REPORT_ID = "last_man_report_id"
 ACTIVE_BOT_MESSAGE_IDS = "active_bot_message_ids"
 PENDING_YOOKASSA_PAYMENT = "pending_yookassa_payment"
+DAILY_KEY_HOUR = 8
+DAILY_KEY_MINUTE = 0
+MERCURY_BROADCAST_KEY = "mercury_retrograde_opportunity_2026_07"
+MERCURY_BROADCAST_TEXT = """
+🗣 Ретроградный Меркурий — окно возможностей
+
+Сейчас хороший период не пугаться, а прояснять: детали, переписку, договорённости и то, что в отношениях осталось недосказанным.
+
+Меркурий помогает понять, как человек мыслит, слышит, объясняет и договаривается.
+
+В отношениях это шанс уточнить:
+— что каждый имел в виду;
+— где вас могли услышать не так;
+— о чём пора поговорить спокойнее;
+— какой маленький шаг вернёт ясность.
+
+Откройте разбор и посмотрите блок:
+🗣 Меркурий — как человек мыслит и договаривается
+
+Иногда новый уровень начинается не с громкого решения, а с честного и ясного разговора.
+""".strip()
+
+DAILY_KEY_THEMES = [
+    ("Луна", "эмоциональную безопасность", "сначала признать чувство, потом предлагать решение"),
+    ("Венера", "тёплое притяжение", "добавить конкретный комплимент бережно"),
+    ("Меркурий", "ясный разговор", "задать один прямой вопрос и не спорить с ответом"),
+    ("Марс", "уважение к инициативе", "дать пространство для действия, а не контролировать каждый шаг"),
+    ("Солнце", "уважение к его роли", "заметить, где он уже старается"),
+    ("Сатурн", "надёжность", "договориться о маленьком понятном шаге"),
+    ("Юпитер", "веру в лучшее", "говорить через возможность, а не через претензию"),
+]
+
+DAILY_KEY_TONES = [
+    "мягко",
+    "коротко",
+    "без проверки и допроса",
+    "с теплом, но с границами",
+    "через благодарность",
+    "спокойно и конкретно",
+    "без намёков",
+]
 
 WELCOME_TEXT = """
 💞 Инструкция к вашему мужчине.
@@ -76,6 +121,20 @@ WELCOME_TEXT = """
 🧭 Это карта понимания: как создать процветающие отношения.
 """.strip()
 
+ABOUT_TEXT = """
+Что делает бот:
+
+1. Берёт дату рождения мужчины.
+2. Считает Луну, Венеру, Меркурий и Марс через Swiss Ephemeris.
+3. Сначала даёт короткий бесплатный ключ: эмоциональный язык и первый шаг.
+4. Затем предлагает добавить ваши данные, увидеть мост пары, открыть планеты и Premium-карту.
+
+Формат — как инструкция к человеку: легко улыбнуться, но сразу понятно, что попробовать в реальном разговоре.
+
+Без синастрии, процентов любви и космического суда. Только практичное понимание человека и отношений.
+""".strip()
+
+
 _store: ReportsStore | None = None
 
 
@@ -84,6 +143,54 @@ def get_store() -> ReportsStore:
     if _store is None:
         _store = ReportsStore(settings.reports_db_path, settings.database_url)
     return _store
+
+
+def _app_timezone() -> ZoneInfo:
+    try:
+        return ZoneInfo(settings.app_timezone)
+    except Exception:
+        logger.warning("Invalid APP_TIMEZONE=%s; falling back to Europe/Moscow", settings.app_timezone)
+        return ZoneInfo("Europe/Moscow")
+
+
+def _daily_key_broadcast_key(now: datetime | None = None) -> str:
+    tz = _app_timezone()
+    local_now = now.astimezone(tz) if now else datetime.now(tz)
+    return f"daily_partner_key_{local_now:%Y_%m_%d}"
+
+
+def build_daily_partner_key_text(now: datetime | None = None) -> str:
+    tz = _app_timezone()
+    local_now = now.astimezone(tz) if now else datetime.now(tz)
+    day_seed = local_now.toordinal()
+    theme_name, focus, action = DAILY_KEY_THEMES[day_seed % len(DAILY_KEY_THEMES)]
+    tone = DAILY_KEY_TONES[(day_seed // len(DAILY_KEY_THEMES)) % len(DAILY_KEY_TONES)]
+    date_label = local_now.strftime("%d.%m.%Y")
+    key_code = f"{theme_name[:1].upper()}-{day_seed % 97:02d}"
+
+    return f"""
+🔑 Ключ к мужчине на сегодня — {date_label}
+
+Код дня: {key_code}
+Планета-фокус: {theme_name}
+Главная тема: {focus}
+
+Как применить сегодня:
+— действуй {tone};
+— {action};
+— выбери один маленький шаг, а не большой разговор на два часа.
+
+Если хочешь точнее — сделай разбор пары: /partner
+""".strip()
+
+
+def _next_daily_key_run(now: datetime | None = None) -> datetime:
+    tz = _app_timezone()
+    local_now = now.astimezone(tz) if now else datetime.now(tz)
+    run_at = datetime.combine(local_now.date(), time(DAILY_KEY_HOUR, DAILY_KEY_MINUTE), tzinfo=tz)
+    if local_now >= run_at:
+        run_at += timedelta(days=1)
+    return run_at
 
 
 def webapp_info() -> WebAppInfo:
@@ -180,7 +287,7 @@ def after_bridge_keyboard() -> InlineKeyboardMarkup:
 
 def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
     labels = {
-        "moon": "🌙 Открыть подробную Луну",
+        "moon": "🌙 Луна (глубже)",
         "venus": "💗 Открыть подробную Венеру",
         "mercury": "🗣 Открыть подробный Меркурий",
         "mars": "🔥 Открыть подробный Марс",
@@ -254,6 +361,12 @@ def _is_authorized(update: Update) -> bool:
     return bool(user_id and user_id in settings.authorized_telegram_ids)
 
 
+def _is_broadcast_admin(update: Update) -> bool:
+    user_id = _user_id(update)
+    admin_ids = settings.broadcast_admin_ids | settings.authorized_telegram_ids
+    return bool(user_id and user_id in admin_ids)
+
+
 async def _set_global_menu_button(application: Application) -> None:
     try:
         await application.bot.set_chat_menu_button(menu_button=webapp_menu_button())
@@ -270,6 +383,119 @@ async def _set_chat_menu_button(update: Update, context: ContextTypes.DEFAULT_TY
         await context.bot.set_chat_menu_button(chat_id=chat.id, menu_button=webapp_menu_button())
     except Exception:
         logger.exception("WEBAPP_CHAT_MENU_BUTTON_FAILED: chat_id=%s", chat.id)
+
+
+async def _send_broadcast(
+    application: Application,
+    *,
+    broadcast_key: str,
+    text: str,
+    log_prefix: str,
+    force: bool = False,
+) -> tuple[int, int, int, str]:
+    store = get_store()
+    if not force and await asyncio.to_thread(store.was_broadcast_sent, broadcast_key):
+        return 0, 0, 0, "already_sent"
+
+    user_ids = await asyncio.to_thread(store.all_user_ids)
+    if not user_ids:
+        return 0, 0, 0, "no_users"
+
+    total = len(user_ids)
+    success = 0
+    failed = 0
+
+    for user_id in user_ids:
+        try:
+            await application.bot.send_message(
+                chat_id=user_id,
+                text=text,
+                disable_web_page_preview=True,
+                reply_markup=menu(),
+            )
+        except TelegramError as exc:
+            failed += 1
+            logger.warning("%s: failed user_id=%s error=%s", log_prefix, user_id, exc)
+        else:
+            success += 1
+        await asyncio.sleep(0.05)
+
+    if success > 0:
+        await asyncio.to_thread(store.mark_broadcast_sent, broadcast_key, total, success, failed)
+    return total, success, failed, "sent"
+
+
+async def _send_mercury_broadcast(application: Application, *, force: bool = False) -> tuple[int, int, int, str]:
+    return await _send_broadcast(
+        application,
+        broadcast_key=MERCURY_BROADCAST_KEY,
+        text=MERCURY_BROADCAST_TEXT,
+        log_prefix="MERCURY_BROADCAST",
+        force=force,
+    )
+
+
+async def _send_daily_key_broadcast(
+    application: Application, *, force: bool = False, now: datetime | None = None
+) -> tuple[int, int, int, str]:
+    return await _send_broadcast(
+        application,
+        broadcast_key=_daily_key_broadcast_key(now),
+        text=build_daily_partner_key_text(now),
+        log_prefix="DAILY_KEY_BROADCAST",
+        force=force,
+    )
+
+
+async def _daily_key_scheduler(application: Application) -> None:
+    while True:
+        run_at = _next_daily_key_run()
+        sleep_seconds = max(1.0, (run_at - datetime.now(run_at.tzinfo)).total_seconds())
+        logger.info("DAILY_KEY_SCHEDULER: next_run=%s", run_at.isoformat(timespec="seconds"))
+        await asyncio.sleep(sleep_seconds)
+        try:
+            total, success, failed, status = await _send_daily_key_broadcast(application, force=False)
+            logger.info(
+                "DAILY_KEY_SCHEDULED: status=%s total=%s success=%s failed=%s",
+                status,
+                total,
+                success,
+                failed,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("DAILY_KEY_SCHEDULED_FAILED")
+
+
+async def _post_init(application: Application) -> None:
+    await _set_global_menu_button(application)
+    if datetime.now(_app_timezone()).time() >= time(DAILY_KEY_HOUR, DAILY_KEY_MINUTE):
+        try:
+            total, success, failed, status = await _send_daily_key_broadcast(application, force=False)
+            logger.info(
+                "DAILY_KEY_ON_BOOT: status=%s total=%s success=%s failed=%s",
+                status,
+                total,
+                success,
+                failed,
+            )
+        except Exception:
+            logger.exception("DAILY_KEY_ON_BOOT_FAILED")
+
+    application.create_task(_daily_key_scheduler(application), name="daily-key-scheduler")
+
+    try:
+        total, success, failed, status = await _send_mercury_broadcast(application, force=False)
+        logger.info(
+            "MERCURY_BROADCAST_ON_BOOT: status=%s total=%s success=%s failed=%s",
+            status,
+            total,
+            success,
+            failed,
+        )
+    except Exception:
+        logger.exception("MERCURY_BROADCAST_ON_BOOT_FAILED")
 
 
 async def _remember_user(update: Update) -> None:
@@ -573,6 +799,60 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _remember_user(update)
+    user_id = _user_id(update)
+    if user_id:
+        await update.effective_message.reply_text(f"Твой Telegram ID: {user_id}")
+
+
+async def about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.callback_query:
+        await update.callback_query.answer()
+    if not _is_authorized(update):
+        await _deny(update)
+        return
+    await _remember_user(update)
+    await update.effective_message.reply_text(ABOUT_TEXT, reply_markup=menu())
+
+
+async def today_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_authorized(update):
+        await _deny(update)
+        return
+    await _remember_user(update)
+    await _track_event(update, "today_key_opened")
+    await update.effective_message.reply_text(build_daily_partner_key_text(), reply_markup=menu())
+
+
+async def broadcast_daily_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_broadcast_admin(update):
+        await update.effective_message.reply_text(
+            "Команда рассылки доступна только админу. Добавь свой Telegram ID в BROADCAST_ADMIN_IDS или AUTHORIZED_TELEGRAM_IDS на Railway."
+        )
+        return
+    await _remember_user(update)
+    wait = await update.effective_message.reply_text("Запускаю рассылку ключа на сегодня…")
+    total, success, failed, status = await _send_daily_key_broadcast(context.application, force=True)
+    await wait.edit_text(
+        f"Рассылка завершена.\n\nСтатус: {status}\nВсего: {total}\nОтправлено: {success}\nОшибок: {failed}"
+    )
+
+
+async def broadcast_mercury(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_broadcast_admin(update):
+        await update.effective_message.reply_text(
+            "Команда рассылки доступна только админу. Добавь свой Telegram ID в BROADCAST_ADMIN_IDS или AUTHORIZED_TELEGRAM_IDS на Railway."
+        )
+        return
+    await _remember_user(update)
+    wait = await update.effective_message.reply_text("Запускаю рассылку про ретроградный Меркурий…")
+    total, success, failed, status = await _send_mercury_broadcast(context.application, force=True)
+    await wait.edit_text(
+        f"Рассылка завершена.\n\nСтатус: {status}\nВсего: {total}\nОтправлено: {success}\nОшибок: {failed}"
+    )
+
+
 async def daily_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.callback_query:
         await update.callback_query.answer()
@@ -777,8 +1057,18 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if update.callback_query:
         await update.callback_query.answer()
     await _remember_user(update)
-    code = (update.callback_query.data or "").replace("p:", "") if update.callback_query else ""
-    await _track_event(update, "product_block_opened", block=code)
+    raw_code = update.callback_query.data if update.callback_query else ""
+    legacy_code_map = {
+        "report:details": "moon",
+        "v2:moon_detail": "moon",
+        "v2:couple_moon": "bridge",
+        "v2:venus": "venus",
+        "v2:mercury": "mercury",
+        "v2:mars": "mars",
+        "v2:full_report": "full",
+    }
+    code = legacy_code_map.get(raw_code, raw_code.replace("p:", ""))
+    await _track_event(update, "product_block_opened", block=code, source=raw_code)
     man_report = await _load_latest_man_report(update, context)
     if man_report is None:
         await _tracked_reply_text(update, context, _state_lost_text(), reply_markup=menu())
@@ -795,7 +1085,9 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     report_id = _current_report_id(context)
     if code in {"full", "portrait"} and not await _has_premium_access(update, context, "details", report_id):
         await _track_event(update, "premium_gate_hit", product_key="details", block=code, report_id=report_id)
-        await _tracked_reply_text(update, context, premium_paywall_text("details"), reply_markup=premium_keyboard("details"))
+        await _tracked_reply_text(
+            update, context, premium_paywall_text("details"), reply_markup=premium_keyboard("details")
+        )
         return
     if code == "full":
         await _tracked_reply_text(
@@ -811,6 +1103,14 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             context,
             format_couple_portraits_short_card(man_report, woman_report),
             reply_markup=detail_card_keyboard("portrait"),
+        )
+        return
+    if code == "bridge":
+        await _tracked_reply_text(
+            update,
+            context,
+            format_couple_moon_bridge_short_card(man_report, woman_report),
+            reply_markup=detail_card_keyboard("bridge"),
         )
         return
     if code not in {"moon", "venus", "mercury", "mars", "jupiter"}:
@@ -858,7 +1158,9 @@ async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if product_key not in {"details", "message"}:
         product_key = "details"
     await _track_event(update, "premium_paywall_viewed", product_key=product_key)
-    await _tracked_reply_text(update, context, premium_paywall_text(product_key), reply_markup=premium_keyboard(product_key))
+    await _tracked_reply_text(
+        update, context, premium_paywall_text(product_key), reply_markup=premium_keyboard(product_key)
+    )
 
 
 async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -949,7 +1251,9 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
     await _remember_user(update)
     pending = context.user_data.get(PENDING_YOOKASSA_PAYMENT)
     if not isinstance(pending, dict) or not settings.yookassa_enabled:
-        await _tracked_reply_text(update, context, "Активный платёж не найден. Откройте оплату ещё раз.", reply_markup=after_bridge_keyboard())
+        await _tracked_reply_text(
+            update, context, "Активный платёж не найден. Откройте оплату ещё раз.", reply_markup=after_bridge_keyboard()
+        )
         return
     payment_id = str(pending.get("payment_id", ""))
     product_key = str(pending.get("product_key", ""))
@@ -958,7 +1262,9 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
     except (TypeError, ValueError):
         report_id = 0
     if not payment_id or product_key not in {"details", "message"} or report_id <= 0:
-        await _tracked_reply_text(update, context, "Платёжные данные устарели. Откройте оплату ещё раз.", reply_markup=after_bridge_keyboard())
+        await _tracked_reply_text(
+            update, context, "Платёжные данные устарели. Откройте оплату ещё раз.", reply_markup=after_bridge_keyboard()
+        )
         return
     try:
         payment = await asyncio.to_thread(
@@ -971,20 +1277,26 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
         logger.exception("YOOKASSA_CHECK_FAILED")
         await _tracked_reply_text(update, context, "Не получилось проверить оплату. Попробуйте ещё раз через минуту.")
         return
-    await _track_event(update, "premium_yookassa_payment_checked", product_key=product_key, report_id=report_id, status=payment.status)
+    await _track_event(
+        update, "premium_yookassa_payment_checked", product_key=product_key, report_id=report_id, status=payment.status
+    )
     if not payment.paid or payment.status != "succeeded":
         await _tracked_reply_text(
             update,
             context,
             "Пока не вижу успешную оплату. Если вы только что оплатили, подождите несколько секунд и нажмите проверку ещё раз.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ Проверить оплату", callback_data="premium:check")]]),
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("✅ Проверить оплату", callback_data="premium:check")]]
+            ),
         )
         return
     user_id = _user_id(update)
     if user_id is not None:
         await asyncio.to_thread(get_store().grant_entitlement, user_id, product_key, report_id, payment.payment_id)
     context.user_data.pop(PENDING_YOOKASSA_PAYMENT, None)
-    await _track_event(update, "premium_payment_succeeded", product_key=product_key, report_id=report_id, provider="yookassa")
+    await _track_event(
+        update, "premium_payment_succeeded", product_key=product_key, report_id=report_id, provider="yookassa"
+    )
     await _tracked_reply_text(
         update,
         context,
@@ -999,7 +1311,9 @@ async def precheckout_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     parsed = parse_payload(query.invoice_payload)
     if parsed is None:
-        await query.answer(ok=False, error_message="Не получилось распознать продукт. Попробуйте открыть оплату заново.")
+        await query.answer(
+            ok=False, error_message="Не получилось распознать продукт. Попробуйте открыть оплату заново."
+        )
         return
     await query.answer(ok=True)
     product_key, report_id = parsed
@@ -1053,7 +1367,9 @@ async def message_hint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     report_id = _current_report_id(context)
     if not await _has_premium_access(update, context, "message", report_id):
         await _track_event(update, "premium_gate_hit", product_key="message", block="message", report_id=report_id)
-        await _tracked_reply_text(update, context, premium_paywall_text("message"), reply_markup=premium_keyboard("message"))
+        await _tracked_reply_text(
+            update, context, premium_paywall_text("message"), reply_markup=premium_keyboard("message")
+        )
         return
     wait = await _tracked_reply_text(update, context, "Собираю общий ориентир для сообщения…")
     text = format_message_guidance(report)
@@ -1090,7 +1406,7 @@ async def unknown_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 def build_application() -> Application:
     settings.validate_runtime()
-    app = ApplicationBuilder().token(settings.telegram_bot_token).post_init(_set_global_menu_button).build()
+    app = ApplicationBuilder().token(settings.telegram_bot_token).post_init(_post_init).build()
     reset_handlers = [
         CommandHandler("start", start),
         CommandHandler("menu", start),
@@ -1101,7 +1417,7 @@ def build_application() -> Application:
             *reset_handlers,
             CommandHandler("man", start_man),
             CommandHandler("partner", start_man),
-            CallbackQueryHandler(start_man, pattern=r"^start_man$"),
+            CallbackQueryHandler(start_man, pattern=r"^(start_man|partner:start|v2:man:start)$"),
         ],
         states={
             ASK_MAN_NAME: [
@@ -1112,7 +1428,7 @@ def build_application() -> Application:
         },
         fallbacks=[
             *reset_handlers,
-            CallbackQueryHandler(cancel, pattern=r"^cancel$"),
+            CallbackQueryHandler(cancel, pattern=r"^(cancel|flow:cancel)$"),
             CommandHandler("cancel", cancel),
         ],
         allow_reentry=True,
@@ -1128,7 +1444,7 @@ def build_application() -> Application:
         },
         fallbacks=[
             *reset_handlers,
-            CallbackQueryHandler(cancel, pattern=r"^cancel$"),
+            CallbackQueryHandler(cancel, pattern=r"^(cancel|flow:cancel)$"),
             CommandHandler("cancel", cancel),
         ],
         allow_reentry=True,
@@ -1136,16 +1452,27 @@ def build_application() -> Application:
     app.add_handler(man_flow)
     app.add_handler(self_flow)
     app.add_handler(CommandHandler("profile", profile))
+    app.add_handler(CommandHandler("whoami", whoami))
+    app.add_handler(CommandHandler("about", about))
     app.add_handler(CommandHandler("daily", daily_key))
+    app.add_handler(CommandHandler("today_key", today_key))
     app.add_handler(CommandHandler("stars", star_goal))
-    app.add_handler(CallbackQueryHandler(history, pattern=r"^history$"))
+    app.add_handler(CommandHandler("broadcast_daily_key", broadcast_daily_key))
+    app.add_handler(CommandHandler("broadcast_mercury", broadcast_mercury))
+    app.add_handler(CallbackQueryHandler(history, pattern=r"^(history|history:show)$"))
     app.add_handler(CallbackQueryHandler(daily_key, pattern=r"^daily_key$"))
+    app.add_handler(CallbackQueryHandler(about, pattern=r"^help:about$"))
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
     app.add_handler(CallbackQueryHandler(premium_offer, pattern=r"^premium:(details|message|back)$"))
     app.add_handler(CallbackQueryHandler(premium_buy, pattern=r"^premium:buy:(details|message)$"))
     app.add_handler(CallbackQueryHandler(yookassa_payment_check, pattern=r"^premium:check$"))
-    app.add_handler(CallbackQueryHandler(product_detail, pattern=r"^p:(moon|venus|mercury|mars|jupiter|portrait|full)$"))
-    app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^message$"))
+    app.add_handler(
+        CallbackQueryHandler(
+            product_detail,
+            pattern=r"^(p:(moon|venus|mercury|mars|jupiter|portrait|full|bridge)|report:details|v2:(moon_detail|couple_moon|venus|mercury|mars|full_report))$",
+        )
+    )
+    app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^(message|report:message)$"))
     app.add_handler(PreCheckoutQueryHandler(precheckout_callback))
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_text))
@@ -1153,6 +1480,8 @@ def build_application() -> Application:
 
 
 def main() -> None:
+    logger.info("BOT_BOOT: Python %s on %s", platform.python_version(), platform.platform())
+    logger.info("BOT_BOOT: %s", settings.diagnostic_summary())
     logger.info("BOT_BOOT: starting couple harmony flow")
     start_webapp_server()
     build_application().run_polling(allowed_updates=Update.ALL_TYPES)
