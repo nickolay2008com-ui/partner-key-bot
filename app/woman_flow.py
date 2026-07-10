@@ -304,6 +304,16 @@ def detail_card_keyboard(block: str) -> InlineKeyboardMarkup:
     )
 
 
+def bridge_summary_keyboard() -> InlineKeyboardMarkup:
+    """Keep the planet navigation visible immediately after the bridge teaser."""
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("💞 Открыть полный эмоциональный мост", web_app=detail_webapp_info("bridge"))],
+            *after_bridge_keyboard().inline_keyboard,
+        ]
+    )
+
+
 def premium_paywall_text(product_key: str) -> str:
     if product_key == "message":
         return """
@@ -758,7 +768,7 @@ async def _build_bridge_from_date(
             update,
             context,
             format_couple_moon_bridge_short_card(man_report, woman_report),
-            reply_markup=detail_card_keyboard("bridge"),
+            reply_markup=bridge_summary_keyboard(),
         )
     except Exception:
         logger.exception("Failed to build bridge")
@@ -1110,7 +1120,7 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             update,
             context,
             format_couple_moon_bridge_short_card(man_report, woman_report),
-            reply_markup=detail_card_keyboard("bridge"),
+            reply_markup=bridge_summary_keyboard(),
         )
         return
     if code not in {"moon", "venus", "mercury", "mars", "jupiter"}:
