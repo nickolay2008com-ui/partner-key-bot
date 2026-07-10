@@ -15,10 +15,10 @@ def detail_webapp_info(block: str) -> WebAppInfo:
 
 
 V2_PRODUCT_BUTTONS = [
-    [InlineKeyboardButton("1️⃣ Венера: что включает тепло", web_app=detail_webapp_info("venus"))],
-    [InlineKeyboardButton("2️⃣ Меркурий: как договориться", web_app=detail_webapp_info("mercury"))],
-    [InlineKeyboardButton("3️⃣ Марс: как поддержать действие", web_app=detail_webapp_info("mars"))],
-    [InlineKeyboardButton("4️⃣ Юпитер: куда расти вместе", web_app=detail_webapp_info("jupiter"))],
+    [InlineKeyboardButton("1️⃣ Венера: как включить его нежность", web_app=detail_webapp_info("venus"))],
+    [InlineKeyboardButton("2️⃣ Меркурий: слова, которые он слышит", web_app=detail_webapp_info("mercury"))],
+    [InlineKeyboardButton("3️⃣ Марс: как дать ему силу действовать", web_app=detail_webapp_info("mars"))],
+    [InlineKeyboardButton("4️⃣ Юпитер: куда вести вашу пару", web_app=detail_webapp_info("jupiter"))],
     [InlineKeyboardButton("🔓 Premium: мощная карта гармонии", web_app=detail_webapp_info("full"))],
     [InlineKeyboardButton("👤 Premium: глубокие портреты пары", web_app=detail_webapp_info("portrait"))],
 ]

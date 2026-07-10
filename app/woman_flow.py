@@ -274,10 +274,10 @@ def read_menu_keyboard() -> InlineKeyboardMarkup:
     """Menu shown inside the relationship reading after short detail cards."""
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("1️⃣ Венера: что включает тепло", callback_data="p:venus")],
-            [InlineKeyboardButton("2️⃣ Меркурий: как договориться", callback_data="p:mercury")],
-            [InlineKeyboardButton("3️⃣ Марс: как поддержать действие", callback_data="p:mars")],
-            [InlineKeyboardButton("4️⃣ Юпитер: куда расти вместе", callback_data="p:jupiter")],
+            [InlineKeyboardButton("1️⃣ Венера: как включить его нежность", callback_data="p:venus")],
+            [InlineKeyboardButton("2️⃣ Меркурий: слова, которые он слышит", callback_data="p:mercury")],
+            [InlineKeyboardButton("3️⃣ Марс: как дать ему силу действовать", callback_data="p:mars")],
+            [InlineKeyboardButton("4️⃣ Юпитер: куда вести вашу пару", callback_data="p:jupiter")],
             [InlineKeyboardButton("🔓 Premium: мощная карта гармонии", callback_data="p:full")],
             [InlineKeyboardButton("👤 Premium: глубокие портреты пары", callback_data="p:portrait")],
             [InlineKeyboardButton("✍️ Premium: сообщение с эффектом", callback_data="message")],
@@ -355,7 +355,7 @@ def premium_paywall_text(product_key: str) -> str:
     return """
 🔓 Premium-карта пары: глубокий разбор
 
-Бесплатная часть даёт главный ключ. Premium превращает его в мощную карту действий: где человеку спокойно, что включает тепло, как говорить без лишнего сопротивления, как поддерживать инициативу и куда паре расти.
+Бесплатная часть даёт главный ключ. Premium превращает его в мощную карту действий: как стать для него тихой гаванью, включать нежность, говорить словами, которые он слышит, поддерживать его силу и видеть следующий горизонт пары.
 
 Внутри:
 • полный разбор Луны, Венеры, Меркурия, Марса и Юпитера;

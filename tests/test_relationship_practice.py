@@ -138,10 +138,10 @@ def test_bridge_summary_keyboard_separates_full_bridge_cta_from_menu() -> None:
 
     assert bridge_buttons == ["💞 Открыть полный эмоциональный мост"]
     assert "💞 Открыть полный эмоциональный мост" not in menu_buttons
-    assert "1️⃣ Венера: что включает тепло" in menu_buttons
-    assert "2️⃣ Меркурий: как договориться" in menu_buttons
-    assert "3️⃣ Марс: как поддержать действие" in menu_buttons
-    assert "4️⃣ Юпитер: куда расти вместе" in menu_buttons
+    assert "1️⃣ Венера: как включить его нежность" in menu_buttons
+    assert "2️⃣ Меркурий: слова, которые он слышит" in menu_buttons
+    assert "3️⃣ Марс: как дать ему силу действовать" in menu_buttons
+    assert "4️⃣ Юпитер: куда вести вашу пару" in menu_buttons
 
 
 def test_detail_card_keyboard_embeds_read_menu_instead_of_back_button() -> None:
@@ -153,8 +153,8 @@ def test_detail_card_keyboard_embeds_read_menu_instead_of_back_button() -> None:
     assert button_texts[0] == "🌙 Луна (глубже)"
     assert "⬅️ Назад к карте" not in button_texts
     assert "1️⃣ Луна: где ему спокойно" not in button_texts
-    assert "1️⃣ Венера: что включает тепло" in button_texts
-    assert "4️⃣ Юпитер: куда расти вместе" in button_texts
+    assert "1️⃣ Венера: как включить его нежность" in button_texts
+    assert "4️⃣ Юпитер: куда вести вашу пару" in button_texts
     assert "💞 Новый разбор" in button_texts
 
 
