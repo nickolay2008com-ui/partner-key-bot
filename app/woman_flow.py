@@ -59,6 +59,20 @@ LAST_WOMAN_REPORT = "last_woman_report"
 LAST_MAN_REPORT_ID = "last_man_report_id"
 ACTIVE_BOT_MESSAGE_IDS = "active_bot_message_ids"
 PENDING_YOOKASSA_PAYMENT = "pending_yookassa_payment"
+
+WELCOME_TEXT = """
+💞 Инструкция к вашему мужчине.
+
+📦 К каждому устройству прилагается инструкция. К мужчине, которого вы любите, почему-то нет.
+
+✨ Мы решили это исправить: перед использованием мужчины рекомендуется ознакомиться с инструкцией.
+
+🗓️ Приложение помогает девушке понять мужчину по дате рождения: где ему эмоционально спокойно, как он проявляет чувства и как с ним говорить, чтобы обоим было хорошо, а дела шли в гору.
+
+🤍 Это не проверка совместимости.
+Это карта понимания: как создать рядом состояние, где начинается хорошо.
+""".strip()
+
 _store: ReportsStore | None = None
 
 
@@ -540,18 +554,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await _set_chat_menu_button(update, context)
     _clear_flow_state(context)
     await _track_event(update, "menu_opened", source="start")
-    text = (
-        "💞 Инструкция к вашему мужчине.\n\n"
-        "📦 К каждому устройству прилагается инструкция. "
-        "К мужчине, которого вы любите, почему-то нет.\n\n"
-        "✨ Мы решили это исправить: перед использованием мужчины рекомендуется ознакомиться с инструкцией.\n\n"
-        "🗓️ Приложение помогает девушке понять мужчину по дате рождения: "
-        "где ему эмоционально спокойно, как он проявляет чувства и как с ним говорить, "
-        "чтобы обоим было хорошо, а дела шли в гору.\n\n"
-        "🤍 Это не проверка совместимости.\n"
-        "Это карта понимания: как создать рядом состояние, где начинается хорошо."
-    )
-    await update.effective_message.reply_text(text, reply_markup=menu())
+    await update.effective_message.reply_text(WELCOME_TEXT, reply_markup=menu())
     return ConversationHandler.END
 
 
