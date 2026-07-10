@@ -130,18 +130,18 @@ def test_message_guidance_is_general_and_not_ready_script() -> None:
     assert "GPT" not in text
 
 
-def test_bridge_summary_keyboard_keeps_planet_navigation_visible() -> None:
-    from app.woman_flow import bridge_summary_keyboard
+def test_bridge_summary_keyboard_separates_full_bridge_cta_from_menu() -> None:
+    from app.woman_flow import bridge_summary_keyboard, read_menu_keyboard
 
-    keyboard = bridge_summary_keyboard().inline_keyboard
-    button_texts = [button.text for row in keyboard for button in row]
+    bridge_buttons = [button.text for row in bridge_summary_keyboard().inline_keyboard for button in row]
+    menu_buttons = [button.text for row in read_menu_keyboard().inline_keyboard for button in row]
 
-    assert button_texts[0] == "💞 Открыть полный эмоциональный мост"
-    assert "1️⃣ Луна: где ему спокойно" not in button_texts
-    assert "1️⃣ Венера: что включает тепло" in button_texts
-    assert "2️⃣ Меркурий: как договориться" in button_texts
-    assert "3️⃣ Марс: как поддержать действие" in button_texts
-    assert "4️⃣ Юпитер: куда расти вместе" in button_texts
+    assert bridge_buttons == ["💞 Открыть полный эмоциональный мост"]
+    assert "💞 Открыть полный эмоциональный мост" not in menu_buttons
+    assert "1️⃣ Венера: что включает тепло" in menu_buttons
+    assert "2️⃣ Меркурий: как договориться" in menu_buttons
+    assert "3️⃣ Марс: как поддержать действие" in menu_buttons
+    assert "4️⃣ Юпитер: куда расти вместе" in menu_buttons
 
 
 def test_detail_card_keyboard_embeds_read_menu_instead_of_back_button() -> None:
