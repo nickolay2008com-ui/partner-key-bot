@@ -29,6 +29,7 @@ from app.ui.keyboards import (
     after_details_keyboard,
     cancel_keyboard,
     main_menu,
+    profile_partner_keyboard,
     report_keyboard,
 )
 
@@ -254,6 +255,22 @@ async def _load_last_report_for_user(update: Update, context: ContextTypes.DEFAU
     return report
 
 
+async def _get_profile(update: Update) -> dict[str, str]:
+    user_id = _user_id(update)
+    if user_id is None:
+        return {"self_name": "", "self_birth_date": "", "partner_name": "", "partner_birth_date": ""}
+    return await asyncio.to_thread(get_store().get_profile, user_id)
+
+
+async def _save_profile_fields(update: Update, **fields: str) -> None:
+    user_id = _user_id(update)
+    if user_id is None:
+        return
+    profile = await asyncio.to_thread(get_store().get_profile, user_id)
+    profile.update({key: value for key, value in fields.items() if value})
+    await asyncio.to_thread(get_store().save_profile, user_id, profile)
+
+
 async def _send_broadcast(
     application: Application,
     *,
@@ -446,11 +463,57 @@ async def partner_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     await _remember_user(update)
     context.user_data.pop("partner_name", None)
+    profile = await _get_profile(update)
+    partner_name = profile.get("partner_name", "").strip()
+    partner_birth_date = profile.get("partner_birth_date", "").strip()
+    if partner_name and partner_birth_date:
+        await update.effective_message.reply_text(
+            f"В профиле сохранён партнёр: {partner_name}, {partner_birth_date}.\n\n"
+            "Можно использовать эти данные или ввести новые.",
+            reply_markup=profile_partner_keyboard(),
+        )
+        return ASK_NAME
+
     await update.effective_message.reply_text(
         "Кого разбираем? Напиши имя мужчины или коротко: парень, муж, партнёр, Андрей.\n\nИмя нужно только для красивой карточки. Космосу всё равно, а интерфейсу приятно.",
         reply_markup=cancel_keyboard(),
     )
     return ASK_NAME
+
+
+async def enter_partner_manually(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if update.callback_query:
+        await update.callback_query.answer()
+    if not _is_authorized(update):
+        await _deny(update)
+        return ConversationHandler.END
+    await _remember_user(update)
+    context.user_data.pop("partner_name", None)
+    await update.effective_message.reply_text(
+        "Кого разбираем? Напиши имя мужчины или коротко: парень, муж, партнёр, Андрей.",
+        reply_markup=cancel_keyboard(),
+    )
+    return ASK_NAME
+
+
+async def use_partner_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if update.callback_query:
+        await update.callback_query.answer()
+    if not _is_authorized(update):
+        await _deny(update)
+        return ConversationHandler.END
+    await _remember_user(update)
+    profile = await _get_profile(update)
+    name = profile.get("partner_name", "").strip()
+    birth_date = profile.get("partner_birth_date", "").strip()
+    if not name or not birth_date:
+        await update.effective_message.reply_text(
+            "В профиле пока нет полных данных партнёра. Введите имя и дату заново.",
+            reply_markup=cancel_keyboard(),
+        )
+        return ASK_NAME
+    context.user_data["partner_name"] = name[:60]
+    return await _build_report(update, context, birth_date)
 
 
 async def ask_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -470,15 +533,10 @@ async def ask_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ASK_BIRTH_DATE
 
 
-async def build_report_from_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if not _is_authorized(update):
-        await _deny(update)
-        return ConversationHandler.END
-    await _remember_user(update)
+async def _build_report(update: Update, context: ContextTypes.DEFAULT_TYPE, birth_date_text: str) -> int:
     message = update.effective_message
-    text = (message.text or "").strip()
     try:
-        birth_date = parse_birth_date(text)
+        birth_date = parse_birth_date(birth_date_text)
     except ValueError as exc:
         await message.reply_text(str(exc))
         return ASK_BIRTH_DATE
@@ -494,6 +552,7 @@ async def build_report_from_birth_date(update: Update, context: ContextTypes.DEF
         user_id = _user_id(update)
         if user_id is not None:
             await asyncio.to_thread(get_store().add, user_id, report)
+            await _save_profile_fields(update, partner_name=str(partner_name), partner_birth_date=birth_date_text)
         try:
             await wait.delete()
         except Exception:
@@ -508,6 +567,16 @@ async def build_report_from_birth_date(update: Update, context: ContextTypes.DEF
             await message.reply_text(safe_text)
 
     return ConversationHandler.END
+
+
+async def build_report_from_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not _is_authorized(update):
+        await _deny(update)
+        return ConversationHandler.END
+    await _remember_user(update)
+    message = update.effective_message
+    text = (message.text or "").strip()
+    return await _build_report(update, context, text)
 
 
 async def cancel_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -593,7 +662,11 @@ def build_application() -> Application:
             CallbackQueryHandler(partner_start, pattern=r"^v2:man:start$"),
         ],
         states={
-            ASK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_birth_date)],
+            ASK_NAME: [
+                CallbackQueryHandler(use_partner_profile, pattern=r"^profile:use_partner$"),
+                CallbackQueryHandler(enter_partner_manually, pattern=r"^profile:enter_partner$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_birth_date),
+            ],
             ASK_BIRTH_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_report_from_birth_date)],
         },
         fallbacks=[
