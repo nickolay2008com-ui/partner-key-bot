@@ -3,7 +3,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from app.astro.calculator import Placement
-from app.astro.product_blocks import format_couple_moon_bridge_short_card, format_moon_variant_cards
+from app.astro.product_blocks import format_couple_moon_bridge, format_couple_moon_bridge_short_card, format_moon_variant_cards
 from app.astro.report import PartnerReport
 from app.relationship_practice import format_star_goal
 
@@ -60,6 +60,18 @@ def _report(
         message_templates=[],
         moon_variants=variants or [],
     )
+
+
+def test_full_couple_moon_bridge_has_emotional_copywriting_and_practical_24h_plan() -> None:
+    man = _report("Андрей", "aries", "Овен", "fire", "Огонь")
+    woman = _report("Анна", "cancer", "Рак", "water", "Вода")
+
+    text = format_couple_moon_bridge(man, woman)
+
+    assert "эмоциональная карта входа друг к другу" in text
+    assert "переводчик между двумя нервными системами" in text
+    assert "Как пользоваться этим мостом ближайшие 24 часа" in text
+    assert "Хороший мост держится на двух берегах" in text
 
 
 def test_couple_moon_bridge_short_card_points_to_full_html() -> None:
