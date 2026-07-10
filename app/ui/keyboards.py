@@ -35,6 +35,16 @@ def report_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def profile_partner_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("✅ Использовать сохранённые данные", callback_data="profile:use_partner")],
+            [InlineKeyboardButton("✍️ Ввести новые данные", callback_data="profile:enter_partner")],
+            [InlineKeyboardButton("Отмена", callback_data="flow:cancel")],
+        ]
+    )
+
+
 def v2_report_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
