@@ -104,6 +104,22 @@ def test_couple_moon_bridge_short_card_leads_with_benefit_before_technical_note(
     assert text.index("Что сделать сейчас:") < text.index("Техническое уточнение")
 
 
+
+def test_couple_moon_bridge_can_omit_transition_variants_for_webapp_swipes() -> None:
+    variants = [
+        {"sign_key": "aries", "sign_ru": "Овен", "element": "fire", "element_ru": "Огонь"},
+        {"sign_key": "taurus", "sign_ru": "Телец", "element": "earth", "element_ru": "Земля"},
+    ]
+    man = _report("Андрей", "aries", "Овен", "fire", "Огонь", "changed_during_day", variants)
+    woman = _report("Анна", "cancer", "Рак", "water", "Вода")
+
+    text = format_couple_moon_bridge(man, woman, include_transition_variants=False)
+
+    assert "Точность Луны" in text
+    assert "Возможные варианты описания без точного времени рождения" not in text
+    assert "Если Он:" not in text
+
+
 def test_moon_variant_cards_include_all_transition_combinations() -> None:
     variants = [
         {"sign_key": "aries", "sign_ru": "Овен", "element": "fire", "element_ru": "Огонь"},
