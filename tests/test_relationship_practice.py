@@ -292,3 +292,10 @@ def test_message_guidance_shows_saved_live_templates_when_report_has_them() -> N
     assert "Варианты живого сообщения:" in text
     assert "квеста «угадай по молчанию»" in text
     assert "• " in text
+
+
+def test_detail_webapp_urls_use_separate_fast_pages() -> None:
+    from app.woman_flow import detail_webapp_info
+
+    assert detail_webapp_info("venus").url.endswith("/webapp/detail/venus")
+    assert detail_webapp_info("bridge").url.endswith("/webapp/detail/bridge")

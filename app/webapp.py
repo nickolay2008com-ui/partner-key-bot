@@ -348,6 +348,25 @@ WEBAPP_HTML = r"""<!doctype html>
 </html>
 """
 
+DETAIL_BLOCKS = {
+    "moon",
+    "moon_deep",
+    "venus",
+    "mercury",
+    "mars",
+    "jupiter",
+    "portrait",
+    "full",
+    "bridge",
+    "details",
+}
+
+
+def _normalize_detail_block(block: str | None) -> str:
+    candidate = str(block or "moon").strip().lower().replace("-", "_")
+    if candidate not in DETAIL_BLOCKS:
+        raise ValueError("Этот подробный блок пока не найден.")
+    return candidate
 
 DETAIL_LABELS = {
     "moon": "🌙 Луна: как стать его тихой гаванью",
@@ -487,7 +506,39 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
   <script>
     let tg;
     const params = new URLSearchParams(location.search);
-    const block = params.get('block') || 'moon';
+    const pathBlock = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
+    const block = params.get('block') || (pathBlock === 'detail' ? 'moon' : pathBlock) || 'moon';
+    const cacheKey = `partner-key-detail:${block}:v2`;
+    function setBusy(isBusy) {
+      const content = document.getElementById('content');
+      if (isBusy) {
+        content.classList.add('skeleton');
+        content.setAttribute('aria-busy', 'true');
+      } else {
+        content.classList.remove('skeleton');
+        content.removeAttribute('aria-busy');
+      }
+    }
+    function applyDetail(data, fromCache = false) {
+      document.getElementById('title').textContent = data.title || '✨ Подробный разбор';
+      if (block === 'full') document.getElementById('life-use').classList.add('is-visible');
+      if (block === 'bridge') document.getElementById('bridge-guide').classList.add('is-visible');
+      renderVariants(data.variants || []);
+      const content = document.getElementById('content');
+      setBusy(false);
+      content.textContent = data.text || '';
+      if (fromCache) content.dataset.fromCache = 'true';
+    }
+    function renderCachedDetail() {
+      try {
+        const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+        if (cached && cached.text) {
+          applyDetail(cached, true);
+          return true;
+        }
+      } catch (_error) {}
+      return false;
+    }
     function renderVariants(variants) {
       if (!variants.length) return;
       const wrap = document.getElementById('variants');
@@ -506,6 +557,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
       wrap.classList.add('is-visible');
     }
     async function load() {
+      const hasCache = renderCachedDetail();
       try {
         const response = await fetch('/api/detail', {
           method: 'POST',
@@ -514,20 +566,15 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
         });
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось открыть подробности.');
-        document.getElementById('title').textContent = data.title;
-        if (block === 'full') document.getElementById('life-use').classList.add('is-visible');
-        if (block === 'bridge') document.getElementById('bridge-guide').classList.add('is-visible');
-        renderVariants(data.variants || []);
-        const content = document.getElementById('content');
-        content.classList.remove('skeleton');
-        content.removeAttribute('aria-busy');
-        content.textContent = data.text;
+        applyDetail(data);
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        } catch (_error) {}
       } catch (error) {
+        if (hasCache) return;
         document.getElementById('title').textContent = 'Нужен Telegram';
-        const content = document.getElementById('content');
-        content.classList.remove('skeleton');
-        content.removeAttribute('aria-busy');
-        content.textContent = error.message;
+        setBusy(false);
+        document.getElementById('content').textContent = error.message;
       }
     }
     document.getElementById('close').addEventListener('click', () => tg ? tg.close() : history.back());
@@ -559,6 +606,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
         body = html.encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -583,8 +631,13 @@ class WebAppHandler(BaseHTTPRequestHandler):
         if path == "/webapp":
             self._send_html(WEBAPP_HTML)
             return
-        if path == "/webapp/detail":
-            self._send_html(DETAIL_WEBAPP_HTML)
+        if path == "/webapp/detail" or path.startswith("/webapp/detail/"):
+            try:
+                if path.startswith("/webapp/detail/"):
+                    _normalize_detail_block(path.rsplit("/", 1)[-1])
+                self._send_html(DETAIL_WEBAPP_HTML)
+            except ValueError as exc:
+                self._send_json({"ok": False, "error": str(exc)}, status=404)
             return
         self._send_json({"ok": False, "error": "not_found"}, status=404)
 
@@ -594,7 +647,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
             try:
                 payload = self._read_json()
                 user_id = _validate_init_data(str(payload.get("initData", "")))
-                block = str(payload.get("block", "moon"))
+                block = _normalize_detail_block(str(payload.get("block", "moon")))
                 text = _detail_text(user_id, block)
                 variants = []
                 if block in {"bridge", "full"}:
