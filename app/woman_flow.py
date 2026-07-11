@@ -5,7 +5,7 @@ import logging
 import platform
 from datetime import datetime, time, timedelta
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from telegram import (
@@ -257,7 +257,7 @@ def detail_webapp_info(block: str) -> WebAppInfo:
     base_url = settings.webapp_url.rstrip("/")
     if base_url.endswith("/webapp"):
         base_url = base_url[: -len("/webapp")]
-    return WebAppInfo(url=f"{base_url}/webapp/detail?{urlencode({'block': block})}")
+    return WebAppInfo(url=f"{base_url}/webapp/detail/{quote(block, safe='')}")
 
 
 def webapp_menu_button() -> MenuButtonWebApp:
