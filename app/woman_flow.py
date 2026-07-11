@@ -47,6 +47,7 @@ from app.payments import (
     parse_payload,
 )
 from app.relationship_practice import (
+    format_daily_broadcast_key,
     format_daily_connection_card,
     format_star_goal,
     get_daily_connection_card,
@@ -218,26 +219,7 @@ def _daily_key_broadcast_key(now: datetime | None = None) -> str:
 def build_daily_partner_key_text(now: datetime | None = None) -> str:
     tz = _app_timezone()
     local_now = now.astimezone(tz) if now else datetime.now(tz)
-    day_seed = local_now.toordinal()
-    theme_name, focus, action = DAILY_KEY_THEMES[day_seed % len(DAILY_KEY_THEMES)]
-    tone = DAILY_KEY_TONES[(day_seed // len(DAILY_KEY_THEMES)) % len(DAILY_KEY_TONES)]
-    date_label = local_now.strftime("%d.%m.%Y")
-    key_code = f"{theme_name[:1].upper()}-{day_seed % 97:02d}"
-
-    return f"""
-🔑 Ключ к мужчине на сегодня — {date_label}
-
-Код дня: {key_code}
-Планета-фокус: {theme_name}
-Главная тема: {focus}
-
-Как применить сегодня:
-— действуй {tone};
-— {action};
-— выбери один маленький шаг, а не большой разговор на два часа.
-
-Если хочешь точнее — сделай разбор пары: /partner
-""".strip()
+    return format_daily_broadcast_key(settings.app_timezone, local_now.date())
 
 
 def _next_daily_key_run(now: datetime | None = None) -> datetime:
