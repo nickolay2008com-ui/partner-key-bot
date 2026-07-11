@@ -786,11 +786,13 @@ def format_moon_variant_cards(man_report: PartnerReport, woman_report: PartnerRe
     return cards
 
 
-def format_couple_moon_bridge(man_report: PartnerReport, woman_report: PartnerReport) -> str:
+def format_couple_moon_bridge(
+    man_report: PartnerReport, woman_report: PartnerReport, *, include_transition_variants: bool = True
+) -> str:
     precision_note = _pair_precision_note(man_report, woman_report)
     precision_block = f"\n\n{precision_note}" if precision_note else ""
     mechanic = format_moon_pair_mechanic(_placement(man_report, "moon"), _placement(woman_report, "moon"))
-    alternate_block = _alternate_moon_bridge_block(man_report, woman_report)
+    alternate_block = _alternate_moon_bridge_block(man_report, woman_report) if include_transition_variants else ""
     alternate_text = f"\n\n{alternate_block}" if alternate_block else ""
     return f"""
 💞 Ваш эмоциональный мост

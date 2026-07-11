@@ -390,7 +390,7 @@ def _detail_text(user_id: int, block: str) -> str:
         if block == "full":
             return format_couple_full_report(man_report, woman_report)
         if block == "bridge":
-            return format_couple_moon_bridge(man_report, woman_report)
+            return format_couple_moon_bridge(man_report, woman_report, include_transition_variants=False)
         return format_couple_portraits(man_report, woman_report)
     formatters = {
         "moon": format_moon_detail,
@@ -428,13 +428,18 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     .skeleton-line:nth-child(2) { width: 88%; }
     .skeleton-line:nth-child(3) { width: 72%; }
     @keyframes shimmer { to { background-position: -220% 0; } }
-    .life-use { display: none; margin: 0 0 14px; padding: 16px; border: 1px solid var(--border); border-radius: 22px; background: rgba(255,255,255,.07); }
-    .life-use.is-visible { display: block; }
-    .life-use h2 { margin: 0 0 10px; font-size: 20px; line-height: 1.18; }
+    .life-use, .bridge-guide { display: none; margin: 0 0 14px; padding: 16px; border: 1px solid var(--border); border-radius: 22px; background: rgba(255,255,255,.07); }
+    .life-use.is-visible, .bridge-guide.is-visible { display: block; }
+    .life-use h2, .bridge-guide h2 { margin: 0 0 10px; font-size: 20px; line-height: 1.18; }
     .use-grid { display: grid; gap: 10px; }
     .use-card { border: 1px solid var(--border); border-radius: 16px; padding: 12px; background: rgba(0,0,0,.13); }
     .use-card strong { display: block; margin-bottom: 5px; }
     .use-card span { color: var(--hint); line-height: 1.4; }
+    .bridge-steps { display: grid; gap: 10px; margin-top: 10px; }
+    .bridge-step { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; border: 1px solid var(--border); border-radius: 16px; padding: 12px; background: rgba(0,0,0,.13); }
+    .bridge-step b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: rgba(139,92,246,.22); }
+    .bridge-step strong { display: block; margin-bottom: 4px; }
+    .bridge-step span { color: var(--hint); line-height: 1.4; }
     .variant-wrap { display: none; margin: 0 0 14px; }
     .variant-wrap.is-visible { display: block; }
     .variant-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 8px; color: var(--hint); font-size: 14px; }
@@ -457,6 +462,15 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
       <div class="use-card"><strong>Понимание партнёра</strong><span>Смотрите, что стоит за реакцией: потребность в спокойствии, тепле, ясных словах или поддержке действия.</span></div>
       <div class="use-card"><strong>Гармонизация отношений</strong><span>Выберите один маленький мост на сегодня вместо большого разговора обо всём: вопрос, просьбу, паузу или ритуал контакта.</span></div>
       <div class="use-card"><strong>Бережная практика</strong><span>Проверяйте подсказки мягко: если партнёр закрывается, снижайте темп и возвращайтесь к безопасности диалога.</span></div>
+    </div>
+  </section>
+  <section class="bridge-guide" id="bridge-guide" aria-labelledby="bridge-guide-title">
+    <h2 id="bridge-guide-title">Структура моста без повторов</h2>
+    <p>Сначала выберите похожий эмоциональный сценарий, затем возьмите одну фразу и один следующий шаг. Так карта становится инструкцией, а не ещё одним длинным разбором.</p>
+    <div class="bridge-steps">
+      <div class="bridge-step"><b>1</b><div><strong>Его вход в спокойствие</strong><span>Темп, тон или конкретика, при которых он меньше защищается и легче слышит вас.</span></div></div>
+      <div class="bridge-step"><b>2</b><div><strong>Ваш берег</strong><span>Что нужно вам для тепла: внимание, ясность, время, действие или бережная пауза.</span></div></div>
+      <div class="bridge-step"><b>3</b><div><strong>Маленький тест</strong><span>Одна просьба или сообщение на 24 часа, после которого видно: стало ли больше контакта.</span></div></div>
     </div>
   </section>
   <section class="variant-wrap" id="variants" aria-labelledby="variants-title">
@@ -501,7 +515,8 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось открыть подробности.');
         document.getElementById('title').textContent = data.title;
-        if (block === 'full' || block === 'bridge') document.getElementById('life-use').classList.add('is-visible');
+        if (block === 'full') document.getElementById('life-use').classList.add('is-visible');
+        if (block === 'bridge') document.getElementById('bridge-guide').classList.add('is-visible');
         renderVariants(data.variants || []);
         const content = document.getElementById('content');
         content.classList.remove('skeleton');
