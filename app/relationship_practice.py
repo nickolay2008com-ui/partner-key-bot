@@ -167,6 +167,25 @@ def format_daily_connection_card(card: DailyConnectionCard) -> str:
     )
 
 
+def format_daily_broadcast_card(card: DailyConnectionCard, day: date) -> str:
+    date_label = day.strftime("%d.%m.%Y")
+    return (
+        f"🔑 Ключ к контакту на сегодня — {date_label}\n\n"
+        f"{card.title}\n\n"
+        f"Почему это важно: {card.why}\n\n"
+        f"Мини-действие на 24 часа: {card.action}\n\n"
+        f"Готовая мягкая фраза:\n“{card.phrase}”\n\n"
+        f"Как понять, что сработало: {card.reflection}\n\n"
+        "Если хочется точнее — сделайте разбор пары: /partner"
+    )
+
+
+def format_daily_broadcast_key(timezone_name: str, day: date | None = None) -> str:
+    actual_day = day or _today(timezone_name)
+    index = actual_day.toordinal() % len(DAILY_CONNECTION_CARDS)
+    return format_daily_broadcast_card(DAILY_CONNECTION_CARDS[index], actual_day)
+
+
 def format_star_goal(timezone_name: str) -> str:
     today = _today(timezone_name)
     sun = calculate_placement(today, "sun")

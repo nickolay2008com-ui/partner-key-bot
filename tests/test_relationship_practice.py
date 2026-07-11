@@ -9,7 +9,7 @@ from app.astro.product_blocks import (
     format_moon_variant_cards,
 )
 from app.astro.report import PartnerReport
-from app.relationship_practice import format_star_goal
+from app.relationship_practice import format_daily_broadcast_key, format_star_goal
 
 
 class StarGoalFormatTest(TestCase):
@@ -33,6 +33,18 @@ class StarGoalFormatTest(TestCase):
         self.assertIn("Астро-детали коротко:", text)
         self.assertLess(text.index("Главное:"), text.index("Астро-детали коротко:"))
         self.assertNotIn("Небо сегодня:", text)
+
+
+def test_daily_broadcast_key_matches_practical_daily_card_without_extra_astrology() -> None:
+    text = format_daily_broadcast_key("UTC", date(2026, 7, 9))
+
+    assert "🔑 Ключ к контакту на сегодня — 09.07.2026" in text
+    assert "Мини-действие на 24 часа:" in text
+    assert "Готовая мягкая фраза:" in text
+    assert "Как понять, что сработало:" in text
+    assert "Если хочется точнее — сделайте разбор пары: /partner" in text
+    assert "Планета-фокус" not in text
+    assert "Код дня" not in text
 
 
 def _report(
@@ -102,7 +114,6 @@ def test_couple_moon_bridge_short_card_leads_with_benefit_before_technical_note(
     assert "Техническое уточнение" in text
     assert text.index("Коротко:") < text.index("Техническое уточнение")
     assert text.index("Что сделать сейчас:") < text.index("Техническое уточнение")
-
 
 
 def test_couple_moon_bridge_can_omit_transition_variants_for_webapp_swipes() -> None:
