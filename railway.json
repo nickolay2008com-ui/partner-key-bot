@@ -4,7 +4,7 @@
     "builder": "DOCKERFILE"
   },
   "deploy": {
-    "startCommand": "python -m app.partner_flow",
+    "startCommand": "python -m app.entertaining_flow",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
