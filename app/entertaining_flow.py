@@ -6,6 +6,49 @@ import app.woman_flow as base
 from app.astro import entertaining_blocks as fun
 
 
+def _fix_pair_you_lines(text: str) -> str:
+    replacements = {
+        "Вы: Его чувства": "Вы: Ваши чувства",
+        "Вы: Его Венера": "Вы: Ваша Венера",
+        "Вы: Он мыслит": "Вы мыслите",
+        "Вы: Он слышит": "Вы слышите",
+        "Вы: Его Марс": "Вы: Ваш Марс",
+        "Вы: Он растёт": "Вы растёте",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    return text
+
+
+def _fix_woman_portrait(text: str, woman_name: str) -> str:
+    marker = f"👤 {woman_name}: ваша роль в отношениях"
+    if marker not in text:
+        return text
+    before, after = text.split(marker, 1)
+    replacements = {
+        "Его чувства": "Ваши чувства",
+        "Его Венера": "Ваша Венера",
+        "Он мыслит": "Вы мыслите",
+        "Он слышит": "Вы слышите",
+        "Его Марс": "Ваш Марс",
+        "Он растёт": "Вы растёте",
+        "Что для него выглядит как любовь": "Что для вас выглядит как любовь",
+        "Как устроен его переводчик": "Как устроен ваш переводчик",
+        "Ради какого будущего он оживает": "Ради какого будущего вы оживаете",
+    }
+    for source, target in replacements.items():
+        after = after.replace(source, target)
+    return before + marker + after
+
+
+def _couple_portraits(man_report, woman_report):
+    return _fix_woman_portrait(fun.format_couple_portraits(man_report, woman_report), woman_report.partner_name)
+
+
+def _couple_full_report(man_report, woman_report):
+    return _fix_pair_you_lines(fun.format_couple_full_report(man_report, woman_report))
+
+
 # Telegram cards use function references imported by woman_flow, while the WebApp
 # keeps its own imported references. Patch both namespaces and leave calculations,
 # storage and payments untouched.
@@ -20,8 +63,8 @@ webapp.format_mercury_detail = fun.format_mercury_detail
 webapp.format_mars_detail = fun.format_mars_detail
 webapp.format_jupiter_detail = fun.format_jupiter_detail
 webapp.format_couple_moon_bridge = fun.format_couple_moon_bridge
-webapp.format_couple_portraits = fun.format_couple_portraits
-webapp.format_couple_full_report = fun.format_couple_full_report
+webapp.format_couple_portraits = _couple_portraits
+webapp.format_couple_full_report = _couple_full_report
 webapp.format_moon_variant_cards = fun.format_moon_variant_cards
 webapp.DETAIL_LABELS.update(fun.DETAIL_LABELS)
 
