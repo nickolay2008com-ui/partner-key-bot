@@ -6,6 +6,7 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from telegram import LabeledPrice
@@ -14,6 +15,15 @@ CURRENCY_STARS = "XTR"
 CURRENCY_RUB = "RUB"
 PROVIDER_TOKEN_STARS = ""
 YOOKASSA_API_URL = "https://api.yookassa.ru/v3/payments"
+
+
+class YooKassaPaymentError(RuntimeError):
+    """User-safe payment error with a technical reason for logs."""
+
+    def __init__(self, user_message: str, technical_reason: str = "") -> None:
+        super().__init__(technical_reason or user_message)
+        self.user_message = user_message
+        self.technical_reason = technical_reason or user_message
 
 
 @dataclass(frozen=True)
@@ -143,9 +153,44 @@ def _yookassa_request(shop_id: str, secret_key: str, method: str, url: str, body
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"YooKassa API error {exc.code}: {details}") from exc
+        raise YooKassaPaymentError(
+            _format_yookassa_user_error(exc.code, details),
+            f"YooKassa API error {exc.code}: {details}",
+        ) from exc
     except URLError as exc:
-        raise RuntimeError(f"YooKassa API unavailable: {exc.reason}") from exc
+        raise YooKassaPaymentError(
+            "ЮKassa сейчас не отвечает. Разбор не потерян — попробуйте создать ссылку ещё раз через минуту.",
+            f"YooKassa API unavailable: {exc.reason}",
+        ) from exc
+
+
+def _format_yookassa_user_error(status_code: int, details: str) -> str:
+    try:
+        payload = json.loads(details)
+    except json.JSONDecodeError:
+        payload = {}
+    description = str(payload.get("description", "") if isinstance(payload, dict) else "")
+    parameter = str(payload.get("parameter", "") if isinstance(payload, dict) else "")
+    lower_details = f"{description} {parameter} {details}".lower()
+    if status_code in {401, 403}:
+        return "ЮKassa отклонила ключи магазина. Проверьте YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY в Railway."
+    if "return_url" in lower_details:
+        return "ЮKassa отклонила адрес возврата после оплаты. Проверьте WEBAPP_URL: нужен публичный https-адрес."
+    if "receipt" in lower_details:
+        return (
+            "ЮKassa требует чек для этого магазина. Нужно включить передачу данных для чека или изменить настройки "
+            "фискализации в кабинете ЮKassa."
+        )
+    if "amount" in lower_details:
+        return "ЮKassa отклонила сумму платежа. Проверьте цену продукта и валюту RUB."
+    return "ЮKassa не создала ссылку на оплату из-за ошибки настроек платежа. Разбор не потерян — попробуйте позже."
+
+
+def _is_valid_confirmation_url(value: object) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    parsed = urlparse(value.strip())
+    return parsed.scheme in {"https", "http"} and bool(parsed.netloc)
 
 
 def create_yookassa_payment(
@@ -173,10 +218,16 @@ def create_yookassa_payment(
     raw = _yookassa_request(shop_id, secret_key, "POST", YOOKASSA_API_URL, payload)
     confirmation = raw.get("confirmation") if isinstance(raw.get("confirmation"), dict) else {}
     metadata = raw.get("metadata") if isinstance(raw.get("metadata"), dict) else {}
+    confirmation_url = confirmation.get("confirmation_url")
+    if not _is_valid_confirmation_url(confirmation_url):
+        raise YooKassaPaymentError(
+            "ЮKassa создала платёж, но не вернула рабочую ссылку. Попробуйте создать ссылку заново.",
+            f"Missing or invalid YooKassa confirmation_url for payment {raw.get('id', '')}",
+        )
     return YooKassaPayment(
         payment_id=str(raw.get("id", "")),
         status=str(raw.get("status", "")),
-        confirmation_url=confirmation.get("confirmation_url"),
+        confirmation_url=confirmation_url.strip(),
         paid=bool(raw.get("paid")),
         metadata={str(key): str(value) for key, value in metadata.items()},
     )

@@ -43,6 +43,7 @@ from app.payments import (
     create_yookassa_payment,
     get_product,
     get_yookassa_payment,
+    YooKassaPaymentError,
     make_payload,
     parse_payload,
 )
@@ -1395,17 +1396,17 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 user_id=user_id,
                 return_url=settings.webapp_url,
             )
-        except RuntimeError:
-            logger.exception("YOOKASSA_CREATE_FAILED")
+        except YooKassaPaymentError as exc:
+            logger.exception("YOOKASSA_CREATE_FAILED: %s", exc.technical_reason)
             await _track_event(update, "premium_yookassa_create_failed", product_key=product_key, report_id=report_id)
             await _tracked_replace_callback_text(
                 update,
                 context,
-                "Не получилось создать платёж ЮKassa. Разбор не потерян — можно создать ссылку заново или вернуться к текущей подсказке.",
+                exc.user_message,
                 reply_markup=payment_recovery_keyboard(product_key),
             )
             return
-        if not payment.confirmation_url or not payment.payment_id:
+        if not payment.payment_id:
             await _tracked_replace_callback_text(
                 update,
                 context,
@@ -1478,12 +1479,12 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
             secret_key=settings.yookassa_secret_key or "",
             payment_id=payment_id,
         )
-    except RuntimeError:
-        logger.exception("YOOKASSA_CHECK_FAILED")
+    except YooKassaPaymentError as exc:
+        logger.exception("YOOKASSA_CHECK_FAILED: %s", exc.technical_reason)
         await _tracked_replace_callback_text(
             update,
             context,
-            "Не получилось проверить оплату. Попробуйте ещё раз через минуту. Разбор не потерян.",
+            exc.user_message,
             reply_markup=payment_recovery_keyboard(product_key, payment_id),
         )
         return
