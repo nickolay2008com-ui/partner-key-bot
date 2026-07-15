@@ -30,28 +30,33 @@ def _report(name: str, *, sign_key: str, sign_ru: str, element: str, element_ru:
     )
 
 
-def test_short_bridge_gives_needs_conflict_and_ready_phrase() -> None:
+def test_short_bridge_describes_real_conflict_and_next_action() -> None:
     man = _report("Он", sign_key="taurus", sign_ru="Телец", element="earth", element_ru="Земля")
     woman = _report("Вы", sign_key="scorpio", sign_ru="Скорпион", element="water", element_ru="Вода")
 
     text = format_couple_moon_bridge_short_card(man, woman)
 
-    assert "Ему: спокойствие, предсказуемость" in text
-    assert "Вам: эмоциональную безопасность" in text
-    assert "Где обычно заклинивает" in text
-    assert "пятнадцать минут поговорим" in text
-    assert "один конкретный следующий шаг" in text
+    assert "Что помогает ему не закрываться" in text
+    assert "что будет дальше" in text
+    assert "не формальные слова" in text
+    assert "замолкает" in text
+    assert "Фраза, которую реально можно сказать" in text
+    assert "когда мы спокойно к этому вернёмся" in text
+    assert "назвал ли он время разговора" in text
+    assert "на что мы можем опереться" not in text
 
 
-def test_full_bridge_contains_actionable_relationship_protocol() -> None:
+def test_full_bridge_uses_plain_language_and_realistic_checks() -> None:
     man = _report("Он", sign_key="taurus", sign_ru="Телец", element="earth", element_ru="Земля")
     woman = _report("Вы", sign_key="scorpio", sign_ru="Скорпион", element="water", element_ru="Вода")
 
     text = format_couple_moon_bridge(man, woman)
 
-    assert "Ваш вероятный цикл напряжения" in text
-    assert "Перевод с поведения на потребность" in text
-    assert "Три готовых сценария" in text
-    assert "Проверка через 24 часа" in text
-    assert "Мост, который строит только один человек" in text
-    assert "проблема уже не в Луне" in text
+    assert "Как раскручивается ссора" in text
+    assert "Что вы можете ошибочно прочитать" in text
+    assert "один эпизод, а не всю историю отношений" in text
+    assert "Три нормальные фразы" in text
+    assert "Как проверить, что это не просто красивый текст" in text
+    assert "слова подтверждаются действием" in text
+    assert "проблема не в Луне" in text
+    assert "сделать эту ситуацию безопаснее" not in text
