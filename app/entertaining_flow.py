@@ -87,7 +87,7 @@ webapp._detail_text = _entertaining_detail_text
 webapp.DETAIL_WEBAPP_HTML = (
     webapp.DETAIL_WEBAPP_HTML.replace(
         "partner-key-detail:${block}:v2",
-        "partner-key-detail:${block}:v4",
+        "partner-key-detail:${block}:v5",
     )
     .replace(
         "✨ Инструкция к любимому мужчине",
