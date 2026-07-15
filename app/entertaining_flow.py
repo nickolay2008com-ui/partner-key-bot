@@ -3,6 +3,7 @@ from __future__ import annotations
 import app.partner_flow as current
 import app.webapp as webapp
 import app.woman_flow as base
+from app import payment_checkout
 from app.astro import entertaining_blocks as fun
 
 
@@ -50,8 +51,8 @@ def _couple_full_report(man_report, woman_report):
 
 
 # Telegram cards use function references imported by woman_flow, while the WebApp
-# keeps its own imported references. Patch both namespaces and leave calculations,
-# storage and payments untouched.
+# keeps its own imported references. Patch both namespaces and leave calculations
+# and storage intact.
 base.format_planet_short_card = fun.format_planet_short_card
 base.format_couple_moon_bridge_short_card = fun.format_couple_moon_bridge_short_card
 base.format_couple_portraits_short_card = fun.format_couple_portraits_short_card
@@ -96,6 +97,10 @@ webapp.DETAIL_WEBAPP_HTML = (
         "Здесь планеты становятся героями понятной истории: узнаваемые сцены, лёгкая ирония и один эксперимент, который можно проверить в жизни.",
     )
 )
+
+# Add a receipt-aware YooKassa layer. The rest of the payment and entitlement
+# mechanics remain in woman_flow.
+payment_checkout.install(base)
 
 
 def main() -> None:
