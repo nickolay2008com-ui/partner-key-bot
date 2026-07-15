@@ -4,6 +4,7 @@ import app.partner_flow as current
 import app.webapp as webapp
 import app.woman_flow as base
 from app import payment_checkout
+from app.astro import bridge_upgrade as bridge
 from app.astro import entertaining_blocks as fun
 
 
@@ -54,7 +55,7 @@ def _couple_full_report(man_report, woman_report):
 # keeps its own imported references. Patch both namespaces and leave calculations
 # and storage intact.
 base.format_planet_short_card = fun.format_planet_short_card
-base.format_couple_moon_bridge_short_card = fun.format_couple_moon_bridge_short_card
+base.format_couple_moon_bridge_short_card = bridge.format_couple_moon_bridge_short_card
 base.format_couple_portraits_short_card = fun.format_couple_portraits_short_card
 
 webapp.format_moon_detail = fun.format_moon_detail
@@ -63,7 +64,7 @@ webapp.format_venus_detail = fun.format_venus_detail
 webapp.format_mercury_detail = fun.format_mercury_detail
 webapp.format_mars_detail = fun.format_mars_detail
 webapp.format_jupiter_detail = fun.format_jupiter_detail
-webapp.format_couple_moon_bridge = fun.format_couple_moon_bridge
+webapp.format_couple_moon_bridge = bridge.format_couple_moon_bridge
 webapp.format_couple_portraits = _couple_portraits
 webapp.format_couple_full_report = _couple_full_report
 webapp.format_moon_variant_cards = fun.format_moon_variant_cards
@@ -86,7 +87,7 @@ webapp._detail_text = _entertaining_detail_text
 webapp.DETAIL_WEBAPP_HTML = (
     webapp.DETAIL_WEBAPP_HTML.replace(
         "partner-key-detail:${block}:v2",
-        "partner-key-detail:${block}:v3",
+        "partner-key-detail:${block}:v4",
     )
     .replace(
         "✨ Инструкция к любимому мужчине",
