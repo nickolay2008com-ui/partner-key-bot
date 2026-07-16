@@ -52,16 +52,30 @@ def _couple_full_report(man_report, woman_report):
 
 
 def _relationship_menu_keyboard():
+    details_product = base.get_product("details")
+    message_product = base.get_product("message")
+    details_price = f" — {details_product.rubles} ₽" if details_product else ""
+    message_price = f" — {message_product.rubles} ₽" if message_product else ""
     return base.InlineKeyboardMarkup(
         [
             [base.InlineKeyboardButton("💞 Эмоциональный мост", callback_data="p:bridge")],
+            [
+                base.InlineKeyboardButton(
+                    f"🔓 Полная карта отношений{details_price}",
+                    callback_data="p:full",
+                )
+            ],
             [base.InlineKeyboardButton("1️⃣ Язык любви по Венере", callback_data="p:venus")],
             [base.InlineKeyboardButton("2️⃣ Стиль общения по Меркурию", callback_data="p:mercury")],
             [base.InlineKeyboardButton("3️⃣ Притяжение и инициатива по Марсу", callback_data="p:mars")],
             [base.InlineKeyboardButton("4️⃣ Рост пары по Юпитеру", callback_data="p:jupiter")],
-            [base.InlineKeyboardButton("🔓 Полная карта отношений", callback_data="p:full")],
+            [
+                base.InlineKeyboardButton(
+                    f"✍️ 3 сообщения для вашей ситуации{message_price}",
+                    callback_data="message",
+                )
+            ],
             [base.InlineKeyboardButton("👤 Сильные места и уязвимости пары", callback_data="p:portrait")],
-            [base.InlineKeyboardButton("✍️ 3 сообщения для вашей ситуации", callback_data="message")],
             [base.InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
         ]
     )
