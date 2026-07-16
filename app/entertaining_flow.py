@@ -70,6 +70,21 @@ def _relationship_menu_keyboard():
 async def _relationship_menu_text(update, context) -> str:
     man_report = await base._load_latest_man_report(update, context)
     woman_report = base._load_report(context, base.LAST_WOMAN_REPORT)
+    if woman_report is None:
+        try:
+            profile = await base._get_profile(update)
+            self_birth_date = str(profile.get("self_birth_date", "")).strip()
+            if self_birth_date:
+                birth_date = base.parse_birth_date(self_birth_date)
+                chart = await base.asyncio.to_thread(base.calculate_partner_chart, birth_date)
+                woman_report = await base.asyncio.to_thread(
+                    base.build_partner_report,
+                    chart,
+                    profile.get("self_name") or "вы",
+                )
+                base._save_report(context, base.LAST_WOMAN_REPORT, woman_report)
+        except Exception:
+            base.logger.exception("RELATIONSHIP_MENU_SELF_REPORT_FAILED")
     if man_report is None or woman_report is None:
         return "📖 Меню разбора"
     return bridge.format_relationship_menu_summary(man_report, woman_report)
