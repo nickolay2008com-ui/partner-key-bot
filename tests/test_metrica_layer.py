@@ -23,7 +23,7 @@ def test_client_script_initializes_safe_yandex_metrica_tag() -> None:
 
 
 def test_client_script_keeps_internal_analytics_when_counter_is_disabled() -> None:
-    script = _client_script(None)
+    script = _client_script(0)
 
     assert "const METRICA_ID = null" in script
     assert "'/api/analytics'" in script
