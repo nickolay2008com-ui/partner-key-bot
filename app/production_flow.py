@@ -3,6 +3,7 @@ from __future__ import annotations
 import app.woman_flow as base
 from app import (
     ad_attribution,
+    ad_landing,
     entertaining_flow,
     metrica_layer,
     metrica_legacy_queue,
@@ -42,6 +43,7 @@ base.WELCOME_TEXT = WELCOME_TEXT
 entertaining_flow.current.WELCOME_TEXT = WELCOME_TEXT
 metrica_layer.install()
 ad_attribution.install(base)
+ad_landing.install()
 metrica_upload_api.install()
 metrica_reliability.install()
 metrica_legacy_queue.install()
