@@ -4,10 +4,12 @@ import app.woman_flow as base
 from app import (
     ad_attribution,
     ad_landing,
+    analytics_diagnostics,
     entertaining_flow,
     metrica_layer,
     metrica_legacy_queue,
     metrica_reliability,
+    metrica_revenue_guard,
     metrica_upload_api,
 )
 
@@ -47,6 +49,8 @@ ad_landing.install()
 metrica_upload_api.install()
 metrica_reliability.install()
 metrica_legacy_queue.install()
+metrica_revenue_guard.install()
+analytics_diagnostics.install()
 
 
 def main() -> None:
