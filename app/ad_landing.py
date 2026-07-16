@@ -4,7 +4,7 @@ import html
 import json
 
 from app import ad_attribution
-from app.metrica_layer import _client_script
+from app.metrica_layer import _client_script, _counter_id
 
 _INSTALLED = False
 
@@ -16,13 +16,14 @@ def build_landing_html(bot_link: str, attributed: bool) -> str:
         else "Откройте бот и получите первый ключ. Рекламная атрибуция появится при переходе из объявления Яндекса."
     )
     safe_link = html.escape(bot_link, quote=True)
+    counter_id = _counter_id()
     return f"""<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Инструкция к вашему мужчине</title>
-  {_client_script()}
+  {_client_script(counter_id)}
   <style>
     :root {{ color-scheme: light dark; --bg:#0f0d16; --card:#1d1928; --text:#faf7ff; --muted:#c5bdd2; --accent:#9b6cff; --soft:#2a2338; }}
     * {{ box-sizing:border-box; }}
@@ -57,10 +58,30 @@ def build_landing_html(bot_link: str, attributed: bool) -> str:
   </main>
   <script>
     const target = {json.dumps(bot_link)};
+    const metricaId = {json.dumps(counter_id)};
     document.getElementById('open-bot').addEventListener('click', (event) => {{
       event.preventDefault();
-      if (window.partnerMetricsTrack) window.partnerMetricsTrack('landing_to_bot', {{ attributed: {str(attributed).lower()} }});
-      window.setTimeout(() => {{ window.location.href = target; }}, 180);
+      let redirected = false;
+      const openTelegram = () => {{
+        if (redirected) return;
+        redirected = true;
+        window.location.href = target;
+      }};
+      const metricEvent = {{
+        event: 'landing_to_bot',
+        payload: {{ attributed: {str(attributed).lower()} }},
+        at: new Date().toISOString()
+      }};
+      window.partnerKeyEvents = window.partnerKeyEvents || [];
+      window.partnerKeyEvents.push(metricEvent);
+      try {{
+        if (metricaId && typeof window.ym === 'function') {{
+          window.ym(metricaId, 'reachGoal', 'landing_to_bot', metricEvent.payload, openTelegram);
+          window.setTimeout(openTelegram, 1200);
+          return;
+        }}
+      }} catch (_error) {{}}
+      openTelegram();
     }});
   </script>
 </body>
