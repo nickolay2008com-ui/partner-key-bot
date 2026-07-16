@@ -53,7 +53,7 @@ from app.relationship_practice import (
     format_star_goal,
     get_daily_connection_card,
 )
-from app.storage import ReportsStore, format_history
+from app.storage import ReportsStore
 from app.webapp import start_webapp_server
 
 logging.basicConfig(format="%(asctime)s | %(levelname)s | %(name)s | %(message)s", level=logging.INFO)
@@ -384,6 +384,20 @@ def bridge_summary_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [[InlineKeyboardButton("💞 Открыть полный эмоциональный мост", web_app=detail_webapp_info("bridge"))]]
     )
+
+
+def history_keyboard(items: list[Any]) -> InlineKeyboardMarkup:
+    rows = [
+        [
+            InlineKeyboardButton(
+                f"💞 {item.partner_name}, {item.birth_date}",
+                callback_data=f"history:open:{item.id}",
+            )
+        ]
+        for item in items
+    ]
+    rows.append([InlineKeyboardButton("⬅️ В меню", callback_data="premium:back")])
+    return InlineKeyboardMarkup(rows)
 
 
 async def _delete_callback_menu_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1228,8 +1242,82 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = _user_id(update)
     if user_id is None:
         return
-    await update.effective_message.reply_text(
-        format_history(get_store().recent(user_id, limit=10)), reply_markup=menu()
+    items = await asyncio.to_thread(get_store().recent, user_id, 10)
+    await _track_event(update, "history_opened", report_count=len(items))
+    if not items:
+        await _tracked_reply_text(
+            update,
+            context,
+            "🗂 Здесь будут ваши сохранённые разборы. Начните с первого бесплатного ключа.",
+            reply_markup=menu(),
+        )
+        return
+    await _tracked_reply_text(
+        update,
+        context,
+        "🗂 Мои разборы\n\nВыберите карту, которую хотите продолжить или открыть снова.",
+        reply_markup=history_keyboard(items),
+    )
+
+
+async def open_history_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.callback_query:
+        await update.callback_query.answer()
+    await _remember_user(update)
+    user_id = _user_id(update)
+    raw_data = update.callback_query.data if update.callback_query else ""
+    try:
+        report_id = int(raw_data.rsplit(":", 1)[-1])
+    except (TypeError, ValueError):
+        report_id = 0
+    if user_id is None or report_id <= 0:
+        await _tracked_reply_text(update, context, "Не получилось определить разбор. Откройте историю ещё раз.")
+        return
+
+    payload = await asyncio.to_thread(get_store().report_payload, user_id, report_id)
+    report = _report_from_payload(payload)
+    if report is None:
+        await _track_event(update, "history_report_open_failed", report_id=report_id)
+        await _tracked_reply_text(
+            update,
+            context,
+            "Этот разбор не найден. Возможно, кнопка осталась от старого сообщения.",
+            reply_markup=menu(),
+        )
+        return
+
+    _save_report(context, LAST_MAN_REPORT, report)
+    context.user_data["last_partner_report"] = report.to_dict()
+    context.user_data[LAST_MAN_REPORT_ID] = report_id
+
+    profile_data = await _get_profile(update)
+    self_birth_date = profile_data.get("self_birth_date", "").strip()
+    if self_birth_date:
+        try:
+            birth_date = parse_birth_date(self_birth_date)
+            chart = await asyncio.to_thread(calculate_partner_chart, birth_date)
+            self_report = await asyncio.to_thread(
+                build_partner_report,
+                chart,
+                profile_data.get("self_name", "").strip() or "вы",
+            )
+            _save_report(context, LAST_WOMAN_REPORT, self_report)
+        except Exception:
+            logger.exception("HISTORY_SELF_REPORT_RESTORE_FAILED")
+            context.user_data.pop(LAST_WOMAN_REPORT, None)
+
+    has_entitlement = await asyncio.to_thread(get_store().has_any_entitlement, user_id, report_id)
+    await _track_event(
+        update,
+        "history_report_opened",
+        report_id=report_id,
+        has_entitlement=has_entitlement,
+    )
+    await _tracked_reply_text(
+        update,
+        context,
+        f"💞 Открыт разбор: {report.partner_name}, {report.birth_date}\n\nВыберите нужный раздел карты.",
+        reply_markup=read_menu_keyboard(),
     )
 
 
@@ -1679,6 +1767,7 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("broadcast_daily_key", broadcast_daily_key))
     app.add_handler(CommandHandler("broadcast_mercury", broadcast_mercury))
     app.add_handler(CallbackQueryHandler(history, pattern=r"^(history|history:show)$"))
+    app.add_handler(CallbackQueryHandler(open_history_report, pattern=r"^history:open:\d+$"))
     app.add_handler(CallbackQueryHandler(daily_key, pattern=r"^daily_key$"))
     app.add_handler(CallbackQueryHandler(about, pattern=r"^help:about$"))
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
