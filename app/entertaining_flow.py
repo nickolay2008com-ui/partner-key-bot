@@ -51,12 +51,90 @@ def _couple_full_report(man_report, woman_report):
     return _fix_pair_you_lines(fun.format_couple_full_report(man_report, woman_report))
 
 
+def _relationship_menu_keyboard():
+    return base.InlineKeyboardMarkup(
+        [
+            [base.InlineKeyboardButton("💞 Эмоциональный мост", callback_data="p:bridge")],
+            [base.InlineKeyboardButton("1️⃣ Язык любви по Венере", callback_data="p:venus")],
+            [base.InlineKeyboardButton("2️⃣ Стиль общения по Меркурию", callback_data="p:mercury")],
+            [base.InlineKeyboardButton("3️⃣ Притяжение и инициатива по Марсу", callback_data="p:mars")],
+            [base.InlineKeyboardButton("4️⃣ Рост пары по Юпитеру", callback_data="p:jupiter")],
+            [base.InlineKeyboardButton("🔓 Полная карта отношений", callback_data="p:full")],
+            [base.InlineKeyboardButton("👤 Сильные места и уязвимости пары", callback_data="p:portrait")],
+            [base.InlineKeyboardButton("✍️ 3 сообщения для вашей ситуации", callback_data="message")],
+            [base.InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
+        ]
+    )
+
+
+async def _relationship_menu_text(update, context) -> str:
+    man_report = await base._load_latest_man_report(update, context)
+    woman_report = base._load_report(context, base.LAST_WOMAN_REPORT)
+    if woman_report is None:
+        try:
+            profile = await base._get_profile(update)
+            self_birth_date = str(profile.get("self_birth_date", "")).strip()
+            if self_birth_date:
+                birth_date = base.parse_birth_date(self_birth_date)
+                chart = await base.asyncio.to_thread(base.calculate_partner_chart, birth_date)
+                woman_report = await base.asyncio.to_thread(
+                    base.build_partner_report,
+                    chart,
+                    profile.get("self_name") or "вы",
+                )
+                base._save_report(context, base.LAST_WOMAN_REPORT, woman_report)
+        except Exception:
+            base.logger.exception("RELATIONSHIP_MENU_SELF_REPORT_FAILED")
+    if man_report is None or woman_report is None:
+        return "📖 Меню разбора"
+    return bridge.format_relationship_menu_summary(man_report, woman_report)
+
+
+async def _send_bridge_teaser_with_menu(update, context, text: str) -> None:
+    await base._send_long(update, context, text, reply_markup=base.bridge_summary_keyboard())
+    await base._tracked_reply_text(
+        update,
+        context,
+        await _relationship_menu_text(update, context),
+        reply_markup=_relationship_menu_keyboard(),
+    )
+
+
+_original_premium_offer = base.premium_offer
+
+
+async def _premium_offer_with_relationship_menu(update, context) -> None:
+    data = update.callback_query.data if update.callback_query else ""
+    if (data or "").replace("premium:", "") != "back":
+        await _original_premium_offer(update, context)
+        return
+
+    if update.callback_query:
+        await update.callback_query.answer()
+    await base._remember_user(update)
+    if update.callback_query and update.callback_query.message:
+        try:
+            await update.callback_query.message.delete()
+            base._forget_bot_message(context, update.callback_query.message)
+        except Exception:
+            pass
+    await base._tracked_reply_text(
+        update,
+        context,
+        await _relationship_menu_text(update, context),
+        reply_markup=_relationship_menu_keyboard(),
+    )
+
+
 # Telegram cards use function references imported by woman_flow, while the WebApp
 # keeps its own imported references. Patch both namespaces and leave calculations
 # and storage intact.
 base.format_planet_short_card = fun.format_planet_short_card
 base.format_couple_moon_bridge_short_card = bridge.format_couple_moon_bridge_short_card
 base.format_couple_portraits_short_card = fun.format_couple_portraits_short_card
+base.read_menu_keyboard = _relationship_menu_keyboard
+base._send_bridge_teaser_with_menu = _send_bridge_teaser_with_menu
+base.premium_offer = _premium_offer_with_relationship_menu
 
 webapp.format_moon_detail = fun.format_moon_detail
 webapp.format_moon_deep_detail = fun.format_moon_deep_detail
@@ -69,6 +147,7 @@ webapp.format_couple_portraits = _couple_portraits
 webapp.format_couple_full_report = _couple_full_report
 webapp.format_moon_variant_cards = fun.format_moon_variant_cards
 webapp.DETAIL_LABELS.update(fun.DETAIL_LABELS)
+webapp.DETAIL_LABELS["bridge"] = "💞 Эмоциональный мост"
 
 _original_detail_text = webapp._detail_text
 
@@ -87,7 +166,7 @@ webapp._detail_text = _entertaining_detail_text
 webapp.DETAIL_WEBAPP_HTML = (
     webapp.DETAIL_WEBAPP_HTML.replace(
         "partner-key-detail:${block}:v2",
-        "partner-key-detail:${block}:v5",
+        "partner-key-detail:${block}:v6",
     )
     .replace(
         "✨ Инструкция к любимому мужчине",
@@ -96,6 +175,38 @@ webapp.DETAIL_WEBAPP_HTML = (
     .replace(
         "Это не сухой прогноз, а мягкая инструкция: какие слова, внимание и действия помогают ему раскрыться рядом с вами.",
         "Здесь планеты становятся героями понятной истории: узнаваемые сцены, лёгкая ирония и один эксперимент, который можно проверить в жизни.",
+    )
+    .replace(
+        "Структура моста без повторов",
+        "Как пользоваться эмоциональным мостом",
+    )
+    .replace(
+        "Сначала выберите похожий эмоциональный сценарий, затем возьмите одну фразу и один следующий шаг. Так карта становится инструкцией, а не ещё одним длинным разбором.",
+        "Сначала увидьте ритм каждого, затем выберите одну фразу и один совместный ритуал. Мост нужен не для ремонта отношений, а чтобы хорошее между вами легче повторялось.",
+    )
+    .replace(
+        "Его вход в спокойствие",
+        "Его ритм близости",
+    )
+    .replace(
+        "Темп, тон или конкретика, при которых он меньше защищается и легче слышит вас.",
+        "Атмосфера, темп и действия, через которые он особенно хорошо чувствует тепло и участие.",
+    )
+    .replace(
+        "Ваш берег",
+        "Ваш ритм близости",
+    )
+    .replace(
+        "Что нужно вам для тепла: внимание, ясность, время, действие или бережная пауза.",
+        "Какие сигналы помогают вам чувствовать надёжность, внимание и естественную близость.",
+    )
+    .replace(
+        "Маленький тест",
+        "Общий ритуал",
+    )
+    .replace(
+        "Одна просьба или сообщение на 24 часа, после которого видно: стало ли больше контакта.",
+        "Одно приятное действие, которое легко повторять и по которому видно: становится ли связь теплее для обоих.",
     )
 )
 
