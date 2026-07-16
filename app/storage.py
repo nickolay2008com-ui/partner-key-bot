@@ -305,6 +305,64 @@ class ReportsStore:
         payload["_storage_report_id"] = int(row["id"])
         return payload
 
+    def report_payload(self, user_id: int, report_id: int) -> dict[str, Any] | None:
+        """Return one report owned by the user, including its storage identifier."""
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                row = conn.execute(
+                    """
+                    SELECT id, report_json
+                    FROM partner_reports
+                    WHERE user_id = %s AND id = %s
+                    LIMIT 1
+                    """,
+                    (user_id, report_id),
+                ).fetchone()
+        else:
+            with self._connect_sqlite() as conn:
+                row = conn.execute(
+                    """
+                    SELECT id, report_json
+                    FROM partner_reports
+                    WHERE user_id = ? AND id = ?
+                    LIMIT 1
+                    """,
+                    (user_id, report_id),
+                ).fetchone()
+        if row is None:
+            return None
+        raw_payload = row["report_json"]
+        payload = raw_payload if isinstance(raw_payload, dict) else json.loads(str(raw_payload))
+        if not isinstance(payload, dict):
+            return None
+        payload["_storage_report_id"] = int(row["id"])
+        return payload
+
+    def has_any_entitlement(self, user_id: int, report_id: int) -> bool:
+        """Return whether at least one paid product is attached to a report."""
+        self.register_user(user_id)
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                row = conn.execute(
+                    """
+                    SELECT 1 FROM premium_entitlements
+                    WHERE user_id = %s AND report_id = %s
+                    LIMIT 1
+                    """,
+                    (user_id, report_id),
+                ).fetchone()
+        else:
+            with self._connect_sqlite() as conn:
+                row = conn.execute(
+                    """
+                    SELECT 1 FROM premium_entitlements
+                    WHERE user_id = ? AND report_id = ?
+                    LIMIT 1
+                    """,
+                    (user_id, report_id),
+                ).fetchone()
+        return row is not None
+
     def recent(self, user_id: int, limit: int = 10) -> list[SavedReport]:
         if self.database_url:
             with self._connect_postgres() as conn:
