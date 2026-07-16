@@ -44,6 +44,10 @@ def test_short_bridge_builds_shared_rhythm_without_problem_framing() -> None:
     assert "Фраза для поддержания близости" in text
     assert "Мягкий шаг" in text
     assert "что будет только нашим" in text
+    assert "Ваш общий вклад в связь" in text
+    assert "Попробуйте такой ритуал" in text
+    assert "Вы сближается" not in text
+    assert "вы сам" not in text.lower()
     assert "как вы обычно застреваете" not in text.lower()
     assert "ссора" not in text.lower()
 
@@ -57,7 +61,7 @@ def test_full_bridge_focuses_on_supporting_connection() -> None:
     assert "Что уже соединяет вас" in text
     assert "Как он чувствует близость" in text
     assert "Как вы чувствуете близость" in text
-    assert "В чём различается ваш темп" in text
+    assert "Как сочетаются ваши темпы" in text
     assert "Как поддерживать общий ритм" in text
     assert "Подходящий совместный ритуал" in text
     assert "Как понять, что мост работает" in text
