@@ -5,6 +5,7 @@ from app import (
     ad_attribution,
     entertaining_flow,
     metrica_layer,
+    metrica_legacy_queue,
     metrica_reliability,
     metrica_upload_api,
 )
@@ -43,6 +44,7 @@ metrica_layer.install()
 ad_attribution.install(base)
 metrica_upload_api.install()
 metrica_reliability.install()
+metrica_legacy_queue.install()
 
 
 def main() -> None:
