@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import app.woman_flow as base
-from app import entertaining_flow
+from app import entertaining_flow, metrica_layer
 
 
 WELCOME_TEXT = """
@@ -22,9 +22,10 @@ WELCOME_TEXT = """
 
 
 # Финальный production-слой: сохраняем новую механику продукта,
-# но возвращаем одобренное первое сообщение.
+# возвращаем одобренное первое сообщение и подключаем аналитику WebApp.
 base.WELCOME_TEXT = WELCOME_TEXT
 entertaining_flow.current.WELCOME_TEXT = WELCOME_TEXT
+metrica_layer.install()
 
 
 def main() -> None:
