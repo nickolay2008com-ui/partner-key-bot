@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import app.woman_flow as base
-from app import ad_attribution, entertaining_flow, metrica_layer
+from app import ad_attribution, entertaining_flow, metrica_layer, metrica_reliability
 
 
 WELCOME_TEXT = """
@@ -35,6 +35,7 @@ base.WELCOME_TEXT = WELCOME_TEXT
 entertaining_flow.current.WELCOME_TEXT = WELCOME_TEXT
 metrica_layer.install()
 ad_attribution.install(base)
+metrica_reliability.install()
 
 
 def main() -> None:
