@@ -11,7 +11,7 @@ _INSTALLED = False
 
 def build_landing_html(bot_link: str, attributed: bool) -> str:
     attribution_note = (
-        "Рекламный переход сохранён. После запуска бот свяжет результат и оплату с объявлением."
+        "Рекламный переход сохранён. После открытия Telegram нажмите «Запустить», чтобы бот получил рекламный код."
         if attributed
         else "Откройте бот и получите первый ключ. Рекламная атрибуция появится при переходе из объявления Яндекса."
     )
@@ -51,7 +51,7 @@ def build_landing_html(bot_link: str, attributed: bool) -> str:
       <li>Практичная фраза или действие без давления и гадания по молчанию</li>
     </ul>
     <p class="price"><strong>Первый ключ бесплатно.</strong><br />Подробные разделы — от 50 ₽, полная карта отношений — 199 ₽.</p>
-    <a class="cta" id="open-bot" href="{safe_link}">Открыть инструкцию в Telegram</a>
+    <a class="cta" id="open-bot" href="{safe_link}">Открыть Telegram и нажать «Запустить»</a>
     <p class="note">{html.escape(attribution_note)}</p>
     <p class="disclaimer">Это не медицинская или психологическая диагностика и не обещание результата. Бот помогает посмотреть на привычный ритм пары и выбрать проверяемый шаг.</p>
   </main>
