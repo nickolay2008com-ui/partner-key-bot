@@ -8,6 +8,6 @@ def test_ad_landing_has_manual_telegram_transition() -> None:
     assert "После открытия Telegram нажмите «Запустить»" in html
     assert "setTimeout(openBot" not in html
     assert "event.preventDefault()" in html
-    assert "window.setTimeout" in html
-    assert "landing_to_bot" in html
+    assert "'reachGoal', 'landing_to_bot'" in html
+    assert "window.setTimeout(openTelegram, 1200)" in html
     assert "полная карта отношений — 199 ₽" in html
