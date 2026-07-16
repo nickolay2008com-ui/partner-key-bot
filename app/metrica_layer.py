@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
@@ -127,7 +126,10 @@ def _client_script(counter_id: int | None = None) -> str:
     else:
         init = ""
         counter_value = "null"
-    return _CLIENT_SCRIPT_TEMPLATE.replace("__COUNTER_ID__", counter_value).replace("__METRICA_INIT__", init)
+    return _CLIENT_SCRIPT_TEMPLATE.replace("__COUNTER_ID__", counter_value).replace(
+        "__METRICA_INIT__",
+        init,
+    )
 
 
 def _sanitize_payload(payload: object) -> dict[str, Any]:
