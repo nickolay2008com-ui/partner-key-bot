@@ -57,9 +57,10 @@ def build_landing_html(bot_link: str, attributed: bool) -> str:
   </main>
   <script>
     const target = {json.dumps(bot_link)};
-    document.getElementById('open-bot').addEventListener('click', () => {{
+    document.getElementById('open-bot').addEventListener('click', (event) => {{
+      event.preventDefault();
       if (window.partnerMetricsTrack) window.partnerMetricsTrack('landing_to_bot', {{ attributed: {str(attributed).lower()} }});
-      window.setTimeout(() => {{ window.location.href = target; }}, 120);
+      window.setTimeout(() => {{ window.location.href = target; }}, 180);
     }});
   </script>
 </body>
