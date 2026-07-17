@@ -25,6 +25,7 @@ from app.astro.product_blocks import (
     format_moon_detail,
     format_venus_detail,
 )
+from app.astro.relationship_map import build_couple_full_map_view
 from app.astro.report import PartnerReport, build_partner_report
 from app.config import settings
 from app.storage import ReportsStore
@@ -508,6 +509,53 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     .bridge-note { color: var(--hint) !important; font-size: 14px; }
     .is-bridge .content { display: none; }
     @media (min-width: 620px) { .shore-grid { grid-template-columns: 1fr 1fr; } }
+    .full-map-view { display: none; gap: 14px; }
+    .full-map-view.is-visible { display: grid; }
+    .is-full-map .content, .is-full-map .life-use { display: none; }
+    .map-summary-grid { display: grid; gap: 9px; margin-top: 12px; }
+    .map-summary-card { padding: 13px; border: 1px solid var(--border); border-radius: 17px; background: rgba(0,0,0,.13); }
+    .map-summary-card small { display: block; margin-bottom: 5px; color: #d8b4fe; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+    .map-summary-card strong { display: block; margin-bottom: 5px; }
+    .map-summary-card p { color: var(--hint); font-size: 14px; }
+    .layer-stack { display: grid; gap: 10px; margin-top: 12px; }
+    .planet-layer { overflow: hidden; border: 1px solid var(--border); border-radius: 20px; background: rgba(0,0,0,.13); }
+    .planet-layer summary { display: grid; grid-template-columns: 40px 1fr 22px; gap: 10px; align-items: center; padding: 14px; cursor: pointer; list-style: none; }
+    .planet-layer summary::-webkit-details-marker { display: none; }
+    .planet-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 13px; background: rgba(139,92,246,.18); font-size: 20px; }
+    .planet-heading strong, .planet-heading span, .planet-heading small { display: block; }
+    .planet-heading span { margin-top: 3px; color: var(--hint); font-size: 13px; }
+    .planet-heading small { margin-top: 6px; color: #c4b5fd; font-size: 11px; line-height: 1.35; }
+    .planet-chevron { color: var(--hint); font-size: 18px; transition: transform .2s ease; }
+    .planet-layer[open] .planet-chevron { transform: rotate(180deg); }
+    .planet-body { display: grid; gap: 12px; padding: 0 14px 14px; }
+    .pair-insight { padding: 13px; border-radius: 16px; background: rgba(255,255,255,.055); }
+    .pair-insight strong { display: block; margin-bottom: 5px; }
+    .pair-insight p { color: var(--hint); }
+    .map-side-grid { display: grid; gap: 9px; }
+    .map-side { padding: 13px; border: 1px solid var(--border); border-radius: 16px; background: rgba(255,255,255,.045); }
+    .map-side-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+    .map-side-head strong { color: #d8b4fe; }
+    .map-side-head span { color: var(--hint); font-size: 12px; text-align: right; }
+    .map-side dl { display: grid; gap: 8px; margin: 0; }
+    .map-side dt { margin-bottom: 2px; font-size: 12px; font-weight: 900; }
+    .map-side dd { margin: 0; color: var(--hint); line-height: 1.4; }
+    .exact-note { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--hint); font-size: 13px; line-height: 1.4; }
+    .layer-action { padding: 14px; border-radius: 17px; background: linear-gradient(145deg, rgba(139,92,246,.18), rgba(236,72,153,.08)); }
+    .layer-action strong { display: block; margin-bottom: 5px; }
+    .layer-action p { color: var(--text); }
+    .layer-action .phrase { margin-top: 11px; padding: 12px; border-left: 3px solid #c084fc; border-radius: 4px 13px 13px 4px; background: rgba(0,0,0,.17); }
+    .layer-action .result { margin-top: 11px; color: var(--hint); font-size: 14px; }
+    .copy-layer { width: 100%; margin-top: 10px; border: 1px solid var(--border); border-radius: 13px; padding: 10px; background: rgba(255,255,255,.08); color: var(--text); font-weight: 800; }
+    .week-grid { display: grid; gap: 9px; margin-top: 12px; }
+    .week-day { display: grid; grid-template-columns: 62px 1fr; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 16px; background: rgba(0,0,0,.13); }
+    .week-day b { color: #d8b4fe; font-size: 12px; }
+    .week-day strong { display: block; margin-bottom: 3px; }
+    .week-day span { color: var(--hint); line-height: 1.4; }
+    @media (min-width: 620px) {
+      .map-summary-grid { grid-template-columns: repeat(3, 1fr); }
+      .map-side-grid { grid-template-columns: 1fr 1fr; }
+      .week-grid { grid-template-columns: 1fr 1fr; }
+    }
     .variant-wrap { display: none; margin: 0 0 14px; }
     .variant-wrap.is-visible { display: block; }
     .variant-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 8px; color: var(--hint); font-size: 14px; }
@@ -536,6 +584,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     </div>
   </section>
   <main class="bridge-view" id="bridge-view" aria-live="polite"></main>
+  <main class="full-map-view" id="full-map-view" aria-live="polite"></main>
   <section class="variant-wrap" id="variants" aria-labelledby="variants-title">
     <div class="variant-head"><strong id="variants-title">Свайп вариантов Луны</strong><span>выберите, что больше похоже на жизнь</span></div>
     <div class="variant-carousel" id="variant-carousel"></div>
@@ -554,7 +603,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     const pathBlock = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
     const block = params.get('block') || (pathBlock === 'detail' ? 'moon' : pathBlock) || 'moon';
     const reportId = Number(params.get('report_id') || 0);
-    const cacheKey = reportId > 0 ? `partner-key-detail:${reportId}:${block}:v11` : '';
+    const cacheKey = reportId > 0 ? `partner-key-detail:${reportId}:${block}:v12` : '';
     function setBusy(isBusy) {
       const content = document.getElementById('content');
       if (isBusy) {
@@ -714,13 +763,106 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
       view.append(next);
       view.classList.add('is-visible');
     }
+    function renderMapSide(item) {
+      const card = el('article', 'map-side');
+      const head = el('div', 'map-side-head');
+      head.append(
+        el('strong', '', `${item.role || ''}: ${item.name || ''}`),
+        el('span', '', `${item.sign || ''} · ${item.element || ''}${item.motion ? ` · ${item.motion}` : ''}`)
+      );
+      const list = el('dl');
+      [
+        ['Что нужно', item.need],
+        ['Сильный вклад', item.gift],
+        ['Слепая зона', item.risk || item.closes]
+      ].forEach(([label, text]) => {
+        const row = el('div');
+        row.append(el('dt', '', label), el('dd', '', text || ''));
+        list.append(row);
+      });
+      card.append(head, list);
+      if (item.exact) card.append(el('div', 'exact-note', item.exact));
+      return card;
+    }
+    function renderPlanetLayer(layer, index) {
+      const details = el('details', 'planet-layer');
+      details.open = index === 0;
+      const summary = el('summary');
+      const heading = el('div', 'planet-heading');
+      heading.append(el('strong', '', layer.title), el('span', '', layer.promise), el('small', '', layer.formula));
+      summary.append(el('div', 'planet-icon', layer.emoji), heading, el('div', 'planet-chevron', '⌄'));
+
+      const body = el('div', 'planet-body');
+      const resource = el('div', 'pair-insight');
+      resource.append(el('strong', '', 'Что уже работает на вас'), el('p', '', layer.resource));
+      const friction = el('div', 'pair-insight');
+      friction.append(el('strong', '', 'Где нужен перевод'), el('p', '', layer.friction));
+      const sides = el('div', 'map-side-grid');
+      (layer.sides || []).forEach(item => sides.append(renderMapSide(item)));
+
+      const action = el('div', 'layer-action');
+      action.append(el('strong', '', 'Один практический шаг'), el('p', '', layer.action));
+      const phrase = el('div', 'phrase');
+      phrase.append(el('strong', '', 'Фраза-мост'), el('p', '', `«${layer.phrase}»`));
+      const copy = el('button', 'copy-layer', 'Скопировать фразу');
+      copy.type = 'button';
+      copy.onclick = () => copyPhrase(layer.phrase || '');
+      action.append(phrase, copy, el('div', 'result', `Признак результата: ${layer.success}`));
+      body.append(resource, friction, sides, action);
+      details.append(summary, body);
+      return details;
+    }
+    function renderFullMap(model) {
+      document.body.classList.add('is-full-map');
+      document.getElementById('eyebrow').textContent = model.eyebrow || 'Полная карта отношений';
+      document.getElementById('title').textContent = model.title || 'Стратегия вашей пары';
+      document.getElementById('hero-copy').textContent = model.subtitle || '';
+      document.getElementById('close').textContent = 'Вернуться в Telegram';
+      const view = document.getElementById('full-map-view');
+      view.replaceChildren();
+
+      const vector = bridgeCard(model.vector.kicker, model.vector.title, 'accent');
+      vector.append(el('p', '', model.vector.body));
+      const summary = el('div', 'map-summary-grid');
+      (model.summary || []).forEach(item => {
+        const card = el('article', 'map-summary-card');
+        card.append(el('small', '', item.label), el('strong', '', item.title), el('p', '', item.text));
+        summary.append(card);
+      });
+      vector.append(summary);
+      view.append(vector);
+
+      const layers = bridgeCard('Пять уровней отношений', 'Откройте слой, который важен вам сейчас');
+      const stack = el('div', 'layer-stack');
+      (model.layers || []).forEach((layer, index) => stack.append(renderPlanetLayer(layer, index)));
+      layers.append(stack);
+      view.append(layers);
+
+      const week = bridgeCard('Из понимания в опыт', 'План пары на семь дней', 'accent');
+      const weekGrid = el('div', 'week-grid');
+      (model.week_plan || []).forEach(item => {
+        const day = el('div', 'week-day');
+        const copy = el('div');
+        copy.append(el('strong', '', item.title), el('span', '', item.text));
+        day.append(el('b', '', item.day), copy);
+        weekGrid.append(day);
+      });
+      week.append(weekGrid);
+      view.append(week);
+
+      const method = bridgeCard('Точность и границы', model.method.title);
+      method.append(el('p', 'bridge-note', model.method.body));
+      if (model.method.precision) method.append(el('div', 'boundary', model.method.precision));
+      view.append(method);
+      view.classList.add('is-visible');
+    }
     function applyDetail(data, fromCache = false) {
       document.getElementById('title').textContent = data.title || '✨ Подробный разбор';
-      if (block === 'full') document.getElementById('life-use').classList.add('is-visible');
       renderVariants(data.variants || []);
       const content = document.getElementById('content');
       setBusy(false);
       if (block === 'bridge' && data.bridge) renderBridge(data.bridge);
+      else if (block === 'full' && data.fullMap) renderFullMap(data.fullMap);
       else content.textContent = data.text || '';
       if (fromCache) content.dataset.fromCache = 'true';
     }
@@ -853,6 +995,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
                 text = _detail_text(user_id, block, report_id)
                 variants = []
                 bridge_view = None
+                full_map_view = None
                 if block in {"bridge", "full"}:
                     profile = get_store().get_profile(user_id)
                     report_payload = (
@@ -866,6 +1009,8 @@ class WebAppHandler(BaseHTTPRequestHandler):
                         woman_report = build_partner_report(woman_chart, profile.get("self_name") or "вы")
                         if block == "bridge":
                             bridge_view = build_couple_moon_bridge_view(man_report, woman_report)
+                        if block == "full":
+                            full_map_view = build_couple_full_map_view(man_report, woman_report)
                         if "changed_during_day" in {man_report.moon_status, woman_report.moon_status}:
                             variants = format_moon_variant_cards(man_report, woman_report)
                 get_store().track_event(
@@ -879,6 +1024,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
                         "title": DETAIL_LABELS.get(block, "✨ Подробный разбор"),
                         "text": text,
                         "bridge": bridge_view,
+                        "fullMap": full_map_view,
                         "variants": variants,
                     }
                 )
