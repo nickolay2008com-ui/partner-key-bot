@@ -26,6 +26,15 @@ def _labels(markup: InlineKeyboardMarkup) -> list[str]:
     return [button.text for row in markup.inline_keyboard for button in row]
 
 
+def _locked_card(block: str, locked: bool = False, report_id: int = 0) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(f"Открыть {block}", callback_data=f"buy:{block}:{report_id}")],
+            [InlineKeyboardButton("Бесплатная подсказка", callback_data=f"hint:{block}")],
+        ]
+    )
+
+
 def test_content_admin_ids_are_loaded_from_environment(monkeypatch) -> None:
     monkeypatch.setenv("CONTENT_ADMIN_IDS", "101, 202")
 
@@ -55,6 +64,25 @@ def test_admin_button_is_available_on_every_premium_paywall(
     assert admin_button.callback_data == f"admin:unlock:{product_key}:42"
 
 
+@pytest.mark.parametrize("block", ["venus", "mercury", "mars", "jupiter"])
+def test_admin_button_is_on_locked_planet_card(
+    block: str,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(base, "settings", SimpleNamespace(content_admin_ids={101}))
+    monkeypatch.setattr(access, "_ORIGINAL_DETAIL_CARD_KEYBOARD", _locked_card)
+    token = access._CURRENT_USER_ID.set(101)
+    try:
+        markup = access.detail_card_keyboard_with_admin(block, locked=True, report_id=42)
+    finally:
+        access._CURRENT_USER_ID.reset(token)
+
+    assert "🛠 Админ — открыть" in _labels(markup)
+    assert markup.inline_keyboard[1][0].callback_data == (
+        f"admin:unlock:{base.PAID_PLANET_PRODUCTS[block]}:42"
+    )
+
+
 def test_admin_button_is_hidden_from_regular_users(premium_keyboard, monkeypatch) -> None:
     monkeypatch.setattr(base, "settings", SimpleNamespace(content_admin_ids={101}))
     token = access._CURRENT_USER_ID.set(202)
@@ -64,6 +92,19 @@ def test_admin_button_is_hidden_from_regular_users(premium_keyboard, monkeypatch
         access._CURRENT_USER_ID.reset(token)
 
     assert "🛠 Админ — открыть" not in _labels(markup)
+
+    monkeypatch.setattr(access, "_ORIGINAL_DETAIL_CARD_KEYBOARD", _locked_card)
+    token = access._CURRENT_USER_ID.set(202)
+    try:
+        locked_markup = access.detail_card_keyboard_with_admin(
+            "jupiter",
+            locked=True,
+            report_id=42,
+        )
+    finally:
+        access._CURRENT_USER_ID.reset(token)
+
+    assert "🛠 Админ — открыть" not in _labels(locked_markup)
 
 
 def test_admin_unlock_grants_separate_entitlement(monkeypatch) -> None:
