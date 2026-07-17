@@ -14,6 +14,7 @@ from app import (
     metrica_revenue_guard,
     metrica_upload_api,
     payment_reconciliation,
+    topic_labels,
 )
 
 
@@ -53,6 +54,7 @@ analytics_diagnostics.install()
 button_contracts.install()
 payment_reconciliation.install()
 bridge_navigation.install()
+topic_labels.install()
 
 
 def main() -> None:
