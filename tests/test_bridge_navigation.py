@@ -25,10 +25,10 @@ def test_other_topics_menu_shows_every_current_option_directly() -> None:
     assert len(keyboard) == 6
     assert all(len(row) == 1 for row in keyboard)
     assert labels == [
-        "💗 Секреты любви (Венера) — 50 ₽",
-        "🗣 Стиль общения (Меркурий) — 50 ₽",
-        "🔥 Притяжение и инициатива (Марс) — 50 ₽",
-        "🪐 Рост пары (Юпитер) — 50 ₽",
+        "💗 Секреты любви\nВенера — 50 ₽",
+        "🗣 Стиль общения\nМеркурий — 50 ₽",
+        "🔥 Притяжение и инициатива\nМарс — 50 ₽",
+        "🪐 Рост пары\nЮпитер — 50 ₽",
         "📖 Полная карта отношений — 199 ₽",
         "🔄 Новый разбор",
     ]
@@ -42,6 +42,8 @@ def test_other_topics_menu_shows_every_current_option_directly() -> None:
     ]
     assert all("эмоциональный мост" not in label.lower() for label in labels)
     assert all("сообщени" not in label.lower() for label in labels)
+    assert all("(" not in label and ")" not in label for label in labels[:4])
+    assert all(label.count("\n") == 1 for label in labels[:4])
 
 
 def test_other_topics_text_does_not_duplicate_button_explanations(monkeypatch) -> None:
@@ -78,10 +80,10 @@ def test_other_topics_text_does_not_duplicate_button_explanations(monkeypatch) -
         for row in calls[0]["reply_markup"].inline_keyboard
         for button in row
     ]
-    assert "Венера" in labels[0]
-    assert "Меркурий" in labels[1]
-    assert "Марс" in labels[2]
-    assert "Юпитер" in labels[3]
+    assert labels[0].splitlines() == ["💗 Секреты любви", "Венера — 50 ₽"]
+    assert labels[1].splitlines() == ["🗣 Стиль общения", "Меркурий — 50 ₽"]
+    assert labels[2].splitlines() == ["🔥 Притяжение и инициатива", "Марс — 50 ₽"]
+    assert labels[3].splitlines() == ["🪐 Рост пары", "Юпитер — 50 ₽"]
 
 
 def test_bridge_sender_does_not_send_automatic_menu(monkeypatch) -> None:

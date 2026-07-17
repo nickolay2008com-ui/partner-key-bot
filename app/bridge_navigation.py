@@ -42,25 +42,25 @@ def other_topics_keyboard() -> base.InlineKeyboardMarkup:
         [
             [
                 base.InlineKeyboardButton(
-                    f"💗 Секреты любви (Венера) — {_rub_price('planet_venus', 50)}",
+                    f"💗 Секреты любви\nВенера — {_rub_price('planet_venus', 50)}",
                     callback_data="p:venus",
                 )
             ],
             [
                 base.InlineKeyboardButton(
-                    f"🗣 Стиль общения (Меркурий) — {_rub_price('planet_mercury', 50)}",
+                    f"🗣 Стиль общения\nМеркурий — {_rub_price('planet_mercury', 50)}",
                     callback_data="p:mercury",
                 )
             ],
             [
                 base.InlineKeyboardButton(
-                    f"🔥 Притяжение и инициатива (Марс) — {_rub_price('planet_mars', 50)}",
+                    f"🔥 Притяжение и инициатива\nМарс — {_rub_price('planet_mars', 50)}",
                     callback_data="p:mars",
                 )
             ],
             [
                 base.InlineKeyboardButton(
-                    f"🪐 Рост пары (Юпитер) — {_rub_price('planet_jupiter', 50)}",
+                    f"🪐 Рост пары\nЮпитер — {_rub_price('planet_jupiter', 50)}",
                     callback_data="p:jupiter",
                 )
             ],
