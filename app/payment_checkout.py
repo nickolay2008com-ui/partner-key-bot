@@ -156,6 +156,45 @@ def get_checkout_session(store: Any, user_id: int, product_key: str, report_id: 
     }
 
 
+def list_checkout_sessions(store: Any, limit: int = 500) -> list[dict[str, Any]]:
+    """Return durable payment ids so reconciliation does not depend on YooKassa's recent-payment window."""
+    _ensure_checkout_sessions_table(store)
+    safe_limit = max(1, min(int(limit), 1000))
+    if store.database_url:
+        with store._connect_postgres() as conn:
+            rows = conn.execute(
+                """
+                SELECT user_id, product_key, report_id, payment_id, confirmation_url, updated_at
+                FROM yookassa_checkout_sessions
+                ORDER BY updated_at ASC
+                LIMIT %s
+                """,
+                (safe_limit,),
+            ).fetchall()
+    else:
+        with store._connect_sqlite() as conn:
+            rows = conn.execute(
+                """
+                SELECT user_id, product_key, report_id, payment_id, confirmation_url, updated_at
+                FROM yookassa_checkout_sessions
+                ORDER BY updated_at ASC
+                LIMIT ?
+                """,
+                (safe_limit,),
+            ).fetchall()
+    return [
+        {
+            "user_id": int(row["user_id"]),
+            "product_key": str(row["product_key"] or ""),
+            "report_id": int(row["report_id"]),
+            "payment_id": str(row["payment_id"] or ""),
+            "confirmation_url": str(row["confirmation_url"] or ""),
+            "updated_at": str(row["updated_at"] or ""),
+        }
+        for row in rows
+    ]
+
+
 def save_checkout_session(
     store: Any,
     user_id: int,
