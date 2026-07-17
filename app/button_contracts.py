@@ -50,11 +50,7 @@ _DETAIL_LABELS = {
 
 
 def _ensure_active_report_table(store: storage.ReportsStore) -> None:
-    schema_key = (
-        ("postgres", store.database_url)
-        if store.database_url
-        else ("sqlite", str(store.db_path.resolve()))
-    )
+    schema_key = ("postgres", store.database_url) if store.database_url else ("sqlite", str(store.db_path.resolve()))
     if schema_key in _ACTIVE_SCHEMA_KEYS:
         return
 
@@ -181,7 +177,7 @@ async def open_history_report_with_active(update: Any, context: Any) -> None:
         await asyncio.to_thread(set_active_report, base.get_store(), user_id, selected_report_id)
 
 
-def relationship_menu_keyboard() -> base.InlineKeyboardMarkup:
+def relationship_menu_keyboard(report_id: int = 0) -> base.InlineKeyboardMarkup:
     details_product = base.get_product("details")
     message_product = base.get_product("message")
     details_price = f" — {details_product.rubles} ₽" if details_product else ""
@@ -191,25 +187,25 @@ def relationship_menu_keyboard() -> base.InlineKeyboardMarkup:
             [
                 base.InlineKeyboardButton(
                     "💞 Открыть полный эмоциональный мост",
-                    web_app=base.detail_webapp_info("bridge"),
+                    web_app=base.detail_webapp_info("bridge", report_id),
                 )
             ],
             [
                 base.InlineKeyboardButton(
                     f"✍️ 2 варианта сообщения{message_price}",
-                    callback_data="message",
+                    callback_data=base._callback_with_report("message", report_id),
                 )
             ],
             [
                 base.InlineKeyboardButton(
                     f"📖 Полная карта отношений{details_price}",
-                    callback_data="p:full",
+                    callback_data=base._callback_with_report("p:full", report_id),
                 )
             ],
             [
                 base.InlineKeyboardButton(
                     "🪐 Выбрать отдельную тему — 50 ₽",
-                    callback_data="premium:planets",
+                    callback_data=base._callback_with_report("premium:planets", report_id),
                 )
             ],
             [base.InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
@@ -217,9 +213,13 @@ def relationship_menu_keyboard() -> base.InlineKeyboardMarkup:
     )
 
 
-def detail_card_keyboard(block: str, locked: bool = False) -> base.InlineKeyboardMarkup:
+def detail_card_keyboard(
+    block: str,
+    locked: bool = False,
+    report_id: int = 0,
+) -> base.InlineKeyboardMarkup:
     if locked:
-        return _ORIGINAL_DETAIL_CARD_KEYBOARD(block, locked=True)
+        return _ORIGINAL_DETAIL_CARD_KEYBOARD(block, locked=True, report_id=report_id)
 
     labels = {
         "moon": "🌙 Открыть разбор Луны",
@@ -238,10 +238,15 @@ def detail_card_keyboard(block: str, locked: bool = False) -> base.InlineKeyboar
             [
                 base.InlineKeyboardButton(
                     labels.get(block, "✨ Открыть подробности"),
-                    web_app=base.detail_webapp_info(block),
+                    web_app=base.detail_webapp_info(block, report_id),
                 )
             ],
-            [base.InlineKeyboardButton("← К выбору", callback_data="premium:back")],
+            [
+                base.InlineKeyboardButton(
+                    "← К выбору",
+                    callback_data=base._callback_with_report("premium:back", report_id),
+                )
+            ],
         ]
     )
 
@@ -306,10 +311,10 @@ def _required_product(block: str) -> str | None:
     return _PLANET_PRODUCT_BY_BLOCK.get(block)
 
 
-def detail_text_with_contract(user_id: int, block: str) -> str:
+def detail_text_with_contract(user_id: int, block: str, report_id: int = 0) -> str:
     normalized = webapp._normalize_detail_block(block)
     store = webapp.get_store()
-    payload = store.latest_report_payload(user_id)
+    payload = store.report_payload(user_id, report_id) if report_id > 0 else store.latest_report_payload(user_id)
     if not isinstance(payload, dict):
         raise ValueError("Сначала соберите разбор в Telegram.")
 
@@ -335,11 +340,24 @@ def detail_text_with_contract(user_id: int, block: str) -> str:
             raise ValueError("Не удалось восстановить выбранный разбор. Откройте его заново в Telegram.")
         return _format_pair_topic(man_report, _woman_report(store, user_id), normalized)
 
-    return _ORIGINAL_DETAIL_TEXT(user_id, normalized)
+    return _ORIGINAL_DETAIL_TEXT(user_id, normalized, report_id)
 
 
 async def product_detail_with_direct_bridge(update: Any, context: Any) -> None:
-    raw_code = update.callback_query.data if update.callback_query else ""
+    raw_data = update.callback_query.data if update.callback_query else ""
+    raw_code, requested_report_id = base._callback_report(raw_data)
+    if requested_report_id:
+        if not await base._activate_report_context(update, context, requested_report_id):
+            await base._tracked_reply_text(
+                update,
+                context,
+                "Эта кнопка относится к недоступному разбору. Откройте нужную карту через историю.",
+                reply_markup=base.menu(),
+            )
+            return
+        user_id = base._user_id(update)
+        if user_id is not None:
+            await asyncio.to_thread(set_active_report, base.get_store(), user_id, requested_report_id)
     legacy_code_map = {
         "v2:couple_moon": "bridge",
         "v2:venus": "venus",
@@ -409,7 +427,7 @@ async def product_detail_with_direct_bridge(update: Any, context: Any) -> None:
         update,
         context,
         text,
-        reply_markup=detail_card_keyboard(code),
+        reply_markup=detail_card_keyboard(code, report_id=base._current_report_id(context)),
     )
 
 
@@ -431,8 +449,7 @@ def _align_payment_products() -> None:
         key=message.key,
         title="2 варианта сообщения",
         description=(
-            "Два готовых сообщения, подходящая тональность и стоп-фразы, "
-            "чтобы начать разговор яснее и бережнее."
+            "Два готовых сообщения, подходящая тональность и стоп-фразы, чтобы начать разговор яснее и бережнее."
         ),
         stars=message.stars,
         rubles=message.rubles,

@@ -37,7 +37,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-python -m app.woman_flow
+python -m app.production_flow
 ```
 
 Минимально нужен `TELEGRAM_BOT_TOKEN` в `.env`.
@@ -72,7 +72,7 @@ python -m app.woman_flow
 Railway запускает основной сценарий командой:
 
 ```bash
-python -m app.woman_flow
+python -m app.production_flow
 ```
 
 Основной production-сценарий работает как Telegram long polling bot. HTTP/Web App endpoints остаются в `app.webapp`, но не поднимаются этим entrypoint автоматически.

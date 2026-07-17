@@ -94,9 +94,9 @@ def menu() -> InlineKeyboardMarkup:
     )
 
 
-def after_free_deep_keyboard() -> InlineKeyboardMarkup:
+def after_free_deep_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🌙 Подробнее о его Луне", web_app=base.detail_webapp_info("moon_deep"))]]
+        [[InlineKeyboardButton("🌙 Подробнее о его Луне", web_app=base.detail_webapp_info("moon_deep", report_id))]]
     )
 
 
@@ -109,15 +109,42 @@ def after_free_followup_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def read_menu_keyboard() -> InlineKeyboardMarkup:
+def read_menu_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("1️⃣ Венера: его язык симпатии", callback_data="p:venus")],
-            [InlineKeyboardButton("2️⃣ Меркурий: как ему легче воспринимать разговор", callback_data="p:mercury")],
-            [InlineKeyboardButton("3️⃣ Марс: как он проявляет инициативу", callback_data="p:mars")],
-            [InlineKeyboardButton("4️⃣ Юпитер: смысл и направление роста", callback_data="p:jupiter")],
-            [InlineKeyboardButton("🔓 Полная карта отношений", callback_data="p:full")],
-            [InlineKeyboardButton("👤 Сильные места и уязвимости пары", callback_data="p:portrait")],
+            [
+                InlineKeyboardButton(
+                    "1️⃣ Венера: его язык симпатии", callback_data=base._callback_with_report("p:venus", report_id)
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "2️⃣ Меркурий: как ему легче воспринимать разговор",
+                    callback_data=base._callback_with_report("p:mercury", report_id),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "3️⃣ Марс: как он проявляет инициативу", callback_data=base._callback_with_report("p:mars", report_id)
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "4️⃣ Юпитер: смысл и направление роста",
+                    callback_data=base._callback_with_report("p:jupiter", report_id),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🔓 Полная карта отношений", callback_data=base._callback_with_report("p:full", report_id)
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "👤 Сильные места и уязвимости пары",
+                    callback_data=base._callback_with_report("p:portrait", report_id),
+                )
+            ],
             [InlineKeyboardButton("✍️ 2 варианта сообщения — 149 ₽", callback_data="message")],
             [InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
         ]
@@ -288,6 +315,7 @@ async def _build_man_report_from_date(
         context.user_data["last_partner_report"] = report.to_dict()
 
         user_id = base._user_id(update)
+        report_id = 0
         if user_id is not None:
             report_id = await asyncio.to_thread(base.get_store().add, user_id, report)
             context.user_data[base.LAST_MAN_REPORT_ID] = report_id
@@ -308,7 +336,7 @@ async def _build_man_report_from_date(
             update,
             context,
             format_free_preview(report),
-            reply_markup=after_free_deep_keyboard(),
+            reply_markup=after_free_deep_keyboard(report_id),
         )
         await base._tracked_reply_text(
             update,

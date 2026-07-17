@@ -21,10 +21,10 @@ def test_other_topics_show_all_current_products_without_messages_or_bridge() -> 
     labels = _labels(retirement.other_topics_keyboard())
 
     assert labels == [
-        "💗 Секреты любви — 50 ₽",
-        "🗣 Стиль общения — 50 ₽",
-        "🔥 Притяжение и инициатива — 50 ₽",
-        "🪐 Рост пары — 50 ₽",
+        "💗 Секреты любви\nВенера — 50 ₽",
+        "🗣 Стиль общения\nМеркурий — 50 ₽",
+        "🔥 Притяжение и инициатива\nМарс — 50 ₽",
+        "🪐 Рост пары\nЮпитер — 50 ₽",
         "📖 Полная карта отношений — 199 ₽",
         "🔄 Новый разбор",
     ]
@@ -61,5 +61,5 @@ def test_old_message_button_is_redirected_to_current_topics(monkeypatch) -> None
     assert any(call.get("event") == "retired_message_product_opened" for call in calls)
     rendered = next(call for call in calls if "text" in call)
     assert "больше не используется" in str(rendered["text"])
-    assert _labels(rendered["reply_markup"])[0] == "💗 Секреты любви — 50 ₽"
+    assert _labels(rendered["reply_markup"])[0] == "💗 Секреты любви\nВенера — 50 ₽"
     assert all("сообщени" not in label.lower() for label in _labels(rendered["reply_markup"]))

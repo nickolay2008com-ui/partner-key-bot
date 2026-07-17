@@ -11,4 +11,4 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
-CMD ["python", "-m", "app.woman_flow"]
+CMD ["python", "-m", "app.production_flow"]

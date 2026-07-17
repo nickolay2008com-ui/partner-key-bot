@@ -173,18 +173,16 @@ def test_message_guidance_is_general_and_not_ready_script() -> None:
     assert "GPT" not in text
 
 
-def test_bridge_summary_keyboard_separates_full_bridge_cta_from_menu() -> None:
+def test_bridge_summary_and_current_menu_keep_the_approved_actions() -> None:
     from app.woman_flow import bridge_summary_keyboard, read_menu_keyboard
 
     bridge_buttons = [button.text for row in bridge_summary_keyboard().inline_keyboard for button in row]
     menu_buttons = [button.text for row in read_menu_keyboard().inline_keyboard for button in row]
 
     assert bridge_buttons == ["💞 Открыть полный эмоциональный мост"]
-    assert "💞 Открыть полный эмоциональный мост" not in menu_buttons
-    assert "1️⃣ Венера: его язык симпатии" in menu_buttons
-    assert "2️⃣ Меркурий: как ему легче воспринимать разговор" in menu_buttons
-    assert "3️⃣ Марс: как он проявляет инициативу" in menu_buttons
-    assert "4️⃣ Юпитер: смысл и направление роста" in menu_buttons
+    assert menu_buttons.count("💞 Открыть полный эмоциональный мост") == 1
+    assert "📖 Полная карта отношений — 199 ₽" in menu_buttons
+    assert "🪐 Выбрать отдельную тему — 50 ₽" in menu_buttons
 
 
 def test_detail_card_keyboard_keeps_content_cta_separate_from_full_menu() -> None:
@@ -206,10 +204,10 @@ def test_after_free_actions_can_be_sent_as_separate_button_blocks() -> None:
     deep_buttons = [button.text for row in after_free_deep_keyboard().inline_keyboard for button in row]
     followup_buttons = [button.text for row in after_free_followup_keyboard().inline_keyboard for button in row]
 
-    assert deep_buttons == ["🌙 Луна мужчины глубже"]
-    assert followup_buttons == ["💞 Добавить себя и увидеть мост", "💞 Новый разбор"]
-    assert "💞 Добавить себя и увидеть мост" not in deep_buttons
-    assert "💞 Новый разбор" not in deep_buttons
+    assert deep_buttons == ["🌙 Подробнее о его Луне"]
+    assert followup_buttons == ["💞 Сравнить наши ритмы", "🔄 Другой разбор"]
+    assert "💞 Сравнить наши ритмы" not in deep_buttons
+    assert "🔄 Другой разбор" not in deep_buttons
 
 
 def test_premium_keyboard_returns_to_product_choice() -> None:
