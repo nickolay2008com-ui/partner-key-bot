@@ -7,11 +7,13 @@ from typing import Any, Awaitable, Callable
 
 from telegram.ext import CallbackQueryHandler
 
+import app.button_contracts as contracts
 import app.woman_flow as base
 
 _INSTALLED = False
 _CURRENT_USER_ID: ContextVar[int | None] = ContextVar("content_admin_user_id", default=None)
 _ORIGINAL_PREMIUM_KEYBOARD: Callable[..., base.InlineKeyboardMarkup] | None = None
+_ORIGINAL_DETAIL_CARD_KEYBOARD: Callable[..., base.InlineKeyboardMarkup] | None = None
 
 _ADMIN_PRODUCTS = {
     "details",
@@ -28,15 +30,20 @@ def _admin_unlock_callback(product_key: str, report_id: int) -> str:
     return base._callback_with_report(f"admin:unlock:{product_key}", report_id)
 
 
-def premium_keyboard_with_admin(
+def _add_admin_button(
+    markup: base.InlineKeyboardMarkup,
     product_key: str,
-    report_id: int = 0,
+    report_id: int,
 ) -> base.InlineKeyboardMarkup:
-    if _ORIGINAL_PREMIUM_KEYBOARD is None:
-        raise RuntimeError("Content admin access is not installed")
-
-    markup = _ORIGINAL_PREMIUM_KEYBOARD(product_key, report_id)
     if not _is_content_admin_id(_CURRENT_USER_ID.get()) or product_key not in _ADMIN_PRODUCTS:
+        return markup
+
+    callback_data = _admin_unlock_callback(product_key, report_id)
+    if any(
+        button.callback_data == callback_data
+        for row in markup.inline_keyboard
+        for button in row
+    ):
         return markup
 
     rows = [list(row) for row in markup.inline_keyboard]
@@ -45,11 +52,40 @@ def premium_keyboard_with_admin(
         [
             base.InlineKeyboardButton(
                 "🛠 Админ — открыть",
-                callback_data=_admin_unlock_callback(product_key, report_id),
+                callback_data=callback_data,
             )
         ],
     )
     return base.InlineKeyboardMarkup(rows)
+
+
+def premium_keyboard_with_admin(
+    product_key: str,
+    report_id: int = 0,
+) -> base.InlineKeyboardMarkup:
+    if _ORIGINAL_PREMIUM_KEYBOARD is None:
+        raise RuntimeError("Content admin access is not installed")
+
+    return _add_admin_button(
+        _ORIGINAL_PREMIUM_KEYBOARD(product_key, report_id),
+        product_key,
+        report_id,
+    )
+
+
+def detail_card_keyboard_with_admin(
+    block: str,
+    locked: bool = False,
+    report_id: int = 0,
+) -> base.InlineKeyboardMarkup:
+    if _ORIGINAL_DETAIL_CARD_KEYBOARD is None:
+        raise RuntimeError("Content admin access is not installed")
+
+    markup = _ORIGINAL_DETAIL_CARD_KEYBOARD(block, locked, report_id)
+    product_key = base.PAID_PLANET_PRODUCTS.get(block)
+    if not locked or product_key is None:
+        return markup
+    return _add_admin_button(markup, product_key, report_id)
 
 
 def _with_admin_context(
@@ -173,12 +209,15 @@ async def admin_unlock(update: Any, context: Any) -> None:
 
 
 def install() -> None:
-    global _INSTALLED, _ORIGINAL_PREMIUM_KEYBOARD
+    global _INSTALLED, _ORIGINAL_PREMIUM_KEYBOARD, _ORIGINAL_DETAIL_CARD_KEYBOARD
     if _INSTALLED:
         return
 
     _ORIGINAL_PREMIUM_KEYBOARD = base.premium_keyboard
+    _ORIGINAL_DETAIL_CARD_KEYBOARD = contracts.detail_card_keyboard
     base.premium_keyboard = premium_keyboard_with_admin
+    contracts.detail_card_keyboard = detail_card_keyboard_with_admin
+    base.detail_card_keyboard = detail_card_keyboard_with_admin
     base.premium_offer = _with_admin_context(base.premium_offer)
     base.product_detail = _with_admin_context(base.product_detail)
     base.message_hint = _with_admin_context(base.message_hint)
@@ -197,4 +236,4 @@ def install() -> None:
 
     base.build_application = build_application_with_content_admin
     _INSTALLED = True
-    base.logger.info("CONTENT_ADMIN_ACCESS: contextual Premium unlock installed")
+    base.logger.info("CONTENT_ADMIN_ACCESS: contextual Premium card and paywall unlock installed")
