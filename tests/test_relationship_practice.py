@@ -259,6 +259,7 @@ def test_planet_payment_recovery_keeps_user_in_current_planet_context() -> None:
     assert recovery_buttons == [
         "✅ Проверить оплату ещё раз",
         "🔁 Создать ссылку заново",
+        "🛟 Мои покупки",
         "👀 Бесплатная подсказка по Юпитеру",
         "⬅️ К планетам",
     ]
@@ -268,7 +269,7 @@ def test_planet_payment_recovery_keeps_user_in_current_planet_context() -> None:
         for row in yookassa_payment_keyboard("planet_jupiter", "pay_1", "https://pay.example").inline_keyboard
         for button in row
     ]
-    assert payment_buttons == ["Оплатить в ЮKassa", "✅ Проверить оплату", "⬅️ К планетам"]
+    assert payment_buttons == ["Оплатить в ЮKassa", "✅ Проверить оплату", "🛟 Мои покупки", "⬅️ К планетам"]
 
 
 def test_free_preview_uses_instruction_positioning_visible_after_birth_date() -> None:

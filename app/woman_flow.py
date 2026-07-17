@@ -273,6 +273,7 @@ def menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("⭐️ Звёздная цель дня", callback_data="star_goal")],
             [profile_button()],
             [InlineKeyboardButton("🗂 История", callback_data="history")],
+            [InlineKeyboardButton("🛟 Мои покупки", callback_data="purchases")],
         ]
     )
 
@@ -539,6 +540,7 @@ def yookassa_payment_keyboard(
     rows = [
         [InlineKeyboardButton("Оплатить в ЮKassa", url=confirmation_url)],
         [InlineKeyboardButton("✅ Проверить оплату", callback_data=f"premium:check:{payment_id}")],
+        [InlineKeyboardButton("🛟 Мои покупки", callback_data="purchases")],
     ]
     if product_key in PLANET_PAYWALL_COPY:
         rows.append(
@@ -565,6 +567,7 @@ def payment_recovery_keyboard(
             )
         ]
     )
+    rows.append([InlineKeyboardButton("🛟 Мои покупки", callback_data="purchases")])
     if product_key in PLANET_PAYWALL_COPY:
         block = planet_product_key_to_block(product_key) or "moon"
         rows.append(

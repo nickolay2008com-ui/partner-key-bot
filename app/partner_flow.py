@@ -89,6 +89,7 @@ def menu() -> InlineKeyboardMarkup:
         [
             [InlineKeyboardButton("🔑 Получить первый ключ бесплатно", callback_data="start_man")],
             [InlineKeyboardButton("🗂 Мои разборы", callback_data="history")],
+            [InlineKeyboardButton("🛟 Мои покупки", callback_data="purchases")],
             [base.profile_button()],
         ]
     )
