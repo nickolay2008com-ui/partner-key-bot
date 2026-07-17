@@ -5,6 +5,7 @@ from app import (
     ad_attribution,
     ad_landing,
     analytics_diagnostics,
+    button_contracts,
     entertaining_flow,
     metrica_layer,
     metrica_legacy_queue,
@@ -47,6 +48,7 @@ metrica_reliability.install()
 metrica_legacy_queue.install()
 metrica_revenue_guard.install()
 analytics_diagnostics.install()
+button_contracts.install()
 
 
 def main() -> None:
