@@ -108,16 +108,27 @@ def planet_hint_label(block: str) -> str:
     }.get(block, "планете")
 
 
-def compact_planets_keyboard() -> InlineKeyboardMarkup:
+def _callback_with_report(action: str, report_id: int = 0) -> str:
+    return f"{action}:{report_id}" if report_id > 0 else action
+
+
+def _callback_report(data: str) -> tuple[str, int]:
+    action, separator, raw_report_id = (data or "").rpartition(":")
+    if separator and raw_report_id.isdigit() and int(raw_report_id) > 0:
+        return action, int(raw_report_id)
+    return data or "", 0
+
+
+def compact_planets_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("💗 Симпатия — 50 ₽", callback_data="p:venus"),
-                InlineKeyboardButton("🗣 Разговор — 50 ₽", callback_data="p:mercury"),
+                InlineKeyboardButton("💗 Симпатия — 50 ₽", callback_data=_callback_with_report("p:venus", report_id)),
+                InlineKeyboardButton("🗣 Разговор — 50 ₽", callback_data=_callback_with_report("p:mercury", report_id)),
             ],
             [
-                InlineKeyboardButton("🔥 Инициатива — 50 ₽", callback_data="p:mars"),
-                InlineKeyboardButton("🪐 Рост — 50 ₽", callback_data="p:jupiter"),
+                InlineKeyboardButton("🔥 Инициатива — 50 ₽", callback_data=_callback_with_report("p:mars", report_id)),
+                InlineKeyboardButton("🪐 Рост — 50 ₽", callback_data=_callback_with_report("p:jupiter", report_id)),
             ],
             [InlineKeyboardButton("📖 Всё меню", callback_data="premium:back")],
         ]
@@ -236,11 +247,14 @@ def webapp_info() -> WebAppInfo:
     return WebAppInfo(url=settings.webapp_url)
 
 
-def detail_webapp_info(block: str) -> WebAppInfo:
+def detail_webapp_info(block: str, report_id: int = 0) -> WebAppInfo:
     base_url = settings.webapp_url.rstrip("/")
     if base_url.endswith("/webapp"):
         base_url = base_url[: -len("/webapp")]
-    return WebAppInfo(url=f"{base_url}/webapp/detail/{quote(block, safe='')}")
+    url = f"{base_url}/webapp/detail/{quote(block, safe='')}"
+    if report_id > 0:
+        url = f"{url}?report_id={report_id}"
+    return WebAppInfo(url=url)
 
 
 def webapp_menu_button() -> MenuButtonWebApp:
@@ -299,9 +313,9 @@ def profile_only_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="cancel")]])
 
 
-def after_free_deep_keyboard() -> InlineKeyboardMarkup:
+def after_free_deep_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🌙 Луна мужчины глубже", web_app=detail_webapp_info("moon_deep"))]]
+        [[InlineKeyboardButton("🌙 Луна мужчины глубже", web_app=detail_webapp_info("moon_deep", report_id))]]
     )
 
 
@@ -314,36 +328,61 @@ def after_free_followup_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def after_free_keyboard() -> InlineKeyboardMarkup:
+def after_free_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            *after_free_deep_keyboard().inline_keyboard,
+            *after_free_deep_keyboard(report_id).inline_keyboard,
             *after_free_followup_keyboard().inline_keyboard,
         ]
     )
 
 
-def read_menu_keyboard() -> InlineKeyboardMarkup:
+def read_menu_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
     """Menu shown inside the relationship reading after short detail cards."""
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("1️⃣ Венера: его язык симпатии", callback_data="p:venus")],
-            [InlineKeyboardButton("2️⃣ Меркурий: как ему легче воспринимать разговор", callback_data="p:mercury")],
-            [InlineKeyboardButton("3️⃣ Марс: как он проявляет инициативу", callback_data="p:mars")],
-            [InlineKeyboardButton("4️⃣ Юпитер: смысл и направление роста", callback_data="p:jupiter")],
-            [InlineKeyboardButton("📖 Полная карта отношений — 199 ₽", callback_data="p:full")],
-            [InlineKeyboardButton("👤 Портреты пары — в полной карте", callback_data="p:portrait")],
+            [
+                InlineKeyboardButton(
+                    "1️⃣ Венера: его язык симпатии", callback_data=_callback_with_report("p:venus", report_id)
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "2️⃣ Меркурий: как ему легче воспринимать разговор",
+                    callback_data=_callback_with_report("p:mercury", report_id),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "3️⃣ Марс: как он проявляет инициативу", callback_data=_callback_with_report("p:mars", report_id)
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "4️⃣ Юпитер: смысл и направление роста", callback_data=_callback_with_report("p:jupiter", report_id)
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📖 Полная карта отношений — 199 ₽", callback_data=_callback_with_report("p:full", report_id)
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "👤 Портреты пары — в полной карте", callback_data=_callback_with_report("p:portrait", report_id)
+                )
+            ],
             [InlineKeyboardButton("✍️ 2 варианта сообщения — 149 ₽", callback_data="message")],
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
         ]
     )
 
 
-def after_bridge_keyboard() -> InlineKeyboardMarkup:
-    return read_menu_keyboard()
+def after_bridge_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
+    return read_menu_keyboard(report_id)
 
 
-def detail_card_keyboard(block: str, locked: bool = False) -> InlineKeyboardMarkup:
+def detail_card_keyboard(block: str, locked: bool = False, report_id: int = 0) -> InlineKeyboardMarkup:
     labels = {
         "moon": "🌙 Луна (глубже)",
         "moon_deep": "🌙 Луна мужчины глубже",
@@ -361,15 +400,19 @@ def detail_card_keyboard(block: str, locked: bool = False) -> InlineKeyboardMark
                 [
                     InlineKeyboardButton(
                         f"🔓 Открыть {planet_display_label(block)} за 50 ₽",
-                        callback_data=f"premium:planet:{block}",
+                        callback_data=_callback_with_report(f"premium:planet:{block}", report_id),
                     )
                 ],
-                [InlineKeyboardButton("👀 Что внутри", callback_data=f"premium:planet:{block}")],
+                [
+                    InlineKeyboardButton(
+                        "👀 Что внутри", callback_data=_callback_with_report(f"premium:planet:{block}", report_id)
+                    )
+                ],
                 [InlineKeyboardButton("⬅️ К планетам", callback_data="premium:planets")],
             ]
         )
     primary_button = InlineKeyboardButton(
-        labels.get(block, "✨ Открыть подробности"), web_app=detail_webapp_info(block)
+        labels.get(block, "✨ Открыть подробности"), web_app=detail_webapp_info(block, report_id)
     )
     return InlineKeyboardMarkup(
         [
@@ -379,10 +422,16 @@ def detail_card_keyboard(block: str, locked: bool = False) -> InlineKeyboardMark
     )
 
 
-def bridge_summary_keyboard() -> InlineKeyboardMarkup:
+def bridge_summary_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
     """CTA shown on the bridge teaser; navigation is sent as a separate menu."""
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("💞 Открыть полный эмоциональный мост", web_app=detail_webapp_info("bridge"))]]
+        [
+            [
+                InlineKeyboardButton(
+                    "💞 Открыть полный эмоциональный мост", web_app=detail_webapp_info("bridge", report_id)
+                )
+            ]
+        ]
     )
 
 
@@ -416,8 +465,9 @@ async def _delete_callback_menu_message(update: Update, context: ContextTypes.DE
 
 
 async def _send_bridge_teaser_with_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str) -> None:
-    await _send_long(update, context, text, reply_markup=bridge_summary_keyboard())
-    await _tracked_reply_text(update, context, "📖 Меню разбора", reply_markup=read_menu_keyboard())
+    report_id = _current_report_id(context)
+    await _send_long(update, context, text, reply_markup=bridge_summary_keyboard(report_id))
+    await _tracked_reply_text(update, context, "📖 Меню разбора", reply_markup=read_menu_keyboard(report_id))
 
 
 def premium_paywall_text(product_key: str) -> str:
@@ -480,27 +530,50 @@ def premium_paywall_text(product_key: str) -> str:
 """.strip()
 
 
-def yookassa_payment_keyboard(product_key: str, payment_id: str, confirmation_url: str) -> InlineKeyboardMarkup:
+def yookassa_payment_keyboard(
+    product_key: str,
+    payment_id: str,
+    confirmation_url: str,
+    report_id: int = 0,
+) -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton("Оплатить в ЮKassa", url=confirmation_url)],
         [InlineKeyboardButton("✅ Проверить оплату", callback_data=f"premium:check:{payment_id}")],
     ]
     if product_key in PLANET_PAYWALL_COPY:
-        rows.append([InlineKeyboardButton("⬅️ К планетам", callback_data="premium:planets")])
+        rows.append(
+            [InlineKeyboardButton("⬅️ К планетам", callback_data=_callback_with_report("premium:planets", report_id))]
+        )
     else:
         rows.append([InlineKeyboardButton("📖 Меню", callback_data="premium:back")])
     return InlineKeyboardMarkup(rows)
 
 
-def payment_recovery_keyboard(product_key: str, payment_id: str | None = None) -> InlineKeyboardMarkup:
+def payment_recovery_keyboard(
+    product_key: str,
+    payment_id: str | None = None,
+    report_id: int = 0,
+) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     if payment_id:
         rows.append([InlineKeyboardButton("✅ Проверить оплату ещё раз", callback_data=f"premium:check:{payment_id}")])
-    rows.append([InlineKeyboardButton("🔁 Создать ссылку заново", callback_data=f"premium:buy:{product_key}")])
+    rows.append(
+        [
+            InlineKeyboardButton(
+                "🔁 Создать ссылку заново",
+                callback_data=_callback_with_report(f"premium:buy:{product_key}", report_id),
+            )
+        ]
+    )
     if product_key in PLANET_PAYWALL_COPY:
         block = planet_product_key_to_block(product_key) or "moon"
         rows.append(
-            [InlineKeyboardButton(f"👀 Бесплатная подсказка по {planet_hint_label(block)}", callback_data=f"p:{block}")]
+            [
+                InlineKeyboardButton(
+                    f"👀 Бесплатная подсказка по {planet_hint_label(block)}",
+                    callback_data=_callback_with_report(f"p:{block}", report_id),
+                )
+            ]
         )
         rows.append([InlineKeyboardButton("⬅️ К планетам", callback_data="premium:planets")])
     else:
@@ -508,7 +581,7 @@ def payment_recovery_keyboard(product_key: str, payment_id: str | None = None) -
     return InlineKeyboardMarkup(rows)
 
 
-def premium_keyboard(product_key: str) -> InlineKeyboardMarkup:
+def premium_keyboard(product_key: str, report_id: int = 0) -> InlineKeyboardMarkup:
     product = get_product(product_key)
     if product and settings.yookassa_enabled:
         price = f"{product.rubles} ₽"
@@ -519,10 +592,16 @@ def premium_keyboard(product_key: str) -> InlineKeyboardMarkup:
         buy_label = f"🔓 Открыть {planet_display_label(block)} за {price}"
         return InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton(buy_label, callback_data=f"premium:buy:{product_key}")],
                 [
                     InlineKeyboardButton(
-                        f"👀 Бесплатная подсказка по {planet_hint_label(block)}", callback_data=f"p:{block}"
+                        buy_label,
+                        callback_data=_callback_with_report(f"premium:buy:{product_key}", report_id),
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        f"👀 Бесплатная подсказка по {planet_hint_label(block)}",
+                        callback_data=_callback_with_report(f"p:{block}", report_id),
                     )
                 ],
                 [InlineKeyboardButton("⬅️ К планетам", callback_data="premium:planets")],
@@ -538,8 +617,13 @@ def premium_keyboard(product_key: str) -> InlineKeyboardMarkup:
         secondary_callback = "premium:planets"
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(buy_label, callback_data=f"premium:buy:{product_key}")],
-            [InlineKeyboardButton(secondary_label, callback_data=secondary_callback)],
+            [
+                InlineKeyboardButton(
+                    buy_label,
+                    callback_data=_callback_with_report(f"premium:buy:{product_key}", report_id),
+                )
+            ],
+            [InlineKeyboardButton(secondary_label, callback_data=_callback_with_report(secondary_callback, report_id))],
             [InlineKeyboardButton("← Вернуться к выбору", callback_data="premium:back")],
         ]
     )
@@ -856,6 +940,44 @@ async def _load_latest_man_report(update: Update, context: ContextTypes.DEFAULT_
     return report
 
 
+async def _activate_report_context(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    report_id: int,
+) -> bool:
+    """Restore the exact report referenced by a button and verify ownership."""
+    user_id = _user_id(update)
+    if user_id is None or report_id <= 0:
+        return False
+    payload = await asyncio.to_thread(get_store().report_payload, user_id, report_id)
+    report = _report_from_payload(payload)
+    if report is None:
+        return False
+
+    _save_report(context, LAST_MAN_REPORT, report)
+    context.user_data["last_partner_report"] = report.to_dict()
+    context.user_data[LAST_MAN_REPORT_ID] = report_id
+
+    profile_data = await _get_profile(update)
+    self_birth_date = str(profile_data.get("self_birth_date", "")).strip()
+    if not self_birth_date:
+        context.user_data.pop(LAST_WOMAN_REPORT, None)
+        return True
+    try:
+        birth_date = parse_birth_date(self_birth_date)
+        chart = await asyncio.to_thread(calculate_partner_chart, birth_date)
+        self_report = await asyncio.to_thread(
+            build_partner_report,
+            chart,
+            str(profile_data.get("self_name", "")).strip() or "вы",
+        )
+        _save_report(context, LAST_WOMAN_REPORT, self_report)
+    except Exception:
+        logger.exception("REPORT_CONTEXT_SELF_RESTORE_FAILED: report_id=%s", report_id)
+        context.user_data.pop(LAST_WOMAN_REPORT, None)
+    return True
+
+
 async def _send_long(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, **kwargs: Any) -> None:
     message = update.effective_message
     if not message:
@@ -899,6 +1021,7 @@ async def _build_man_report_from_date(
         _save_report(context, LAST_MAN_REPORT, report)
         context.user_data["last_partner_report"] = report.to_dict()
         user_id = _user_id(update)
+        report_id = 0
         if user_id is not None:
             report_id = await asyncio.to_thread(get_store().add, user_id, report)
             context.user_data[LAST_MAN_REPORT_ID] = report_id
@@ -914,7 +1037,7 @@ async def _build_man_report_from_date(
             pass
         text = format_free_preview(report)
         await _track_event(update, "man_free_report_generated")
-        await _send_long(update, context, text, reply_markup=after_free_deep_keyboard())
+        await _send_long(update, context, text, reply_markup=after_free_deep_keyboard(report_id))
         await _tracked_reply_text(
             update,
             context,
@@ -1338,7 +1461,7 @@ async def open_history_report(update: Update, context: ContextTypes.DEFAULT_TYPE
         update,
         context,
         f"💞 Открыт разбор: {report.partner_name}, {report.birth_date}\n\nВыберите нужный раздел карты.",
-        reply_markup=read_menu_keyboard(),
+        reply_markup=read_menu_keyboard(report_id),
     )
 
 
@@ -1346,7 +1469,16 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if update.callback_query:
         await update.callback_query.answer()
     await _remember_user(update)
-    raw_code = update.callback_query.data if update.callback_query else ""
+    raw_data = update.callback_query.data if update.callback_query else ""
+    raw_code, requested_report_id = _callback_report(raw_data)
+    if requested_report_id and not await _activate_report_context(update, context, requested_report_id):
+        await _tracked_reply_text(
+            update,
+            context,
+            "Эта кнопка относится к недоступному разбору. Откройте нужную карту через историю.",
+            reply_markup=menu(),
+        )
+        return
     legacy_code_map = {
         "report:details": "moon",
         "v2:moon_detail": "moon",
@@ -1376,7 +1508,10 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if code in {"full", "portrait"} and not await _has_premium_access(update, context, "details", report_id):
         await _track_event(update, "premium_gate_hit", product_key="details", block=code, report_id=report_id)
         await _tracked_reply_text(
-            update, context, premium_paywall_text("details"), reply_markup=premium_keyboard("details")
+            update,
+            context,
+            premium_paywall_text("details"),
+            reply_markup=premium_keyboard("details", report_id),
         )
         return
     if code == "full":
@@ -1384,7 +1519,7 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             update,
             context,
             "📖 Расширенная карта гармонии пары готова. Откройте её в отдельном окне: внутри будет полный разбор и блок применения в жизни — для понимания партнёра, мягких разговоров и гармонизации отношений.",
-            reply_markup=detail_card_keyboard("full"),
+            reply_markup=detail_card_keyboard("full", report_id=report_id),
         )
         return
     if code == "portrait":
@@ -1392,7 +1527,7 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             update,
             context,
             format_couple_portraits_short_card(man_report, woman_report),
-            reply_markup=detail_card_keyboard("portrait"),
+            reply_markup=detail_card_keyboard("portrait", report_id=report_id),
         )
         return
     if code == "bridge":
@@ -1416,12 +1551,13 @@ async def product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         update,
         context,
         format_planet_short_card(man_report, code),
-        reply_markup=detail_card_keyboard(code, locked=locked),
+        reply_markup=detail_card_keyboard(code, locked=locked, report_id=report_id),
     )
 
 
 def _current_report_id(context: ContextTypes.DEFAULT_TYPE) -> int:
-    raw = context.user_data.get(LAST_MAN_REPORT_ID)
+    user_data = getattr(context, "user_data", None)
+    raw = user_data.get(LAST_MAN_REPORT_ID) if isinstance(user_data, dict) else None
     try:
         return int(raw)
     except (TypeError, ValueError):
@@ -1441,7 +1577,16 @@ async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if update.callback_query:
         await update.callback_query.answer()
     await _remember_user(update)
-    data = update.callback_query.data if update.callback_query else ""
+    raw_data = update.callback_query.data if update.callback_query else ""
+    data, requested_report_id = _callback_report(raw_data)
+    if requested_report_id and not await _activate_report_context(update, context, requested_report_id):
+        await _tracked_reply_text(
+            update,
+            context,
+            "Эта кнопка относится к недоступному разбору. Откройте нужную карту через историю.",
+            reply_markup=menu(),
+        )
+        return
     product_key = (data or "").replace("premium:", "")
     if product_key == "back":
         if update.callback_query and update.callback_query.message:
@@ -1450,7 +1595,12 @@ async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 _forget_bot_message(context, update.callback_query.message)
             except Exception:
                 pass
-        await _tracked_reply_text(update, context, "📖 Меню разбора", reply_markup=read_menu_keyboard())
+        await _tracked_reply_text(
+            update,
+            context,
+            "📖 Меню разбора",
+            reply_markup=read_menu_keyboard(_current_report_id(context)),
+        )
         return
     if product_key == "planets":
         await _track_event(update, "planet_compact_menu_opened")
@@ -1466,9 +1616,13 @@ async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         product_key = PAID_PLANET_PRODUCTS.get(planet_code, "details")
     if product_key not in {"details", "message", *PAID_PLANET_PRODUCTS.values()}:
         product_key = "details"
-    await _track_event(update, "premium_paywall_viewed", product_key=product_key)
+    report_id = _current_report_id(context)
+    await _track_event(update, "premium_paywall_viewed", product_key=product_key, report_id=report_id)
     await _tracked_reply_text(
-        update, context, premium_paywall_text(product_key), reply_markup=premium_keyboard(product_key)
+        update,
+        context,
+        premium_paywall_text(product_key),
+        reply_markup=premium_keyboard(product_key, report_id),
     )
 
 
@@ -1477,7 +1631,17 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if query:
         await query.answer()
     await _remember_user(update)
-    product_key = (query.data or "").replace("premium:buy:", "") if query else ""
+    raw_data = query.data if query else ""
+    action, requested_report_id = _callback_report(raw_data)
+    if requested_report_id and not await _activate_report_context(update, context, requested_report_id):
+        await _tracked_reply_text(
+            update,
+            context,
+            "Эта кнопка относится к недоступному разбору. Откройте нужную карту через историю.",
+            reply_markup=menu(),
+        )
+        return
+    product_key = action.replace("premium:buy:", "")
     product = get_product(product_key)
     report_id = _current_report_id(context)
     if product is None or report_id <= 0:
@@ -1491,6 +1655,17 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     message = update.effective_message
     user_id = _user_id(update)
     if not message or user_id is None:
+        return
+    if await _has_premium_access(update, context, product_key, report_id):
+        await _track_event(update, "premium_repeat_purchase_blocked", product_key=product_key, report_id=report_id)
+        await _tracked_replace_callback_text(
+            update,
+            context,
+            "Этот материал уже куплен для этой карты — повторно платить не нужно.",
+            reply_markup=compact_planets_keyboard(report_id)
+            if product_key in PLANET_PAYWALL_COPY
+            else after_bridge_keyboard(report_id),
+        )
         return
     if settings.yookassa_enabled:
         await _track_event(update, "premium_yookassa_payment_started", product_key=product_key, report_id=report_id)
@@ -1512,7 +1687,7 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 update,
                 context,
                 exc.user_message,
-                reply_markup=payment_recovery_keyboard(product_key),
+                reply_markup=payment_recovery_keyboard(product_key, report_id=report_id),
             )
             return
         if not payment.payment_id:
@@ -1520,7 +1695,7 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 update,
                 context,
                 "ЮKassa не вернула ссылку на оплату. Разбор не потерян — попробуйте создать ссылку заново.",
-                reply_markup=payment_recovery_keyboard(product_key),
+                reply_markup=payment_recovery_keyboard(product_key, report_id=report_id),
             )
             return
         context.user_data[PENDING_YOOKASSA_PAYMENT] = {
@@ -1532,7 +1707,12 @@ async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             update,
             context,
             f"Оплата {product.title}: {product.rubles} ₽. После оплаты вернитесь сюда и нажмите проверку.",
-            reply_markup=yookassa_payment_keyboard(product_key, payment.payment_id, payment.confirmation_url),
+            reply_markup=yookassa_payment_keyboard(
+                product_key,
+                payment.payment_id,
+                payment.confirmation_url,
+                report_id,
+            ),
         )
         return
     await _track_event(update, "premium_invoice_opened", product_key=product_key, report_id=report_id)
@@ -1594,7 +1774,7 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
             update,
             context,
             exc.user_message,
-            reply_markup=payment_recovery_keyboard(product_key, payment_id),
+            reply_markup=payment_recovery_keyboard(product_key, payment_id, report_id),
         )
         return
     product_key = product_key or payment.product_key
@@ -1616,7 +1796,7 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
             update,
             context,
             "Пока не вижу успешную оплату. Если вы только что оплатили, подождите несколько секунд и нажмите проверку ещё раз. Разбор не потерян.",
-            reply_markup=payment_recovery_keyboard(product_key, payment_id),
+            reply_markup=payment_recovery_keyboard(product_key, payment_id, report_id),
         )
         return
     if user_id is not None:
@@ -1629,7 +1809,9 @@ async def yookassa_payment_check(update: Update, context: ContextTypes.DEFAULT_T
         update,
         context,
         "Готово — доступ открыт для этой карты пары. Выберите следующий понятный шаг.",
-        reply_markup=compact_planets_keyboard() if product_key in PLANET_PAYWALL_COPY else after_bridge_keyboard(),
+        reply_markup=compact_planets_keyboard(report_id)
+        if product_key in PLANET_PAYWALL_COPY
+        else after_bridge_keyboard(report_id),
     )
 
 
@@ -1671,7 +1853,9 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
         update,
         context,
         "Готово — доступ открыт для этой карты пары. Выберите следующий понятный шаг.",
-        reply_markup=compact_planets_keyboard() if product_key in PLANET_PAYWALL_COPY else after_bridge_keyboard(),
+        reply_markup=compact_planets_keyboard(report_id)
+        if product_key in PLANET_PAYWALL_COPY
+        else after_bridge_keyboard(report_id),
     )
 
 
@@ -1794,20 +1978,21 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
     app.add_handler(
         CallbackQueryHandler(
-            premium_offer, pattern=r"^premium:(details|message|back|planets|planet:(venus|mercury|mars|jupiter))$"
+            premium_offer,
+            pattern=r"^premium:(details|message|back|planets|planet:(venus|mercury|mars|jupiter))(?::\d+)?$",
         )
     )
     app.add_handler(
         CallbackQueryHandler(
             premium_buy,
-            pattern=r"^premium:buy:(details|message|planet_venus|planet_mercury|planet_mars|planet_jupiter)$",
+            pattern=r"^premium:buy:(details|message|planet_venus|planet_mercury|planet_mars|planet_jupiter)(?::\d+)?$",
         )
     )
     app.add_handler(CallbackQueryHandler(yookassa_payment_check, pattern=r"^premium:check(?::.+)?$"))
     app.add_handler(
         CallbackQueryHandler(
             product_detail,
-            pattern=r"^(p:(moon|venus|mercury|mars|jupiter|portrait|full|bridge)|report:details|v2:(moon_detail|couple_moon|venus|mercury|mars|full_report))$",
+            pattern=r"^(p:(moon|venus|mercury|mars|jupiter|portrait|full|bridge)|report:details|v2:(moon_detail|couple_moon|venus|mercury|mars|full_report))(?::\d+)?$",
         )
     )
     app.add_handler(CallbackQueryHandler(message_hint, pattern=r"^(message|report:message)$"))

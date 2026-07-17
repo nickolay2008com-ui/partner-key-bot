@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qsl, urlparse
@@ -53,6 +54,13 @@ def _validate_init_data(init_data: str) -> int:
 
     if not hmac.compare_digest(calculated_hash, received_hash):
         raise ValueError("Не удалось подтвердить Telegram-пользователя.")
+
+    try:
+        auth_date = int(pairs.get("auth_date", "0"))
+    except (TypeError, ValueError):
+        auth_date = 0
+    if auth_date <= 0 or abs(int(time.time()) - auth_date) > 86400:
+        raise ValueError("Авторизация Telegram устарела. Закройте окно и откройте его из бота ещё раз.")
 
     raw_user = pairs.get("user")
     if not raw_user:
@@ -368,6 +376,7 @@ def _normalize_detail_block(block: str | None) -> str:
         raise ValueError("Этот подробный блок пока не найден.")
     return candidate
 
+
 DETAIL_LABELS = {
     "moon": "🌙 Луна: как стать его тихой гаванью",
     "moon_deep": "🌙 Луна мужчины глубже",
@@ -392,9 +401,10 @@ def _report_from_payload(payload: dict[str, Any] | None) -> PartnerReport | None
         return None
 
 
-def _detail_text(user_id: int, block: str) -> str:
+def _detail_text(user_id: int, block: str, report_id: int = 0) -> str:
     store = get_store()
-    man_report = _report_from_payload(store.latest_report_payload(user_id))
+    payload = store.report_payload(user_id, report_id) if report_id > 0 else store.latest_report_payload(user_id)
+    man_report = _report_from_payload(payload)
     if man_report is None:
         raise ValueError("Сначала соберите разбор в боте — тогда здесь откроется подробная карта.")
     if block == "details":
@@ -508,7 +518,8 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     const params = new URLSearchParams(location.search);
     const pathBlock = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
     const block = params.get('block') || (pathBlock === 'detail' ? 'moon' : pathBlock) || 'moon';
-    const cacheKey = `partner-key-detail:${block}:v2`;
+    const reportId = Number(params.get('report_id') || 0);
+    const cacheKey = reportId > 0 ? `partner-key-detail:${reportId}:${block}:v10` : '';
     function setBusy(isBusy) {
       const content = document.getElementById('content');
       if (isBusy) {
@@ -531,6 +542,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     }
     function renderCachedDetail() {
       try {
+        if (!cacheKey) return false;
         const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
         if (cached && cached.text) {
           applyDetail(cached, true);
@@ -562,13 +574,13 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
         const response = await fetch('/api/detail', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ block, initData: tg ? tg.initData : '' })
+          body: JSON.stringify({ block, reportId, initData: tg ? tg.initData : '' })
         });
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось открыть подробности.');
         applyDetail(data);
         try {
-          sessionStorage.setItem(cacheKey, JSON.stringify(data));
+          if (cacheKey) sessionStorage.setItem(cacheKey, JSON.stringify(data));
         } catch (_error) {}
       } catch (error) {
         if (hasCache) return;
@@ -648,17 +660,32 @@ class WebAppHandler(BaseHTTPRequestHandler):
                 payload = self._read_json()
                 user_id = _validate_init_data(str(payload.get("initData", "")))
                 block = _normalize_detail_block(str(payload.get("block", "moon")))
-                text = _detail_text(user_id, block)
+                try:
+                    report_id = int(payload.get("reportId", 0) or 0)
+                except (TypeError, ValueError):
+                    report_id = 0
+                if report_id > 0 and get_store().report_payload(user_id, report_id) is None:
+                    raise ValueError("Этот разбор не принадлежит текущему Telegram-пользователю.")
+                text = _detail_text(user_id, block, report_id)
                 variants = []
                 if block in {"bridge", "full"}:
                     profile = get_store().get_profile(user_id)
-                    man_report = _report_from_payload(get_store().latest_report_payload(user_id))
+                    report_payload = (
+                        get_store().report_payload(user_id, report_id)
+                        if report_id > 0
+                        else get_store().latest_report_payload(user_id)
+                    )
+                    man_report = _report_from_payload(report_payload)
                     if man_report is not None and profile.get("self_birth_date"):
                         woman_chart = calculate_partner_chart(parse_birth_date(profile.get("self_birth_date", "")))
                         woman_report = build_partner_report(woman_chart, profile.get("self_name") or "вы")
                         if "changed_during_day" in {man_report.moon_status, woman_report.moon_status}:
                             variants = format_moon_variant_cards(man_report, woman_report)
-                get_store().track_event(user_id, "detail_webapp_opened", {"block": block})
+                get_store().track_event(
+                    user_id,
+                    "detail_webapp_opened",
+                    {"block": block, "report_id": report_id},
+                )
                 self._send_json(
                     {
                         "ok": True,

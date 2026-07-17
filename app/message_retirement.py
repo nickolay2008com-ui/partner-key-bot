@@ -10,7 +10,7 @@ import app.woman_flow as base
 _INSTALLED = False
 
 
-def active_topics_keyboard() -> base.InlineKeyboardMarkup:
+def active_topics_keyboard(report_id: int = 0) -> base.InlineKeyboardMarkup:
     """Current paid navigation without the retired message-writing product."""
     details_product = base.get_product("details")
     details_price = f" — {details_product.rubles} ₽" if details_product else ""
@@ -19,19 +19,19 @@ def active_topics_keyboard() -> base.InlineKeyboardMarkup:
             [
                 base.InlineKeyboardButton(
                     "💞 Открыть полный эмоциональный мост",
-                    web_app=base.detail_webapp_info("bridge"),
+                    web_app=base.detail_webapp_info("bridge", report_id),
                 )
             ],
             [
                 base.InlineKeyboardButton(
                     "💗🗣🔥🪐 Выбрать отдельную тему — 50 ₽",
-                    callback_data="premium:planets",
+                    callback_data=base._callback_with_report("premium:planets", report_id),
                 )
             ],
             [
                 base.InlineKeyboardButton(
                     f"📖 Полная карта отношений{details_price}",
-                    callback_data="p:full",
+                    callback_data=base._callback_with_report("p:full", report_id),
                 )
             ],
             [base.InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
@@ -39,9 +39,9 @@ def active_topics_keyboard() -> base.InlineKeyboardMarkup:
     )
 
 
-def other_topics_keyboard() -> base.InlineKeyboardMarkup:
+def other_topics_keyboard(report_id: int = 0) -> base.InlineKeyboardMarkup:
     """Use the single authoritative menu owned by bridge navigation."""
-    return bridge_navigation.other_topics_keyboard()
+    return bridge_navigation.other_topics_keyboard(report_id)
 
 
 async def retired_message_route(update: Any, context: Any) -> None:
@@ -55,17 +55,14 @@ async def retired_message_route(update: Any, context: Any) -> None:
 
     await base._remember_user(update)
     await base._track_event(update, "retired_message_product_opened")
-    text = (
-        "🧭 Этот раздел больше не используется.\n\n"
-        "Ниже доступны все актуальные темы пары и полная карта отношений."
-    )
+    text = "🧭 Этот раздел больше не используется.\n\nНиже доступны все актуальные темы пары и полная карта отношений."
     if query and query.message:
         try:
             await base._tracked_replace_callback_text(
                 update,
                 context,
                 text,
-                reply_markup=other_topics_keyboard(),
+                reply_markup=other_topics_keyboard(base._current_report_id(context)),
             )
             return
         except Exception:
@@ -74,7 +71,7 @@ async def retired_message_route(update: Any, context: Any) -> None:
         update,
         context,
         text,
-        reply_markup=other_topics_keyboard(),
+        reply_markup=other_topics_keyboard(base._current_report_id(context)),
     )
 
 

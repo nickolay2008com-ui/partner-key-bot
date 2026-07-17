@@ -263,15 +263,20 @@ async def _send_text_parts(
         )
 
 
-def _open_keyboard(product_key: str) -> InlineKeyboardMarkup | None:
+def _open_keyboard(product_key: str, report_id: int = 0) -> InlineKeyboardMarkup | None:
     if product_key in _PLANET_BLOCKS:
         block, label = _PLANET_BLOCKS[product_key]
-        return InlineKeyboardMarkup(
-            [[InlineKeyboardButton(label, web_app=base.detail_webapp_info(block))]]
-        )
+        return InlineKeyboardMarkup([[InlineKeyboardButton(label, web_app=base.detail_webapp_info(block, report_id))]])
     if product_key == "details":
         return InlineKeyboardMarkup(
-            [[InlineKeyboardButton("📖 Открыть полную карту отношений", web_app=base.detail_webapp_info("full"))]]
+            [
+                [
+                    InlineKeyboardButton(
+                        "📖 Открыть полную карту отношений",
+                        web_app=base.detail_webapp_info("full", report_id),
+                    )
+                ]
+            ]
         )
     return None
 
@@ -301,7 +306,7 @@ async def _deliver_purchase(
             application,
             user_id=user_id,
             text=f"✅ Оплата подтверждена. Ваш купленный разбор готов.{receipt_note}\n\n{text}",
-            reply_markup=_open_keyboard(product_key),
+            reply_markup=_open_keyboard(product_key, report_id),
         )
         return
 
@@ -321,7 +326,7 @@ async def _deliver_purchase(
                 "✅ Оплата подтверждена. Полная карта отношений открыта для этого разбора."
                 f"{receipt_note}\n\nНажмите кнопку ниже: она откроет именно оплаченную карту."
             ),
-            reply_markup=_open_keyboard(product_key),
+            reply_markup=_open_keyboard(product_key, report_id),
         )
         return
 
@@ -478,13 +483,18 @@ async def _payment_check_with_delivery(update: Update, context: ContextTypes.DEF
     if query and query.data and query.data.startswith("premium:check:"):
         payment_id = query.data.replace("premium:check:", "", 1).strip()
 
-    await _ORIGINAL_YOOKASSA_PAYMENT_CHECK(update, context)
-
     if payment_id:
         try:
-            await _reconcile_payment_id(context.application, payment_id)
+            result = await _reconcile_payment_id(context.application, payment_id)
+            if result == "delivered":
+                if query:
+                    await query.answer()
+                context.user_data.pop(base.PENDING_YOOKASSA_PAYMENT, None)
+                return
         except Exception:
             logger.exception("YOOKASSA_CHECK_DELIVERY_FAILED: payment_id=%s", payment_id)
+
+    await _ORIGINAL_YOOKASSA_PAYMENT_CHECK(update, context)
 
 
 async def _reconcile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

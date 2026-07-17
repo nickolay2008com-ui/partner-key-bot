@@ -66,14 +66,19 @@ def _couple_full_report(man_report, woman_report):
     return _fix_pair_you_lines(fun.format_couple_full_report(man_report, woman_report))
 
 
-def _relationship_menu_keyboard():
+def _relationship_menu_keyboard(report_id: int = 0):
     details_product = base.get_product("details")
     message_product = base.get_product("message")
     details_price = f" — {details_product.rubles} ₽" if details_product else ""
     message_price = f" — {message_product.rubles} ₽" if message_product else ""
     return base.InlineKeyboardMarkup(
         [
-            [base.InlineKeyboardButton("💞 Открыть полный эмоциональный мост", callback_data="p:bridge")],
+            [
+                base.InlineKeyboardButton(
+                    "💞 Открыть полный эмоциональный мост",
+                    callback_data=base._callback_with_report("p:bridge", report_id),
+                )
+            ],
             [
                 base.InlineKeyboardButton(
                     f"✍️ 2 варианта сообщения{message_price}",
@@ -83,10 +88,15 @@ def _relationship_menu_keyboard():
             [
                 base.InlineKeyboardButton(
                     f"📖 Полная карта отношений{details_price}",
-                    callback_data="p:full",
+                    callback_data=base._callback_with_report("p:full", report_id),
                 )
             ],
-            [base.InlineKeyboardButton("🪐 Выбрать отдельную тему — 50 ₽", callback_data="premium:planets")],
+            [
+                base.InlineKeyboardButton(
+                    "🪐 Выбрать отдельную тему — 50 ₽",
+                    callback_data=base._callback_with_report("premium:planets", report_id),
+                )
+            ],
             [base.InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
         ]
     )
@@ -121,12 +131,13 @@ async def _relationship_menu_text(update, context) -> str:
 
 
 async def _send_bridge_teaser_with_menu(update, context, text: str) -> None:
-    await base._send_long(update, context, text, reply_markup=base.bridge_summary_keyboard())
+    report_id = base._current_report_id(context)
+    await base._send_long(update, context, text, reply_markup=base.bridge_summary_keyboard(report_id))
     await base._tracked_reply_text(
         update,
         context,
         await _relationship_menu_text(update, context),
-        reply_markup=_relationship_menu_keyboard(),
+        reply_markup=_relationship_menu_keyboard(report_id),
     )
 
 
@@ -152,7 +163,7 @@ async def _premium_offer_with_relationship_menu(update, context) -> None:
         update,
         context,
         await _relationship_menu_text(update, context),
-        reply_markup=_relationship_menu_keyboard(),
+        reply_markup=_relationship_menu_keyboard(base._current_report_id(context)),
     )
 
 
@@ -182,14 +193,19 @@ webapp.DETAIL_LABELS["bridge"] = "💞 Эмоциональный мост"
 _original_detail_text = webapp._detail_text
 
 
-def _entertaining_detail_text(user_id: int, block: str) -> str:
+def _entertaining_detail_text(user_id: int, block: str, report_id: int = 0) -> str:
     normalized = webapp._normalize_detail_block(block)
     if normalized == "details":
-        report = webapp._report_from_payload(webapp.get_store().latest_report_payload(user_id))
+        payload = (
+            webapp.get_store().report_payload(user_id, report_id)
+            if report_id > 0
+            else webapp.get_store().latest_report_payload(user_id)
+        )
+        report = webapp._report_from_payload(payload)
         if report is None:
             raise ValueError("Сначала соберите разбор в боте — тогда здесь откроется история героя.")
         return fun.format_person_full_story(report)
-    return _original_detail_text(user_id, normalized)
+    return _original_detail_text(user_id, normalized, report_id)
 
 
 webapp._detail_text = _entertaining_detail_text

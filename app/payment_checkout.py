@@ -12,6 +12,7 @@ import app.payments as payments
 
 PENDING_RECEIPT_PRODUCT = "pending_receipt_product"
 PENDING_RECEIPT_REPORT_ID = "pending_receipt_report_id"
+_CHECKOUT_LOCKS: dict[tuple[int, str, int], asyncio.Lock] = {}
 
 _EMAIL_RE = re.compile(
     r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@"
@@ -105,6 +106,115 @@ def save_receipt_email(store: Any, user_id: int, email: str) -> str:
     return clean_email
 
 
+def _ensure_checkout_sessions_table(store: Any) -> None:
+    query = """
+        CREATE TABLE IF NOT EXISTS yookassa_checkout_sessions (
+            user_id BIGINT NOT NULL,
+            product_key TEXT NOT NULL,
+            report_id BIGINT NOT NULL,
+            payment_id TEXT NOT NULL,
+            confirmation_url TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, product_key, report_id)
+        )
+    """
+    if store.database_url:
+        with store._connect_postgres() as conn:
+            conn.execute(query)
+        return
+    with store._connect_sqlite() as conn:
+        conn.execute(query.replace("BIGINT", "INTEGER"))
+
+
+def get_checkout_session(store: Any, user_id: int, product_key: str, report_id: int) -> dict[str, str] | None:
+    _ensure_checkout_sessions_table(store)
+    if store.database_url:
+        with store._connect_postgres() as conn:
+            row = conn.execute(
+                """
+                SELECT payment_id, confirmation_url
+                FROM yookassa_checkout_sessions
+                WHERE user_id = %s AND product_key = %s AND report_id = %s
+                """,
+                (user_id, product_key, report_id),
+            ).fetchone()
+    else:
+        with store._connect_sqlite() as conn:
+            row = conn.execute(
+                """
+                SELECT payment_id, confirmation_url
+                FROM yookassa_checkout_sessions
+                WHERE user_id = ? AND product_key = ? AND report_id = ?
+                """,
+                (user_id, product_key, report_id),
+            ).fetchone()
+    if not row:
+        return None
+    return {
+        "payment_id": str(row["payment_id"] or ""),
+        "confirmation_url": str(row["confirmation_url"] or ""),
+    }
+
+
+def save_checkout_session(
+    store: Any,
+    user_id: int,
+    product_key: str,
+    report_id: int,
+    payment_id: str,
+    confirmation_url: str,
+) -> None:
+    _ensure_checkout_sessions_table(store)
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    values = (user_id, product_key, report_id, payment_id, confirmation_url, now)
+    query = """
+        INSERT INTO yookassa_checkout_sessions (
+            user_id, product_key, report_id, payment_id, confirmation_url, updated_at
+        ) VALUES ({placeholders})
+        ON CONFLICT(user_id, product_key, report_id) DO UPDATE SET
+            payment_id = excluded.payment_id,
+            confirmation_url = excluded.confirmation_url,
+            updated_at = excluded.updated_at
+    """
+    if store.database_url:
+        with store._connect_postgres() as conn:
+            conn.execute(query.format(placeholders="%s, %s, %s, %s, %s, %s"), values)
+        return
+    with store._connect_sqlite() as conn:
+        conn.execute(query.format(placeholders="?, ?, ?, ?, ?, ?"), values)
+
+
+def delete_checkout_session(store: Any, user_id: int, product_key: str, report_id: int) -> None:
+    _ensure_checkout_sessions_table(store)
+    if store.database_url:
+        with store._connect_postgres() as conn:
+            conn.execute(
+                """
+                DELETE FROM yookassa_checkout_sessions
+                WHERE user_id = %s AND product_key = %s AND report_id = %s
+                """,
+                (user_id, product_key, report_id),
+            )
+        return
+    with store._connect_sqlite() as conn:
+        conn.execute(
+            """
+            DELETE FROM yookassa_checkout_sessions
+            WHERE user_id = ? AND product_key = ? AND report_id = ?
+            """,
+            (user_id, product_key, report_id),
+        )
+
+
+def _checkout_lock(user_id: int, product_key: str, report_id: int) -> asyncio.Lock:
+    key = (user_id, product_key, report_id)
+    lock = _CHECKOUT_LOCKS.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _CHECKOUT_LOCKS[key] = lock
+    return lock
+
+
 def _masked_email(email: str) -> str:
     local, _, domain = email.partition("@")
     if len(local) <= 2:
@@ -170,9 +280,7 @@ def create_yookassa_payment_with_receipt(
 
 
 def _email_prompt_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("← Вернуться к разбору", callback_data="premium:back")]]
-    )
+    return InlineKeyboardMarkup([[InlineKeyboardButton("← Вернуться к разбору", callback_data="premium:back")]])
 
 
 def _receipt_configuration_keyboard(base: Any, product_key: str) -> InlineKeyboardMarkup:
@@ -194,7 +302,9 @@ async def _open_yookassa_checkout(
 ) -> None:
     product = payments.get_product(product_key)
     if product is None:
-        await base._tracked_reply_text(update, context, "Не получилось определить покупку. Откройте её из меню ещё раз.")
+        await base._tracked_reply_text(
+            update, context, "Не получилось определить покупку. Откройте её из меню ещё раз."
+        )
         return
 
     await base._track_event(
@@ -236,7 +346,7 @@ async def _open_yookassa_checkout(
             update,
             context,
             exc.user_message,
-            reply_markup=base.payment_recovery_keyboard(product_key),
+            reply_markup=base.payment_recovery_keyboard(product_key, report_id=report_id),
         )
         return
 
@@ -245,9 +355,19 @@ async def _open_yookassa_checkout(
             update,
             context,
             "ЮKassa не вернула рабочую ссылку. Деньги не списаны — откройте оплату ещё раз через минуту.",
-            reply_markup=base.payment_recovery_keyboard(product_key),
+            reply_markup=base.payment_recovery_keyboard(product_key, report_id=report_id),
         )
         return
+
+    await asyncio.to_thread(
+        save_checkout_session,
+        base.get_store(),
+        user_id,
+        product_key,
+        report_id,
+        payment.payment_id,
+        payment.confirmation_url,
+    )
 
     context.user_data[base.PENDING_YOOKASSA_PAYMENT] = {
         "payment_id": payment.payment_id,
@@ -266,8 +386,96 @@ async def _open_yookassa_checkout(
             "2. Вернитесь в бот и нажмите «Проверить оплату».\n\n"
             "Разбор уже сохранён и не исчезнет, даже если вы закроете страницу банка."
         ),
-        reply_markup=base.yookassa_payment_keyboard(product_key, payment.payment_id, payment.confirmation_url),
+        reply_markup=base.yookassa_payment_keyboard(
+            product_key,
+            payment.payment_id,
+            payment.confirmation_url,
+            report_id,
+        ),
     )
+
+
+async def _reuse_checkout_if_possible(
+    base: Any,
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    *,
+    product_key: str,
+    report_id: int,
+    user_id: int,
+) -> bool:
+    store = base.get_store()
+    session = await asyncio.to_thread(get_checkout_session, store, user_id, product_key, report_id)
+    if not session:
+        return False
+
+    payment_id = session.get("payment_id", "")
+    confirmation_url = session.get("confirmation_url", "")
+    if not payment_id or not payments._is_valid_confirmation_url(confirmation_url):
+        await asyncio.to_thread(delete_checkout_session, store, user_id, product_key, report_id)
+        return False
+
+    try:
+        payment = await asyncio.to_thread(
+            payments.get_yookassa_payment,
+            shop_id=base.settings.yookassa_shop_id or "",
+            secret_key=base.settings.yookassa_secret_key or "",
+            payment_id=payment_id,
+        )
+    except payments.YooKassaPaymentError:
+        payment = None
+
+    if payment is not None and payment.paid and payment.status == "succeeded":
+        await asyncio.to_thread(store.grant_entitlement, user_id, product_key, report_id, payment_id)
+        await base._track_event(
+            update,
+            "premium_repeat_purchase_blocked",
+            product_key=product_key,
+            report_id=report_id,
+            reason="payment_already_succeeded",
+        )
+        await base._tracked_replace_callback_text(
+            update,
+            context,
+            "Оплата уже подтверждена, доступ к этому материалу открыт. Повторно платить не нужно.",
+            reply_markup=base.compact_planets_keyboard(report_id)
+            if product_key in base.PLANET_PAYWALL_COPY
+            else base.after_bridge_keyboard(report_id),
+        )
+        return True
+
+    if payment is not None and payment.status not in {"pending", "waiting_for_capture"}:
+        await asyncio.to_thread(delete_checkout_session, store, user_id, product_key, report_id)
+        return False
+
+    context.user_data[base.PENDING_YOOKASSA_PAYMENT] = {
+        "payment_id": payment_id,
+        "product_key": product_key,
+        "report_id": report_id,
+    }
+    product = payments.get_product(product_key)
+    await base._track_event(
+        update,
+        "premium_yookassa_payment_reused",
+        product_key=product_key,
+        report_id=report_id,
+    )
+    await base._tracked_replace_callback_text(
+        update,
+        context,
+        (
+            "Ссылка на эту покупку уже создана. Используйте её — второй платёж создавать не нужно."
+            if product is None
+            else f"Ссылка на оплату {product.title} уже создана. Используйте её — второй платёж не нужен."
+        ),
+        reply_markup=base.yookassa_payment_keyboard(
+            product_key,
+            payment_id,
+            confirmation_url,
+            report_id,
+        ),
+    )
+    return True
 
 
 def install(base: Any) -> None:
@@ -285,7 +493,8 @@ def install(base: Any) -> None:
         clear_payment_email_state(context)
 
     async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        data = update.callback_query.data if update.callback_query else ""
+        raw_data = update.callback_query.data if update.callback_query else ""
+        data, _ = base._callback_report(raw_data)
         if data == "premium:back":
             clear_payment_email_state(context)
         await original_premium_offer(update, context)
@@ -299,7 +508,17 @@ def install(base: Any) -> None:
         if query:
             await query.answer()
         await base._remember_user(update)
-        product_key = (query.data or "").replace("premium:buy:", "") if query else ""
+        raw_data = query.data if query else ""
+        action, requested_report_id = base._callback_report(raw_data)
+        if requested_report_id and not await base._activate_report_context(update, context, requested_report_id):
+            await base._tracked_reply_text(
+                update,
+                context,
+                "Эта кнопка относится к недоступному разбору. Откройте нужную карту через историю.",
+                reply_markup=base.menu(),
+            )
+            return
+        product_key = action.replace("premium:buy:", "")
         product = payments.get_product(product_key)
         report_id = base._current_report_id(context)
         user_id = base._user_id(update)
@@ -312,38 +531,67 @@ def install(base: Any) -> None:
             )
             return
 
-        receipt_email = await asyncio.to_thread(get_receipt_email, base.get_store(), user_id)
-        if not receipt_email:
-            context.user_data[PENDING_RECEIPT_PRODUCT] = product_key
-            context.user_data[PENDING_RECEIPT_REPORT_ID] = report_id
-            await base._track_event(
-                update,
-                "receipt_email_requested",
-                product_key=product_key,
-                report_id=report_id,
-            )
-            await base._tracked_replace_callback_text(
+        async with _checkout_lock(user_id, product_key, report_id):
+            if await base._has_premium_access(update, context, product_key, report_id):
+                await base._track_event(
+                    update,
+                    "premium_repeat_purchase_blocked",
+                    product_key=product_key,
+                    report_id=report_id,
+                    reason="entitlement_exists",
+                )
+                await base._tracked_replace_callback_text(
+                    update,
+                    context,
+                    "Этот материал уже куплен для этой карты — повторно платить не нужно.",
+                    reply_markup=base.compact_planets_keyboard(report_id)
+                    if product_key in base.PLANET_PAYWALL_COPY
+                    else base.after_bridge_keyboard(report_id),
+                )
+                return
+
+            if await _reuse_checkout_if_possible(
+                base,
                 update,
                 context,
-                (
-                    "🧾 Для оплаты нужен email для электронного чека.\n\n"
-                    "Отправьте его следующим сообщением, например name@yandex.ru. "
-                    "ЮKassa пришлёт туда чек, а бот сохранит адрес для следующих покупок, чтобы больше не спрашивать.\n\n"
-                    "Сам чек обязателен для этого магазина; без email ЮKassa не создаёт платёж."
-                ),
-                reply_markup=_email_prompt_keyboard(),
-            )
-            return
+                product_key=product_key,
+                report_id=report_id,
+                user_id=user_id,
+            ):
+                return
 
-        await _open_yookassa_checkout(
-            base,
-            update,
-            context,
-            product_key=product_key,
-            report_id=report_id,
-            user_id=user_id,
-            receipt_email=receipt_email,
-        )
+            receipt_email = await asyncio.to_thread(get_receipt_email, base.get_store(), user_id)
+            if not receipt_email:
+                context.user_data[PENDING_RECEIPT_PRODUCT] = product_key
+                context.user_data[PENDING_RECEIPT_REPORT_ID] = report_id
+                await base._track_event(
+                    update,
+                    "receipt_email_requested",
+                    product_key=product_key,
+                    report_id=report_id,
+                )
+                await base._tracked_replace_callback_text(
+                    update,
+                    context,
+                    (
+                        "🧾 Для оплаты нужен email для электронного чека.\n\n"
+                        "Отправьте его следующим сообщением, например name@yandex.ru. "
+                        "ЮKassa пришлёт туда чек, а бот сохранит адрес для следующих покупок, чтобы больше не спрашивать.\n\n"
+                        "Сам чек обязателен для этого магазина; без email ЮKassa не создаёт платёж."
+                    ),
+                    reply_markup=_email_prompt_keyboard(),
+                )
+                return
+
+            await _open_yookassa_checkout(
+                base,
+                update,
+                context,
+                product_key=product_key,
+                report_id=report_id,
+                user_id=user_id,
+                receipt_email=receipt_email,
+            )
 
     async def unknown_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         product_key = str(context.user_data.get(PENDING_RECEIPT_PRODUCT, ""))
@@ -379,15 +627,35 @@ def install(base: Any) -> None:
             product_key=product_key,
             report_id=report_id,
         )
-        await _open_yookassa_checkout(
-            base,
-            update,
-            context,
-            product_key=product_key,
-            report_id=report_id,
-            user_id=user_id,
-            receipt_email=receipt_email,
-        )
+        async with _checkout_lock(user_id, product_key, report_id):
+            if await base._has_premium_access(update, context, product_key, report_id):
+                await base._tracked_reply_text(
+                    update,
+                    context,
+                    "Этот материал уже куплен для этой карты — повторно платить не нужно.",
+                    reply_markup=base.compact_planets_keyboard(report_id)
+                    if product_key in base.PLANET_PAYWALL_COPY
+                    else base.after_bridge_keyboard(report_id),
+                )
+                return
+            if await _reuse_checkout_if_possible(
+                base,
+                update,
+                context,
+                product_key=product_key,
+                report_id=report_id,
+                user_id=user_id,
+            ):
+                return
+            await _open_yookassa_checkout(
+                base,
+                update,
+                context,
+                product_key=product_key,
+                report_id=report_id,
+                user_id=user_id,
+                receipt_email=receipt_email,
+            )
 
     base._clear_flow_state = clear_flow_state
     base.premium_offer = premium_offer
