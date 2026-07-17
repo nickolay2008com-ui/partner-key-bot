@@ -10,6 +10,12 @@ import app.woman_flow as base
 _INSTALLED = False
 
 
+def _rub_price(product_key: str, fallback: int) -> str:
+    product = base.get_product(product_key)
+    rubles = product.rubles if product else fallback
+    return f"{rubles} ₽"
+
+
 def bridge_actions_keyboard() -> base.InlineKeyboardMarkup:
     """Two focused actions shown directly under the emotional bridge."""
     return base.InlineKeyboardMarkup(
@@ -31,29 +37,37 @@ def bridge_actions_keyboard() -> base.InlineKeyboardMarkup:
 
 
 def other_topics_keyboard() -> base.InlineKeyboardMarkup:
-    details_product = base.get_product("details")
-    message_product = base.get_product("message")
-    details_price = f" — {details_product.rubles} ₽" if details_product else ""
-    message_price = f" — {message_product.rubles} ₽" if message_product else ""
-
+    """All current relationship topics, shown directly without an intermediate menu."""
     return base.InlineKeyboardMarkup(
         [
             [
                 base.InlineKeyboardButton(
-                    "💗🗣🔥🪐 Выбрать отдельную тему — 50 ₽",
-                    callback_data="premium:planets",
+                    f"💗 Секреты любви — {_rub_price('planet_venus', 50)}",
+                    callback_data="p:venus",
                 )
             ],
             [
                 base.InlineKeyboardButton(
-                    f"📖 Полная карта отношений{details_price}",
+                    f"🗣 Стиль общения — {_rub_price('planet_mercury', 50)}",
+                    callback_data="p:mercury",
+                )
+            ],
+            [
+                base.InlineKeyboardButton(
+                    f"🔥 Притяжение и инициатива — {_rub_price('planet_mars', 50)}",
+                    callback_data="p:mars",
+                )
+            ],
+            [
+                base.InlineKeyboardButton(
+                    f"🪐 Рост пары — {_rub_price('planet_jupiter', 50)}",
+                    callback_data="p:jupiter",
+                )
+            ],
+            [
+                base.InlineKeyboardButton(
+                    f"📖 Полная карта отношений — {_rub_price('details', 199)}",
                     callback_data="p:full",
-                )
-            ],
-            [
-                base.InlineKeyboardButton(
-                    f"✍️ 2 варианта сообщения{message_price}",
-                    callback_data="message",
                 )
             ],
             [base.InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
@@ -83,8 +97,12 @@ async def show_other_topics(update: Any, context: Any) -> None:
         context,
         (
             "🧭 Другие темы\n\n"
-            "Выберите, что хочется понять дальше: язык симпатии, стиль разговора, "
-            "инициативу, направление роста пары или конкретный следующий шаг."
+            "Выберите один раздел:\n\n"
+            "💗 Секреты любви — Венера пары\n"
+            "🗣 Стиль общения — Меркурий пары\n"
+            "🔥 Притяжение и инициатива — Марс пары\n"
+            "🪐 Рост пары — Юпитер пары\n"
+            "📖 Полная карта отношений — все темы вместе"
         ),
         reply_markup=other_topics_keyboard(),
     )
@@ -111,4 +129,4 @@ def install() -> None:
     base.build_application = build_application_with_bridge_topics
 
     _INSTALLED = True
-    base.logger.info("BRIDGE_NAVIGATION: two focused bridge actions installed")
+    base.logger.info("BRIDGE_NAVIGATION: two focused bridge actions and full topics menu installed")
