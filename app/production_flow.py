@@ -8,6 +8,7 @@ from app import (
     bridge_navigation,
     button_contracts,
     entertaining_flow,
+    message_retirement,
     metrica_layer,
     metrica_legacy_queue,
     metrica_reliability,
@@ -55,6 +56,7 @@ button_contracts.install()
 payment_reconciliation.install()
 bridge_navigation.install()
 topic_labels.install()
+message_retirement.install()
 
 
 def main() -> None:
