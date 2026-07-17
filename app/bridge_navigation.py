@@ -144,6 +144,15 @@ async def show_other_topics(update: Any, context: Any) -> None:
     if query:
         await query.answer()
 
+    if callback_data == "premium:planets":
+        source_message = getattr(query, "message", None)
+        if source_message is not None:
+            try:
+                await source_message.delete()
+                base._forget_bot_message(context, source_message)
+            except Exception:
+                base.logger.exception("PLANET_CARD_DELETE_BEFORE_MAIN_MENU_FAILED")
+
     await base._remember_user(update)
     await base._track_event(
         update,

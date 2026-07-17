@@ -49,8 +49,13 @@ def test_other_topics_menu_shows_every_current_option_directly() -> None:
 def test_other_topics_text_does_not_duplicate_button_explanations(monkeypatch) -> None:
     calls: list[dict[str, object]] = []
 
+    class Message:
+        async def delete(self) -> None:
+            raise AssertionError("The bridge summary must remain visible")
+
     class Query:
         data = "bridge:topics"
+        message = Message()
 
         async def answer(self) -> None:
             return None
@@ -91,8 +96,15 @@ def test_other_topics_text_does_not_duplicate_button_explanations(monkeypatch) -
 def test_legacy_planets_button_opens_main_menu_without_compact_screen(monkeypatch) -> None:
     calls: list[dict[str, object]] = []
 
+    class Message:
+        async def delete(self) -> None:
+            calls.append({"action": "deleted", "message": self})
+
     class Query:
         data = "premium:planets"
+
+        def __init__(self) -> None:
+            self.message = Message()
 
         async def answer(self) -> None:
             return None
@@ -106,18 +118,24 @@ def test_legacy_planets_button_opens_main_menu_without_compact_screen(monkeypatc
     async def fake_reply(update, context, text, **kwargs) -> None:
         calls.append({"text": text, "reply_markup": kwargs.get("reply_markup")})
 
+    def fake_forget(context, message) -> None:
+        calls.append({"action": "forgotten", "message": message})
+
     async def fail_original_handler(update, context) -> None:
         raise AssertionError("The obsolete compact planets screen must not open")
 
+    query = Query()
+    context = SimpleNamespace()
     monkeypatch.setattr(navigation.base, "_remember_user", fake_remember)
     monkeypatch.setattr(navigation.base, "_track_event", fake_track)
     monkeypatch.setattr(navigation.base, "_tracked_reply_text", fake_reply)
+    monkeypatch.setattr(navigation.base, "_forget_bot_message", fake_forget)
     monkeypatch.setattr(navigation, "_ORIGINAL_PREMIUM_OFFER", fail_original_handler)
 
     asyncio.run(
         navigation.premium_offer_with_main_menu(
-            SimpleNamespace(callback_query=Query()),
-            SimpleNamespace(),
+            SimpleNamespace(callback_query=query),
+            context,
         )
     )
 
@@ -133,6 +151,13 @@ def test_legacy_planets_button_opens_main_menu_without_compact_screen(monkeypatc
     assert all("Выберите планету" not in str(call.get("text", "")) for call in calls)
     tracked = next(call for call in calls if call.get("event"))
     assert tracked["properties"]["source"] == "premium_planets"
+
+    deleted_index = next(index for index, call in enumerate(calls) if call.get("action") == "deleted")
+    forgotten_index = next(index for index, call in enumerate(calls) if call.get("action") == "forgotten")
+    rendered_index = calls.index(rendered)
+    assert deleted_index < forgotten_index < rendered_index
+    assert calls[deleted_index]["message"] is query.message
+    assert calls[forgotten_index]["message"] is query.message
 
 
 def test_other_premium_callbacks_stay_on_existing_handler(monkeypatch) -> None:
