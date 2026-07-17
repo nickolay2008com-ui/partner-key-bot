@@ -156,6 +156,31 @@ def test_other_premium_callbacks_stay_on_existing_handler(monkeypatch) -> None:
     assert calls == ["premium:details"]
 
 
+def test_planet_cards_use_main_menu_button_in_every_payment_state() -> None:
+    markups = [
+        navigation.premium_keyboard_with_main_menu("planet_venus"),
+        navigation.yookassa_payment_keyboard_with_main_menu(
+            "planet_venus",
+            "payment-id",
+            "https://example.test/pay",
+        ),
+        navigation.payment_recovery_keyboard_with_main_menu(
+            "planet_venus",
+            "payment-id",
+        ),
+    ]
+
+    for markup in markups:
+        buttons = [button for row in markup.inline_keyboard for button in row]
+        main_menu_buttons = [
+            button for button in buttons if button.callback_data == "premium:planets"
+        ]
+
+        assert len(main_menu_buttons) == 1
+        assert main_menu_buttons[0].text == "🧭 Главное меню"
+        assert all(button.text != "⬅️ К планетам" for button in buttons)
+
+
 def test_bridge_sender_does_not_send_automatic_menu(monkeypatch) -> None:
     calls: list[dict[str, object]] = []
 
