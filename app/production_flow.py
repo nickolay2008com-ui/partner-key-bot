@@ -5,6 +5,7 @@ from app import (
     ad_attribution,
     ad_landing,
     analytics_diagnostics,
+    bridge_navigation,
     button_contracts,
     entertaining_flow,
     metrica_layer,
@@ -51,6 +52,7 @@ metrica_revenue_guard.install()
 analytics_diagnostics.install()
 button_contracts.install()
 payment_reconciliation.install()
+bridge_navigation.install()
 
 
 def main() -> None:
