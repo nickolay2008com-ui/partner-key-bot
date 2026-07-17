@@ -15,13 +15,32 @@ def test_bridge_actions_keyboard_has_exactly_two_actions() -> None:
     assert keyboard[1][0].callback_data == "bridge:topics"
 
 
-def test_other_topics_menu_does_not_repeat_bridge() -> None:
+def test_other_topics_menu_shows_every_current_option_directly() -> None:
     keyboard = navigation.other_topics_keyboard().inline_keyboard
-    labels = [button.text for row in keyboard for button in row]
+    buttons = [button for row in keyboard for button in row]
+    labels = [button.text for button in buttons]
+    callbacks = [button.callback_data for button in buttons]
 
+    assert len(keyboard) == 6
+    assert all(len(row) == 1 for row in keyboard)
+    assert labels == [
+        "💗 Секреты любви — 50 ₽",
+        "🗣 Стиль общения — 50 ₽",
+        "🔥 Притяжение и инициатива — 50 ₽",
+        "🪐 Рост пары — 50 ₽",
+        "📖 Полная карта отношений — 199 ₽",
+        "🔄 Новый разбор",
+    ]
+    assert callbacks == [
+        "p:venus",
+        "p:mercury",
+        "p:mars",
+        "p:jupiter",
+        "p:full",
+        "start_man",
+    ]
     assert all("эмоциональный мост" not in label.lower() for label in labels)
-    assert any("отдельную тему" in label.lower() for label in labels)
-    assert any("полная карта отношений" in label.lower() for label in labels)
+    assert all("сообщени" not in label.lower() for label in labels)
 
 
 def test_bridge_sender_does_not_send_automatic_menu(monkeypatch) -> None:
