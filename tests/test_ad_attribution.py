@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.ad_attribution import AttributionStore, build_landing_html, conversion_csv
+from app.ad_attribution import AttributionStore, _is_landing_path, build_landing_html, conversion_csv
 
 
 def test_attribution_store_binds_click_and_deduplicates_conversion(tmp_path: Path) -> None:
@@ -68,3 +68,12 @@ def test_landing_contains_deep_link_and_metrica_goal() -> None:
     assert "landing_to_bot" in text
     assert "partner-yandex-metrica" in text
     assert "Рекламный переход сохранён" in text
+
+
+def test_root_and_go_paths_open_landing() -> None:
+    assert _is_landing_path("/") is True
+    assert _is_landing_path("/?utm_source=direct") is True
+    assert _is_landing_path("/go") is True
+    assert _is_landing_path("/go/") is True
+    assert _is_landing_path("/healthz") is False
+    assert _is_landing_path("/webapp") is False
