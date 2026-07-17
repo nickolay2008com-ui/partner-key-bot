@@ -7,6 +7,7 @@ from app import (
     analytics_diagnostics,
     bridge_navigation,
     button_contracts,
+    content_admin_access,
     entertaining_flow,
     full_map_contract,
     message_retirement,
@@ -59,6 +60,7 @@ payment_reconciliation.install()
 bridge_navigation.install()
 topic_labels.install()
 message_retirement.install()
+content_admin_access.install()
 
 
 def main() -> None:

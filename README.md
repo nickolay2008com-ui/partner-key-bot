@@ -49,6 +49,7 @@ python -m app.production_flow
 | `TELEGRAM_BOT_TOKEN` | да | Токен Telegram-бота. |
 | `AUTHORIZED_TELEGRAM_IDS` | нет | Список разрешённых Telegram ID через запятую. Пусто = публичный доступ. |
 | `BROADCAST_ADMIN_IDS` | нет | Админы служебных рассылок через запятую. |
+| `CONTENT_ADMIN_IDS` | нет | Telegram ID администраторов контента через запятую. Показывает служебную кнопку только внутри Premium-экранов. |
 | `APP_TIMEZONE` | нет | Таймзона приложения, по умолчанию `Europe/Moscow`. |
 | `DATA_DIR` | нет | Папка для SQLite-файла, если `DATABASE_URL` не задан. Если не задана, на Railway автоматически используется `RAILWAY_VOLUME_MOUNT_PATH`, иначе `data`. |
 | `DATABASE_URL` | нет | Строка подключения Railway Postgres/PostgreSQL. Если задана, профили, пользователи, история и рассылки хранятся в PostgreSQL вместо SQLite. |

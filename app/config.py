@@ -55,6 +55,7 @@ class Settings:
     app_timezone: str
     authorized_telegram_ids: set[int]
     broadcast_admin_ids: set[int]
+    content_admin_ids: set[int]
     webapp_url: str
     data_dir: Path
     database_url: str | None
@@ -71,6 +72,7 @@ class Settings:
             app_timezone=os.getenv("APP_TIMEZONE", "Europe/Moscow").strip() or "Europe/Moscow",
             authorized_telegram_ids=_parse_ids(os.getenv("AUTHORIZED_TELEGRAM_IDS")),
             broadcast_admin_ids=_parse_ids(os.getenv("BROADCAST_ADMIN_IDS")),
+            content_admin_ids=_parse_ids(os.getenv("CONTENT_ADMIN_IDS")),
             webapp_url=_normalize_webapp_url(os.getenv("WEBAPP_URL")),
             data_dir=data_dir,
             database_url=os.getenv("DATABASE_URL", "").strip() or None,
@@ -103,11 +105,13 @@ class Settings:
     def diagnostic_summary(self) -> str:
         access = "restricted" if self.authorized_telegram_ids else "public"
         broadcast_admins = len(self.broadcast_admin_ids | self.authorized_telegram_ids)
+        content_admins = len(self.content_admin_ids)
         storage = "postgres" if self.database_url else f"sqlite:{self.data_dir}"
         yookassa = "enabled" if self.yookassa_enabled else "disabled"
         return (
             f"timezone={self.app_timezone}; access={access}; storage={storage}; "
-            f"broadcast_admins={broadcast_admins}; webapp_url={self.webapp_url}; yookassa={yookassa}"
+            f"broadcast_admins={broadcast_admins}; content_admins={content_admins}; "
+            f"webapp_url={self.webapp_url}; yookassa={yookassa}"
         )
 
 
