@@ -136,5 +136,5 @@ def test_webapp_rejects_stale_telegram_authorization(monkeypatch) -> None:
 
 
 def test_paid_detail_cache_is_scoped_by_report() -> None:
-    assert "partner-key-detail:${reportId}:${block}:v10" in webapp.DETAIL_WEBAPP_HTML
+    assert "partner-key-detail:${reportId}:${block}:v11" in webapp.DETAIL_WEBAPP_HTML
     assert "if (!cacheKey) return false" in webapp.DETAIL_WEBAPP_HTML
