@@ -12,6 +12,7 @@ from app import (
     metrica_reliability,
     metrica_revenue_guard,
     metrica_upload_api,
+    payment_reconciliation,
 )
 
 
@@ -49,6 +50,7 @@ metrica_legacy_queue.install()
 metrica_revenue_guard.install()
 analytics_diagnostics.install()
 button_contracts.install()
+payment_reconciliation.install()
 
 
 def main() -> None:
