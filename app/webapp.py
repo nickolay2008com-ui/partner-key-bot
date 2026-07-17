@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
 import hmac
 import json
@@ -32,6 +33,14 @@ from app.storage import ReportsStore
 
 logger = logging.getLogger(__name__)
 _store: ReportsStore | None = None
+_COMPRESSION_MIN_BYTES = 1024
+_STATIC_HTML_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=3600"
+
+
+def _compress_response(body: bytes, accept_encoding: str) -> tuple[bytes, str | None]:
+    if len(body) < _COMPRESSION_MIN_BYTES or "gzip" not in accept_encoding.lower():
+        return body, None
+    return gzip.compress(body, compresslevel=5), "gzip"
 
 
 def get_store() -> ReportsStore:
@@ -77,7 +86,7 @@ WEBAPP_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script id="telegram-web-app-sdk" async src="https://telegram.org/js/telegram-web-app.js"></script>
   <title>Мои данные</title>
   <style>
     :root {
@@ -349,8 +358,27 @@ WEBAPP_HTML = r"""<!doctype html>
       input.addEventListener('paste', () => setTimeout(() => applyBirthDateMask(input), 0));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      tg = window.Telegram && window.Telegram.WebApp;
+    function waitForTelegramSdk(timeoutMs = 1800) {
+      const current = window.Telegram && window.Telegram.WebApp;
+      if (current) return Promise.resolve(current);
+      const sdk = document.getElementById('telegram-web-app-sdk');
+      return new Promise(resolve => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolve(window.Telegram && window.Telegram.WebApp);
+        };
+        if (sdk) {
+          sdk.addEventListener('load', finish, { once: true });
+          sdk.addEventListener('error', finish, { once: true });
+        }
+        window.setTimeout(finish, timeoutMs);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      tg = await waitForTelegramSdk();
       load();
     });
   </script>
@@ -442,7 +470,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script id="telegram-web-app-sdk" async src="https://telegram.org/js/telegram-web-app.js"></script>
   <title>Подробный разбор</title>
   <style>
     :root { color-scheme: light dark; --bg: var(--tg-theme-bg-color, #100f17); --text: var(--tg-theme-text-color, #f8fafc); --hint: var(--tg-theme-hint-color, #b6adc8); --button: var(--tg-theme-button-color, #8b5cf6); --border: rgba(255,255,255,.13); --glow: rgba(236,72,153,.24); }
@@ -915,9 +943,29 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
         document.getElementById('content').textContent = error.message;
       }
     }
+    function waitForTelegramSdk(timeoutMs = 1800) {
+      const current = window.Telegram && window.Telegram.WebApp;
+      if (current) return Promise.resolve(current);
+      const sdk = document.getElementById('telegram-web-app-sdk');
+      return new Promise(resolve => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolve(window.Telegram && window.Telegram.WebApp);
+        };
+        if (sdk) {
+          sdk.addEventListener('load', finish, { once: true });
+          sdk.addEventListener('error', finish, { once: true });
+        }
+        window.setTimeout(finish, timeoutMs);
+      });
+    }
+
     document.getElementById('close').addEventListener('click', () => tg ? tg.close() : history.back());
-    document.addEventListener('DOMContentLoaded', () => {
-      tg = window.Telegram && window.Telegram.WebApp;
+    document.addEventListener('DOMContentLoaded', async () => {
+      renderCachedDetail();
+      tg = await waitForTelegramSdk();
       if (tg) { tg.ready(); tg.expand(); }
       load();
     });
@@ -928,26 +976,62 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
 
 class WebAppHandler(BaseHTTPRequestHandler):
     server_version = "PartnerKeyWebApp/1.0"
+    protocol_version = "HTTP/1.1"
+
+    def handle_one_request(self) -> None:
+        self._request_started = time.perf_counter()
+        super().handle_one_request()
 
     def log_message(self, format: str, *args: Any) -> None:
         logger.info("WEBAPP: " + format, *args)
 
-    def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    def _send_body(
+        self,
+        body: bytes,
+        *,
+        content_type: str,
+        status: int = 200,
+        cache_control: str = "no-store",
+        etag: str | None = None,
+    ) -> None:
+        if etag and self.headers.get("If-None-Match", "").strip() == etag:
+            self.send_response(304)
+            self.send_header("Cache-Control", cache_control)
+            self.send_header("ETag", etag)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        body, encoding = _compress_response(body, self.headers.get("Accept-Encoding", ""))
         self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", cache_control)
+        self.send_header("Vary", "Accept-Encoding")
+        if etag:
+            self.send_header("ETag", etag)
+        if encoding:
+            self.send_header("Content-Encoding", encoding)
+        started = getattr(self, "_request_started", None)
+        if started is not None:
+            self.send_header("Server-Timing", f"app;dur={(time.perf_counter() - started) * 1000:.2f}")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
+        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        self._send_body(body, content_type="application/json; charset=utf-8", status=status)
+
     def _send_html(self, html: str) -> None:
         body = html.encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        cacheable = path == "/webapp" or path == "/webapp/detail" or path.startswith("/webapp/detail/")
+        etag = f'"{hashlib.sha256(body).hexdigest()[:20]}"' if cacheable else None
+        self._send_body(
+            body,
+            content_type="text/html; charset=utf-8",
+            cache_control=_STATIC_HTML_CACHE_CONTROL if cacheable else "no-store",
+            etag=etag,
+        )
 
     def _read_json(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length", "0") or 0)
