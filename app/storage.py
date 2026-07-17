@@ -590,6 +590,44 @@ class ReportsStore:
                 ).fetchone()
         return row is not None
 
+    def list_entitlements(self, user_id: int, limit: int = 50) -> list[dict[str, Any]]:
+        """List a buyer's durable purchases for self-service recovery."""
+        self.register_user(user_id)
+        safe_limit = max(1, min(int(limit), 200))
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT product_key, report_id, unlocked_at, payment_payload
+                    FROM premium_entitlements
+                    WHERE user_id = %s
+                    ORDER BY unlocked_at DESC
+                    LIMIT %s
+                    """,
+                    (user_id, safe_limit),
+                ).fetchall()
+        else:
+            with self._connect_sqlite() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT product_key, report_id, unlocked_at, payment_payload
+                    FROM premium_entitlements
+                    WHERE user_id = ?
+                    ORDER BY unlocked_at DESC
+                    LIMIT ?
+                    """,
+                    (user_id, safe_limit),
+                ).fetchall()
+        return [
+            {
+                "product_key": str(row["product_key"] or ""),
+                "report_id": int(row["report_id"]),
+                "unlocked_at": str(row["unlocked_at"] or ""),
+                "payment_payload": str(row["payment_payload"] or ""),
+            }
+            for row in rows
+        ]
+
 
 def format_history(items: list[SavedReport]) -> str:
     if not items:
