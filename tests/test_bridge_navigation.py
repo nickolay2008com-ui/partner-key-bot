@@ -50,6 +50,8 @@ def test_other_topics_text_does_not_duplicate_button_explanations(monkeypatch) -
     calls: list[dict[str, object]] = []
 
     class Query:
+        data = "bridge:topics"
+
         async def answer(self) -> None:
             return None
 
@@ -84,6 +86,74 @@ def test_other_topics_text_does_not_duplicate_button_explanations(monkeypatch) -
     assert labels[1].splitlines() == ["🗣 Стиль общения", "Меркурий — 50 ₽"]
     assert labels[2].splitlines() == ["🔥 Притяжение и инициатива", "Марс — 50 ₽"]
     assert labels[3].splitlines() == ["🪐 Рост пары", "Юпитер — 50 ₽"]
+
+
+def test_legacy_planets_button_opens_main_menu_without_compact_screen(monkeypatch) -> None:
+    calls: list[dict[str, object]] = []
+
+    class Query:
+        data = "premium:planets"
+
+        async def answer(self) -> None:
+            return None
+
+    async def fake_remember(update) -> None:
+        return None
+
+    async def fake_track(update, event_name, **properties) -> None:
+        calls.append({"event": event_name, "properties": properties})
+
+    async def fake_reply(update, context, text, **kwargs) -> None:
+        calls.append({"text": text, "reply_markup": kwargs.get("reply_markup")})
+
+    async def fail_original_handler(update, context) -> None:
+        raise AssertionError("The obsolete compact planets screen must not open")
+
+    monkeypatch.setattr(navigation.base, "_remember_user", fake_remember)
+    monkeypatch.setattr(navigation.base, "_track_event", fake_track)
+    monkeypatch.setattr(navigation.base, "_tracked_reply_text", fake_reply)
+    monkeypatch.setattr(navigation, "_ORIGINAL_PREMIUM_OFFER", fail_original_handler)
+
+    asyncio.run(
+        navigation.premium_offer_with_main_menu(
+            SimpleNamespace(callback_query=Query()),
+            SimpleNamespace(),
+        )
+    )
+
+    rendered = next(call for call in calls if "text" in call)
+    assert rendered["text"] == "🧭 Основное меню"
+    labels = [
+        button.text
+        for row in rendered["reply_markup"].inline_keyboard
+        for button in row
+    ]
+    assert labels[0].startswith("💗 Секреты любви\nВенера")
+    assert "📖 Всё меню" not in labels
+    assert all("Выберите планету" not in str(call.get("text", "")) for call in calls)
+    tracked = next(call for call in calls if call.get("event"))
+    assert tracked["properties"]["source"] == "premium_planets"
+
+
+def test_other_premium_callbacks_stay_on_existing_handler(monkeypatch) -> None:
+    calls: list[str] = []
+
+    class Query:
+        data = "premium:details"
+
+    async def fake_original_handler(update, context) -> None:
+        calls.append(update.callback_query.data)
+
+    monkeypatch.setattr(navigation, "_ORIGINAL_PREMIUM_OFFER", fake_original_handler)
+
+    asyncio.run(
+        navigation.premium_offer_with_main_menu(
+            SimpleNamespace(callback_query=Query()),
+            SimpleNamespace(),
+        )
+    )
+
+    assert calls == ["premium:details"]
 
 
 def test_bridge_sender_does_not_send_automatic_menu(monkeypatch) -> None:
