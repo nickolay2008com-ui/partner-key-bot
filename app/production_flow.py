@@ -8,6 +8,7 @@ from app import (
     bridge_navigation,
     button_contracts,
     entertaining_flow,
+    full_map_contract,
     message_retirement,
     metrica_layer,
     metrica_legacy_queue,
@@ -53,6 +54,7 @@ metrica_legacy_queue.install()
 metrica_revenue_guard.install()
 analytics_diagnostics.install()
 button_contracts.install()
+full_map_contract.install()
 payment_reconciliation.install()
 bridge_navigation.install()
 topic_labels.install()
