@@ -265,22 +265,17 @@ def profile_button() -> InlineKeyboardButton:
     return InlineKeyboardButton("👤 Мои данные", web_app=webapp_info())
 
 
-def _is_content_admin_id(user_id: int | None) -> bool:
-    return bool(user_id and user_id in getattr(settings, "content_admin_ids", set()))
-
-
-def menu(user_id: int | None = None) -> InlineKeyboardMarkup:
-    rows = [
-        [InlineKeyboardButton("💞 Начать разбор пары", callback_data="start_man")],
-        [InlineKeyboardButton("🔑 Ключ на сегодня", callback_data="daily_key")],
-        [InlineKeyboardButton("⭐️ Звёздная цель дня", callback_data="star_goal")],
-        [profile_button()],
-        [InlineKeyboardButton("🗂 История", callback_data="history")],
-        [InlineKeyboardButton("🛟 Мои покупки", callback_data="purchases")],
-    ]
-    if _is_content_admin_id(user_id):
-        rows.append([InlineKeyboardButton("🧪 Админ-просмотр", callback_data="admin:preview")])
-    return InlineKeyboardMarkup(rows)
+def menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("💞 Начать разбор пары", callback_data="start_man")],
+            [InlineKeyboardButton("🔑 Ключ на сегодня", callback_data="daily_key")],
+            [InlineKeyboardButton("⭐️ Звёздная цель дня", callback_data="star_goal")],
+            [profile_button()],
+            [InlineKeyboardButton("🗂 История", callback_data="history")],
+            [InlineKeyboardButton("🛟 Мои покупки", callback_data="purchases")],
+        ]
+    )
 
 
 def cancel_keyboard() -> InlineKeyboardMarkup:
@@ -1125,7 +1120,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await _set_chat_menu_button(update, context)
     _clear_flow_state(context)
     await _track_event(update, "menu_opened", source="start")
-    await update.effective_message.reply_text(WELCOME_TEXT, reply_markup=menu(_user_id(update)))
+    await update.effective_message.reply_text(WELCOME_TEXT, reply_markup=menu())
     return ConversationHandler.END
 
 
@@ -1145,9 +1140,7 @@ async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _remember_user(update)
     user_id = _user_id(update)
     if user_id:
-        await update.effective_message.reply_text(
-            f"Твой Telegram ID: {user_id}\n\nRailway → Variables → CONTENT_ADMIN_IDS → {user_id}"
-        )
+        await update.effective_message.reply_text(f"Твой Telegram ID: {user_id}")
 
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1384,44 +1377,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         update,
         context,
         "Ок, остановил. Начать заново можно через /start.",
-        reply_markup=menu(_user_id(update)),
+        reply_markup=menu(),
     )
     return ConversationHandler.END
-
-
-async def admin_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.callback_query:
-        await update.callback_query.answer()
-    user_id = _user_id(update)
-    if not _is_content_admin_id(user_id):
-        await _deny(update)
-        return
-    items = await asyncio.to_thread(get_store().recent, user_id, 10)
-    if not items:
-        await _tracked_reply_text(
-            update,
-            context,
-            "Сначала создайте свой тестовый разбор. После этого здесь откроются все его платные материалы.",
-            reply_markup=menu(user_id),
-        )
-        return
-    rows = [
-        [
-            InlineKeyboardButton(
-                f"🧪 {item.partner_name} · {item.birth_date}",
-                callback_data=f"history:open:{item.id}",
-            )
-        ]
-        for item in items
-    ]
-    rows.append([InlineKeyboardButton("⬅️ В меню", callback_data="cancel")])
-    await _track_event(update, "content_admin_preview_opened", report_count=len(items))
-    await _tracked_reply_text(
-        update,
-        context,
-        "🧪 Админ-просмотр\n\nВыберите свою тестовую карту. Платёж и покупка не создаются.",
-        reply_markup=InlineKeyboardMarkup(rows),
-    )
 
 
 async def history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1615,8 +1573,6 @@ async def _has_premium_access(
     user_id = _user_id(update)
     if user_id is None or report_id <= 0:
         return False
-    if _is_content_admin_id(user_id):
-        return True
     return await asyncio.to_thread(get_store().has_entitlement, user_id, product_key, report_id)
 
 
@@ -2012,7 +1968,6 @@ def build_application() -> Application:
     app.add_handler(self_flow)
     app.add_handler(CommandHandler("profile", profile))
     app.add_handler(CommandHandler("whoami", whoami))
-    app.add_handler(CommandHandler("admin_preview", admin_preview))
     app.add_handler(CommandHandler("about", about))
     app.add_handler(CommandHandler("daily", daily_key))
     app.add_handler(CommandHandler("today_key", today_key))
@@ -2020,7 +1975,6 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("broadcast_daily_key", broadcast_daily_key))
     app.add_handler(CommandHandler("broadcast_mercury", broadcast_mercury))
     app.add_handler(CallbackQueryHandler(history, pattern=r"^(history|history:show)$"))
-    app.add_handler(CallbackQueryHandler(admin_preview, pattern=r"^admin:preview$"))
     app.add_handler(CallbackQueryHandler(open_history_report, pattern=r"^history:open:\d+$"))
     app.add_handler(CallbackQueryHandler(daily_key, pattern=r"^daily_key$"))
     app.add_handler(CallbackQueryHandler(about, pattern=r"^help:about$"))
