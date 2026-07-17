@@ -9,12 +9,64 @@ import app.woman_flow as base
 
 _INSTALLED = False
 _ORIGINAL_PREMIUM_OFFER = base.premium_offer
+_ORIGINAL_PREMIUM_KEYBOARD = base.premium_keyboard
+_ORIGINAL_YOOKASSA_PAYMENT_KEYBOARD = base.yookassa_payment_keyboard
+_ORIGINAL_PAYMENT_RECOVERY_KEYBOARD = base.payment_recovery_keyboard
+MAIN_MENU_BUTTON_TEXT = "🧭 Главное меню"
 
 
 def _rub_price(product_key: str, fallback: int) -> str:
     product = base.get_product(product_key)
     rubles = product.rubles if product else fallback
     return f"{rubles} ₽"
+
+
+def _replace_planets_back_button(
+    markup: base.InlineKeyboardMarkup,
+) -> base.InlineKeyboardMarkup:
+    """Rename the legacy planets-back action without changing its callback route."""
+    rows: list[list[base.InlineKeyboardButton]] = []
+    for row in markup.inline_keyboard:
+        updated_row: list[base.InlineKeyboardButton] = []
+        for button in row:
+            if (
+                button.callback_data == "premium:planets"
+                and button.text == "⬅️ К планетам"
+            ):
+                button = base.InlineKeyboardButton(
+                    MAIN_MENU_BUTTON_TEXT,
+                    callback_data="premium:planets",
+                )
+            updated_row.append(button)
+        rows.append(updated_row)
+    return base.InlineKeyboardMarkup(rows)
+
+
+def premium_keyboard_with_main_menu(product_key: str) -> base.InlineKeyboardMarkup:
+    return _replace_planets_back_button(_ORIGINAL_PREMIUM_KEYBOARD(product_key))
+
+
+def yookassa_payment_keyboard_with_main_menu(
+    product_key: str,
+    payment_id: str,
+    confirmation_url: str,
+) -> base.InlineKeyboardMarkup:
+    return _replace_planets_back_button(
+        _ORIGINAL_YOOKASSA_PAYMENT_KEYBOARD(
+            product_key,
+            payment_id,
+            confirmation_url,
+        )
+    )
+
+
+def payment_recovery_keyboard_with_main_menu(
+    product_key: str,
+    payment_id: str | None = None,
+) -> base.InlineKeyboardMarkup:
+    return _replace_planets_back_button(
+        _ORIGINAL_PAYMENT_RECOVERY_KEYBOARD(product_key, payment_id)
+    )
 
 
 def bridge_actions_keyboard() -> base.InlineKeyboardMarkup:
@@ -135,6 +187,9 @@ def install() -> None:
     base._send_bridge_teaser_with_menu = send_bridge_with_two_actions
     entertaining_flow._send_bridge_teaser_with_menu = send_bridge_with_two_actions
     base.premium_offer = premium_offer_with_main_menu
+    base.premium_keyboard = premium_keyboard_with_main_menu
+    base.yookassa_payment_keyboard = yookassa_payment_keyboard_with_main_menu
+    base.payment_recovery_keyboard = payment_recovery_keyboard_with_main_menu
     base.build_application = build_application_with_bridge_topics
 
     _INSTALLED = True
