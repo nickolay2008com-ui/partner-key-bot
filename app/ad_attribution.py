@@ -369,6 +369,11 @@ def _query_value(query: dict[str, list[str]], key: str) -> str:
     return ((query.get(key) or [""])[0]).strip()[:512]
 
 
+def _is_landing_path(raw_path: str) -> bool:
+    path = urlparse(raw_path).path.rstrip("/") or "/"
+    return path in {"/", "/go"}
+
+
 def build_landing_html(bot_link: str, attributed: bool) -> str:
     note = (
         "Рекламный переход сохранён. Дальше бот свяжет действия и оплату с объявлением."
@@ -581,7 +586,7 @@ def install(base: Any) -> None:
     original_post_init = base._post_init
 
     def do_get_with_landing(self: webapp.WebAppHandler) -> None:
-        if (urlparse(self.path).path.rstrip("/") or "/") == "/go":
+        if _is_landing_path(self.path):
             _render_landing(self)
             return
         original_get(self)
