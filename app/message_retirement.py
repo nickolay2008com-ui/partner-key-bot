@@ -40,26 +40,8 @@ def active_topics_keyboard() -> base.InlineKeyboardMarkup:
 
 
 def other_topics_keyboard() -> base.InlineKeyboardMarkup:
-    """Menu revealed by “Посмотреть другие темы”, without message generation."""
-    details_product = base.get_product("details")
-    details_price = f" — {details_product.rubles} ₽" if details_product else ""
-    return base.InlineKeyboardMarkup(
-        [
-            [
-                base.InlineKeyboardButton(
-                    "💗🗣🔥🪐 Выбрать отдельную тему — 50 ₽",
-                    callback_data="premium:planets",
-                )
-            ],
-            [
-                base.InlineKeyboardButton(
-                    f"📖 Полная карта отношений{details_price}",
-                    callback_data="p:full",
-                )
-            ],
-            [base.InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
-        ]
-    )
+    """Use the single authoritative menu owned by bridge navigation."""
+    return bridge_navigation.other_topics_keyboard()
 
 
 async def retired_message_route(update: Any, context: Any) -> None:
@@ -75,8 +57,7 @@ async def retired_message_route(update: Any, context: Any) -> None:
     await base._track_event(update, "retired_message_product_opened")
     text = (
         "🧭 Этот раздел больше не используется.\n\n"
-        "Выберите актуальный разбор: отдельную тему пары, полную карту отношений "
-        "или начните новый разбор."
+        "Ниже доступны все актуальные темы пары и полная карта отношений."
     )
     if query and query.message:
         try:
@@ -123,7 +104,6 @@ def install() -> None:
     base.read_menu_keyboard = active_topics_keyboard
     button_contracts.relationship_menu_keyboard = active_topics_keyboard
     entertaining_flow._relationship_menu_keyboard = active_topics_keyboard
-    bridge_navigation.other_topics_keyboard = other_topics_keyboard
 
     base.message_hint = retired_message_route
     base.premium_offer = _retire_product_handler(
@@ -136,4 +116,4 @@ def install() -> None:
     )
 
     _INSTALLED = True
-    base.logger.info("MESSAGE_RETIREMENT: message product removed from active navigation and checkout")
+    base.logger.info("MESSAGE_RETIREMENT: message product removed; full topics menu preserved")
