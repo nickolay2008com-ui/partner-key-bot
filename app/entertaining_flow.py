@@ -8,6 +8,21 @@ from app.astro import bridge_upgrade as bridge
 from app.astro import entertaining_blocks as fun
 
 
+FREE_HINT_LABEL = "🎁 Бесплатная подсказка"
+
+
+def _planet_short_card_with_free_hint(report, key: str) -> str:
+    """Label every Telegram planet teaser as a free hint without duplicating text."""
+    text = fun.format_planet_short_card(report, key)
+    if FREE_HINT_LABEL in text:
+        return text
+
+    title, separator, body = text.partition("\n\n")
+    if not separator:
+        return f"{text}\n\n{FREE_HINT_LABEL}"
+    return f"{title}\n\n{FREE_HINT_LABEL}\n\n{body}"
+
+
 def _fix_pair_you_lines(text: str) -> str:
     replacements = {
         "Вы: Его чувства": "Вы: Ваши чувства",
@@ -144,7 +159,7 @@ async def _premium_offer_with_relationship_menu(update, context) -> None:
 # Telegram cards use function references imported by woman_flow, while the WebApp
 # keeps its own imported references. Patch both namespaces and leave calculations
 # and storage intact.
-base.format_planet_short_card = fun.format_planet_short_card
+base.format_planet_short_card = _planet_short_card_with_free_hint
 base.format_couple_moon_bridge_short_card = bridge.format_couple_moon_bridge_short_card
 base.format_couple_portraits_short_card = fun.format_couple_portraits_short_card
 base.read_menu_keyboard = _relationship_menu_keyboard
