@@ -318,8 +318,58 @@ def create_yookassa_payment_with_receipt(
     )
 
 
-def _email_prompt_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[InlineKeyboardButton("← Вернуться к разбору", callback_data="premium:back")]])
+def _premium_offer_callback(base: Any, product_key: str, report_id: int) -> str:
+    if product_key in base.PLANET_PAYWALL_COPY:
+        block = base.planet_product_key_to_block(product_key)
+        action = f"premium:planet:{block}" if block else "premium:back"
+    elif product_key in {"details", "message"}:
+        action = f"premium:{product_key}"
+    else:
+        action = "premium:back"
+    return base._callback_with_report(action, report_id)
+
+
+def _email_prompt_keyboard(base: Any, product_key: str, report_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "← Вернуться к разбору",
+                    callback_data=_premium_offer_callback(base, product_key, report_id),
+                )
+            ]
+        ]
+    )
+
+
+async def _retire_email_prompt_if_returning(
+    base: Any,
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> bool:
+    query = update.callback_query
+    if query is None:
+        return False
+
+    product_key = str(context.user_data.get(PENDING_RECEIPT_PRODUCT, ""))
+    report_id_raw = context.user_data.get(PENDING_RECEIPT_REPORT_ID, 0)
+    try:
+        report_id = int(report_id_raw)
+    except (TypeError, ValueError):
+        report_id = 0
+    if not product_key or str(query.data or "") != _premium_offer_callback(base, product_key, report_id):
+        return False
+
+    context.user_data.pop(PENDING_RECEIPT_PRODUCT, None)
+    context.user_data.pop(PENDING_RECEIPT_REPORT_ID, None)
+    source_message = query.message
+    if source_message is not None:
+        try:
+            await source_message.delete()
+            base._forget_bot_message(context, source_message)
+        except Exception:
+            base.logger.exception("RECEIPT_EMAIL_PROMPT_DELETE_FAILED")
+    return True
 
 
 def _receipt_configuration_keyboard(base: Any, product_key: str) -> InlineKeyboardMarkup:
@@ -532,10 +582,13 @@ def install(base: Any) -> None:
         clear_payment_email_state(context)
 
     async def premium_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        returned_from_email = await _retire_email_prompt_if_returning(base, update, context)
         raw_data = update.callback_query.data if update.callback_query else ""
         data, _ = base._callback_report(raw_data)
         if data == "premium:back":
             clear_payment_email_state(context)
+        if returned_from_email:
+            await base._track_event(update, "receipt_email_prompt_closed", destination=data)
         await original_premium_offer(update, context)
 
     async def premium_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -618,7 +671,7 @@ def install(base: Any) -> None:
                         "ЮKassa пришлёт туда чек, а бот сохранит адрес для следующих покупок, чтобы больше не спрашивать.\n\n"
                         "Сам чек обязателен для этого магазина; без email ЮKassa не создаёт платёж."
                     ),
-                    reply_markup=_email_prompt_keyboard(),
+                    reply_markup=_email_prompt_keyboard(base, product_key, report_id),
                 )
                 return
 
@@ -642,6 +695,11 @@ def install(base: Any) -> None:
         if user_id is None:
             clear_payment_email_state(context)
             return
+        report_id_raw = context.user_data.get(PENDING_RECEIPT_REPORT_ID, base._current_report_id(context))
+        try:
+            report_id = int(report_id_raw)
+        except (TypeError, ValueError):
+            report_id = 0
         try:
             receipt_email = normalize_receipt_email((update.effective_message.text or "").strip())
         except ValueError as exc:
@@ -649,15 +707,9 @@ def install(base: Any) -> None:
                 update,
                 context,
                 f"{exc}\n\nEmail нужен только для электронного чека.",
-                reply_markup=_email_prompt_keyboard(),
+                reply_markup=_email_prompt_keyboard(base, product_key, report_id),
             )
             return
-
-        report_id_raw = context.user_data.get(PENDING_RECEIPT_REPORT_ID, base._current_report_id(context))
-        try:
-            report_id = int(report_id_raw)
-        except (TypeError, ValueError):
-            report_id = 0
         await asyncio.to_thread(save_receipt_email, base.get_store(), user_id, receipt_email)
         clear_payment_email_state(context)
         await base._track_event(
