@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import parse_qsl, urlparse
 
 from app.astro.calculator import calculate_partner_chart, parse_birth_date
+from app.astro.emotional_bridge import build_couple_moon_bridge_view
 from app.astro.product_blocks import (
     format_couple_full_report,
     format_couple_moon_bridge,
@@ -445,10 +446,10 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
   <style>
     :root { color-scheme: light dark; --bg: var(--tg-theme-bg-color, #100f17); --text: var(--tg-theme-text-color, #f8fafc); --hint: var(--tg-theme-hint-color, #b6adc8); --button: var(--tg-theme-button-color, #8b5cf6); --border: rgba(255,255,255,.13); --glow: rgba(236,72,153,.24); }
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 18px; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at top, var(--glow), transparent 34%), var(--bg); color: var(--text); }
+    body { max-width: 760px; margin: 0 auto; padding: 18px; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at top, var(--glow), transparent 34%), var(--bg); color: var(--text); }
     .hero, .content { border: 1px solid var(--border); border-radius: 24px; background: rgba(255,255,255,.055); box-shadow: 0 18px 50px rgba(0,0,0,.18); }
     .hero { padding: 18px; margin-bottom: 14px; }
-    .eyebrow { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: rgba(255,255,255,.09); color: var(--hint); font-size: 13px; margin-bottom: 12px; }
+    .eyebrow { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: rgba(255,255,255,.09); color: var(--hint); font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 12px; }
     h1 { font-size: 25px; line-height: 1.12; margin: 0 0 8px; }
     p { margin: 0; color: var(--hint); line-height: 1.45; }
     .content { padding: 18px; font-size: 16px; line-height: 1.55; white-space: pre-wrap; }
@@ -457,18 +458,56 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     .skeleton-line:nth-child(2) { width: 88%; }
     .skeleton-line:nth-child(3) { width: 72%; }
     @keyframes shimmer { to { background-position: -220% 0; } }
-    .life-use, .bridge-guide { display: none; margin: 0 0 14px; padding: 16px; border: 1px solid var(--border); border-radius: 22px; background: rgba(255,255,255,.07); }
-    .life-use.is-visible, .bridge-guide.is-visible { display: block; }
-    .life-use h2, .bridge-guide h2 { margin: 0 0 10px; font-size: 20px; line-height: 1.18; }
+    .life-use { display: none; margin: 0 0 14px; padding: 16px; border: 1px solid var(--border); border-radius: 22px; background: rgba(255,255,255,.07); }
+    .life-use.is-visible { display: block; }
+    .life-use h2 { margin: 0 0 10px; font-size: 20px; line-height: 1.18; }
     .use-grid { display: grid; gap: 10px; }
     .use-card { border: 1px solid var(--border); border-radius: 16px; padding: 12px; background: rgba(0,0,0,.13); }
     .use-card strong { display: block; margin-bottom: 5px; }
     .use-card span { color: var(--hint); line-height: 1.4; }
-    .bridge-steps { display: grid; gap: 10px; margin-top: 10px; }
-    .bridge-step { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; border: 1px solid var(--border); border-radius: 16px; padding: 12px; background: rgba(0,0,0,.13); }
-    .bridge-step b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: rgba(139,92,246,.22); }
-    .bridge-step strong { display: block; margin-bottom: 4px; }
-    .bridge-step span { color: var(--hint); line-height: 1.4; }
+    .bridge-view { display: none; gap: 14px; }
+    .bridge-view.is-visible { display: grid; }
+    .bridge-formula { display: none; gap: 8px; margin-top: 16px; }
+    .is-bridge .bridge-formula { display: grid; grid-template-columns: 1fr 1fr; }
+    .formula-chip { padding: 11px 12px; border: 1px solid var(--border); border-radius: 15px; background: rgba(0,0,0,.14); }
+    .formula-chip span, .formula-chip small { display: block; color: var(--hint); }
+    .formula-chip span { margin-bottom: 3px; font-size: 12px; }
+    .formula-chip strong { display: block; font-size: 14px; }
+    .formula-chip small { margin-top: 3px; font-size: 12px; }
+    .bridge-card { padding: 18px; border: 1px solid var(--border); border-radius: 24px; background: rgba(255,255,255,.06); box-shadow: 0 14px 38px rgba(0,0,0,.12); }
+    .bridge-card.accent { background: linear-gradient(145deg, rgba(139,92,246,.24), rgba(236,72,153,.12)); }
+    .bridge-kicker { margin-bottom: 8px; color: #d8b4fe; font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .bridge-card h2 { margin: 0 0 10px; font-size: 22px; line-height: 1.18; }
+    .bridge-card h3 { margin: 0 0 8px; font-size: 18px; line-height: 1.22; }
+    .bridge-card p { color: var(--text); }
+    .bridge-accent { margin-top: 14px; padding: 13px 14px; border-left: 3px solid #c084fc; border-radius: 4px 14px 14px 4px; background: rgba(0,0,0,.16); font-weight: 700; line-height: 1.45; }
+    .shore-grid { display: grid; gap: 10px; }
+    .shore-card { padding: 15px; border: 1px solid var(--border); border-radius: 19px; background: rgba(0,0,0,.13); }
+    .shore-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; margin-bottom: 12px; }
+    .shore-role { color: #d8b4fe; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+    .shore-sign { color: var(--hint); font-size: 13px; text-align: right; }
+    .shore-line { margin-top: 11px; }
+    .shore-line strong { display: block; margin-bottom: 3px; font-size: 13px; }
+    .shore-line span { color: var(--hint); line-height: 1.42; }
+    .protocol-list { display: grid; gap: 10px; margin-top: 12px; }
+    .protocol-step { display: grid; grid-template-columns: 42px 1fr; gap: 11px; align-items: start; padding: 13px; border: 1px solid var(--border); border-radius: 17px; background: rgba(0,0,0,.13); }
+    .protocol-step b { color: #d8b4fe; font-size: 13px; letter-spacing: .06em; }
+    .protocol-step strong { display: block; margin-bottom: 4px; }
+    .protocol-step span { color: var(--hint); line-height: 1.42; }
+    .phrase-tabs { display: flex; gap: 8px; overflow-x: auto; margin: 12px 0; padding-bottom: 2px; }
+    .phrase-tab { flex: 0 0 auto; border: 1px solid var(--border); border-radius: 999px; padding: 9px 12px; background: rgba(0,0,0,.13); color: var(--hint); font-weight: 800; }
+    .phrase-tab.is-active { border-color: transparent; background: var(--button); color: var(--tg-theme-button-text-color, #fff); }
+    .phrase-box { min-height: 142px; padding: 16px; border: 1px solid var(--border); border-radius: 18px; background: rgba(0,0,0,.16); }
+    .phrase-box strong { display: block; margin-bottom: 8px; }
+    .phrase-box p { font-size: 17px; line-height: 1.52; }
+    .copy-phrase { width: 100%; margin-top: 12px; border: 1px solid var(--border); border-radius: 14px; padding: 11px; background: rgba(255,255,255,.08); color: var(--text); font-weight: 800; }
+    .check-list { display: grid; gap: 9px; margin: 12px 0 0; padding: 0; list-style: none; }
+    .check-list li { position: relative; padding-left: 28px; color: var(--hint); line-height: 1.43; }
+    .check-list li::before { content: '✓'; position: absolute; left: 0; top: -1px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; background: rgba(74,222,128,.17); color: #86efac; font-weight: 900; }
+    .boundary { margin-top: 15px; padding: 13px; border: 1px solid rgba(251,191,36,.24); border-radius: 15px; background: rgba(251,191,36,.08); color: var(--hint); line-height: 1.43; }
+    .bridge-note { color: var(--hint) !important; font-size: 14px; }
+    .is-bridge .content { display: none; }
+    @media (min-width: 620px) { .shore-grid { grid-template-columns: 1fr 1fr; } }
     .variant-wrap { display: none; margin: 0 0 14px; }
     .variant-wrap.is-visible { display: block; }
     .variant-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 8px; color: var(--hint); font-size: 14px; }
@@ -476,14 +515,17 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     .variant-card { flex: 0 0 88%; scroll-snap-align: start; border: 1px solid var(--border); border-radius: 20px; padding: 14px; background: rgba(255,255,255,.075); white-space: pre-wrap; line-height: 1.48; }
     .variant-card h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.2; }
     .variant-card p { color: var(--text); white-space: pre-wrap; }
+    .toast { position: fixed; left: 50%; bottom: 78px; z-index: 5; transform: translate(-50%, 16px); padding: 10px 14px; border-radius: 999px; background: #111827; color: #fff; opacity: 0; pointer-events: none; transition: .2s ease; font-size: 14px; font-weight: 800; }
+    .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
     .close { width: 100%; margin-top: 14px; border: 0; border-radius: 16px; padding: 14px; background: var(--button); color: var(--tg-theme-button-text-color, #fff); font-weight: 800; font-size: 16px; }
   </style>
 </head>
 <body>
   <section class="hero">
-    <div class="eyebrow">✨ Инструкция к любимому мужчине</div>
+    <div class="eyebrow" id="eyebrow">✨ Инструкция к любимому мужчине</div>
     <h1 id="title">Загружаю…</h1>
-    <p>Это не сухой прогноз, а мягкая инструкция: какие слова, внимание и действия помогают ему раскрыться рядом с вами.</p>
+    <p id="hero-copy">Это не сухой прогноз, а мягкая инструкция: какие слова, внимание и действия помогают ему раскрыться рядом с вами.</p>
+    <div class="bridge-formula" id="bridge-formula"></div>
   </section>
   <section class="life-use" id="life-use" aria-labelledby="life-use-title">
     <h2 id="life-use-title">Как применять карту в жизни</h2>
@@ -493,15 +535,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
       <div class="use-card"><strong>Бережная практика</strong><span>Проверяйте подсказки мягко: если партнёр закрывается, снижайте темп и возвращайтесь к безопасности диалога.</span></div>
     </div>
   </section>
-  <section class="bridge-guide" id="bridge-guide" aria-labelledby="bridge-guide-title">
-    <h2 id="bridge-guide-title">Структура моста без повторов</h2>
-    <p>Сначала выберите похожий эмоциональный сценарий, затем возьмите одну фразу и один следующий шаг. Так карта становится инструкцией, а не ещё одним длинным разбором.</p>
-    <div class="bridge-steps">
-      <div class="bridge-step"><b>1</b><div><strong>Его вход в спокойствие</strong><span>Темп, тон или конкретика, при которых он меньше защищается и легче слышит вас.</span></div></div>
-      <div class="bridge-step"><b>2</b><div><strong>Ваш берег</strong><span>Что нужно вам для тепла: внимание, ясность, время, действие или бережная пауза.</span></div></div>
-      <div class="bridge-step"><b>3</b><div><strong>Маленький тест</strong><span>Одна просьба или сообщение на 24 часа, после которого видно: стало ли больше контакта.</span></div></div>
-    </div>
-  </section>
+  <main class="bridge-view" id="bridge-view" aria-live="polite"></main>
   <section class="variant-wrap" id="variants" aria-labelledby="variants-title">
     <div class="variant-head"><strong id="variants-title">Свайп вариантов Луны</strong><span>выберите, что больше похоже на жизнь</span></div>
     <div class="variant-carousel" id="variant-carousel"></div>
@@ -512,6 +546,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     <span class="skeleton-line"></span>
     <span class="skeleton-line"></span>
   </main>
+  <div class="toast" id="toast" role="status">Фраза скопирована</div>
   <button class="close" id="close">Вернуться в Telegram</button>
   <script>
     let tg;
@@ -519,7 +554,7 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
     const pathBlock = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
     const block = params.get('block') || (pathBlock === 'detail' ? 'moon' : pathBlock) || 'moon';
     const reportId = Number(params.get('report_id') || 0);
-    const cacheKey = reportId > 0 ? `partner-key-detail:${reportId}:${block}:v10` : '';
+    const cacheKey = reportId > 0 ? `partner-key-detail:${reportId}:${block}:v11` : '';
     function setBusy(isBusy) {
       const content = document.getElementById('content');
       if (isBusy) {
@@ -530,14 +565,163 @@ DETAIL_WEBAPP_HTML = r"""<!doctype html>
         content.removeAttribute('aria-busy');
       }
     }
+    function el(tag, className = '', text = '') {
+      const item = document.createElement(tag);
+      if (className) item.className = className;
+      if (text) item.textContent = text;
+      return item;
+    }
+    function bridgeCard(kicker, title, className = '') {
+      const card = el('section', `bridge-card ${className}`.trim());
+      if (kicker) card.append(el('div', 'bridge-kicker', kicker));
+      if (title) card.append(el('h2', '', title));
+      return card;
+    }
+    function renderFormula(items) {
+      const formula = document.getElementById('bridge-formula');
+      formula.replaceChildren();
+      (items || []).forEach(item => {
+        const chip = el('div', 'formula-chip');
+        chip.append(el('span', '', item.label || ''));
+        chip.append(el('strong', '', item.value || ''));
+        chip.append(el('small', '', item.element || ''));
+        formula.append(chip);
+      });
+    }
+    function renderShore(item) {
+      const card = el('article', 'shore-card');
+      const head = el('div', 'shore-head');
+      const identity = el('div');
+      identity.append(el('div', 'shore-role', item.role || 'Берег'));
+      identity.append(el('h3', '', item.name || ''));
+      head.append(identity, el('div', 'shore-sign', `${item.sign || ''} · ${item.element || ''}`));
+      card.append(head, el('p', 'bridge-note', item.tagline || ''));
+      [
+        ['Что создаёт безопасность', item.need],
+        ['Что может закрывать', item.closes],
+        ['Как строить мост', item.bridge],
+        ['Сильный вклад в пару', item.gift]
+      ].forEach(([label, text]) => {
+        const line = el('div', 'shore-line');
+        line.append(el('strong', '', label), el('span', '', text || ''));
+        card.append(line);
+      });
+      return card;
+    }
+    function renderChecklist(items) {
+      const list = el('ul', 'check-list');
+      (items || []).forEach(item => list.append(el('li', '', item)));
+      return list;
+    }
+    async function copyPhrase(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (_error) {
+        const field = el('textarea');
+        field.value = text;
+        field.style.position = 'fixed';
+        field.style.opacity = '0';
+        document.body.append(field);
+        field.select();
+        document.execCommand('copy');
+        field.remove();
+      }
+      const toast = document.getElementById('toast');
+      toast.classList.add('is-visible');
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      setTimeout(() => toast.classList.remove('is-visible'), 1600);
+    }
+    function renderPhrases(phrases) {
+      const card = bridgeCard('Слова, которые не предают вас', 'Выберите фразу под ситуацию');
+      const tabs = el('div', 'phrase-tabs');
+      const box = el('div', 'phrase-box');
+      const phraseTitle = el('strong');
+      const phraseText = el('p');
+      const copy = el('button', 'copy-phrase', 'Скопировать фразу');
+      copy.type = 'button';
+      const select = index => {
+        const item = phrases[index];
+        phraseTitle.textContent = item.title || '';
+        phraseText.textContent = `«${item.text || ''}»`;
+        copy.onclick = () => copyPhrase(item.text || '');
+        [...tabs.children].forEach((tab, tabIndex) => tab.classList.toggle('is-active', tabIndex === index));
+      };
+      phrases.forEach((item, index) => {
+        const tab = el('button', 'phrase-tab', item.label || `Вариант ${index + 1}`);
+        tab.type = 'button';
+        tab.onclick = () => select(index);
+        tabs.append(tab);
+      });
+      box.append(phraseTitle, phraseText, copy);
+      card.append(tabs, box);
+      if (phrases.length) select(0);
+      return card;
+    }
+    function renderBridge(model) {
+      document.body.classList.add('is-bridge');
+      document.getElementById('eyebrow').textContent = model.eyebrow || 'Лунный код пары';
+      document.getElementById('title').textContent = model.title || 'Ваш эмоциональный мост';
+      document.getElementById('hero-copy').textContent = model.subtitle || '';
+      document.getElementById('close').textContent = 'Вернуться в Telegram';
+      renderFormula(model.formula || []);
+      const view = document.getElementById('bridge-view');
+      view.replaceChildren();
+
+      const insight = bridgeCard(model.insight.kicker, model.insight.title, 'accent');
+      insight.append(el('p', '', model.insight.body));
+      insight.append(el('div', 'bridge-accent', model.insight.accent));
+      view.append(insight);
+
+      const shores = bridgeCard('Два берега одной связи', 'Что каждый из вас называет близостью');
+      const shoreGrid = el('div', 'shore-grid');
+      (model.shores || []).forEach(item => shoreGrid.append(renderShore(item)));
+      shores.append(shoreGrid);
+      view.append(shores);
+
+      const translation = bridgeCard(model.translation.kicker, model.translation.title);
+      translation.append(el('p', '', model.translation.body));
+      translation.append(el('div', 'bridge-accent', model.translation.rule));
+      view.append(translation);
+
+      const protocol = bridgeCard('Маршрут контакта', 'Ваш мост в трёх шагах');
+      const protocolList = el('div', 'protocol-list');
+      (model.protocol || []).forEach(item => {
+        const step = el('div', 'protocol-step');
+        const copy = el('div');
+        copy.append(el('strong', '', item.title), el('span', '', item.text));
+        step.append(el('b', '', item.number), copy);
+        protocolList.append(step);
+      });
+      protocol.append(protocolList);
+      view.append(protocol);
+
+      view.append(renderPhrases(model.phrases || []));
+
+      const experiment = bridgeCard(model.experiment.kicker, model.experiment.title, 'accent');
+      experiment.append(renderChecklist(model.experiment.steps));
+      experiment.append(el('h3', '', 'Как понять, что мост работает'));
+      experiment.append(renderChecklist(model.experiment.success));
+      experiment.append(el('div', 'boundary', model.experiment.boundary));
+      view.append(experiment);
+
+      const astrology = bridgeCard('Астрологическая оптика', model.astrology.title);
+      astrology.append(el('p', 'bridge-note', model.astrology.body));
+      if (model.astrology.precision) astrology.append(el('div', 'boundary', model.astrology.precision));
+      view.append(astrology);
+
+      const next = bridgeCard(model.next_level.kicker, model.next_level.title);
+      next.append(el('p', 'bridge-note', model.next_level.body));
+      view.append(next);
+      view.classList.add('is-visible');
+    }
     function applyDetail(data, fromCache = false) {
       document.getElementById('title').textContent = data.title || '✨ Подробный разбор';
       if (block === 'full') document.getElementById('life-use').classList.add('is-visible');
-      if (block === 'bridge') document.getElementById('bridge-guide').classList.add('is-visible');
       renderVariants(data.variants || []);
       const content = document.getElementById('content');
       setBusy(false);
-      content.textContent = data.text || '';
+      if (block === 'bridge' && data.bridge) renderBridge(data.bridge);
+      else content.textContent = data.text || '';
       if (fromCache) content.dataset.fromCache = 'true';
     }
     function renderCachedDetail() {
@@ -668,6 +852,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
                     raise ValueError("Этот разбор не принадлежит текущему Telegram-пользователю.")
                 text = _detail_text(user_id, block, report_id)
                 variants = []
+                bridge_view = None
                 if block in {"bridge", "full"}:
                     profile = get_store().get_profile(user_id)
                     report_payload = (
@@ -679,6 +864,8 @@ class WebAppHandler(BaseHTTPRequestHandler):
                     if man_report is not None and profile.get("self_birth_date"):
                         woman_chart = calculate_partner_chart(parse_birth_date(profile.get("self_birth_date", "")))
                         woman_report = build_partner_report(woman_chart, profile.get("self_name") or "вы")
+                        if block == "bridge":
+                            bridge_view = build_couple_moon_bridge_view(man_report, woman_report)
                         if "changed_during_day" in {man_report.moon_status, woman_report.moon_status}:
                             variants = format_moon_variant_cards(man_report, woman_report)
                 get_store().track_event(
@@ -691,6 +878,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
                         "ok": True,
                         "title": DETAIL_LABELS.get(block, "✨ Подробный разбор"),
                         "text": text,
+                        "bridge": bridge_view,
                         "variants": variants,
                     }
                 )
