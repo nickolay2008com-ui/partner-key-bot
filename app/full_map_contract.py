@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Callable
 
+import app.button_contracts as contracts
 import app.entertaining_flow as entertaining_flow
 import app.webapp as webapp
 import app.woman_flow as base
@@ -9,12 +10,28 @@ import app.woman_flow as base
 _INSTALLED = False
 
 
-def _load_pair(user_id: int) -> tuple[base.PartnerReport, base.PartnerReport]:
+def _load_pair(
+    user_id: int,
+    *,
+    require_full_access: bool = False,
+) -> tuple[base.PartnerReport, base.PartnerReport]:
     store = webapp.get_store()
     payload = store.latest_report_payload(user_id)
+    if not isinstance(payload, dict):
+        raise ValueError("Сначала соберите разбор в Telegram.")
+
+    report_id = int(payload.get("_storage_report_id") or 0)
+    if require_full_access and (
+        report_id <= 0
+        or not contracts._has_block_access(store, user_id, report_id, "details")
+    ):
+        raise ValueError(
+            "Полная карта отношений открывается после оплаты. Вернитесь в Telegram и откройте её из текущего разбора."
+        )
+
     man_report = webapp._report_from_payload(payload)
     if man_report is None:
-        raise ValueError("Сначала соберите разбор в Telegram.")
+        raise ValueError("Не удалось восстановить выбранный разбор. Откройте его заново в Telegram.")
 
     profile = store.get_profile(user_id)
     birth_date_text = str(profile.get("self_birth_date") or "").strip()
@@ -28,12 +45,12 @@ def _load_pair(user_id: int) -> tuple[base.PartnerReport, base.PartnerReport]:
 
 
 def build_detail_router(original: Callable[[int, str], str]) -> Callable[[int, str], str]:
-    """Keep the bridge and the full five-planet map on explicit separate routes."""
+    """Keep the bridge and the paid five-planet map on explicit separate routes."""
 
     def routed(user_id: int, block: str) -> str:
         normalized = webapp._normalize_detail_block(block)
         if normalized == "full":
-            man_report, woman_report = _load_pair(user_id)
+            man_report, woman_report = _load_pair(user_id, require_full_access=True)
             return entertaining_flow._couple_full_report(man_report, woman_report)
         if normalized == "bridge":
             man_report, woman_report = _load_pair(user_id)
@@ -66,4 +83,4 @@ def install() -> None:
     _bump_detail_cache()
 
     _INSTALLED = True
-    base.logger.info("FULL_MAP_CONTRACT: full map and emotional bridge routed separately")
+    base.logger.info("FULL_MAP_CONTRACT: paid full map and free emotional bridge routed separately")
