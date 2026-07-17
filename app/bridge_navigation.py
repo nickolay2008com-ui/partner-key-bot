@@ -42,25 +42,25 @@ def other_topics_keyboard() -> base.InlineKeyboardMarkup:
         [
             [
                 base.InlineKeyboardButton(
-                    f"💗 Секреты любви — {_rub_price('planet_venus', 50)}",
+                    f"💗 Секреты любви (Венера) — {_rub_price('planet_venus', 50)}",
                     callback_data="p:venus",
                 )
             ],
             [
                 base.InlineKeyboardButton(
-                    f"🗣 Стиль общения — {_rub_price('planet_mercury', 50)}",
+                    f"🗣 Стиль общения (Меркурий) — {_rub_price('planet_mercury', 50)}",
                     callback_data="p:mercury",
                 )
             ],
             [
                 base.InlineKeyboardButton(
-                    f"🔥 Притяжение и инициатива — {_rub_price('planet_mars', 50)}",
+                    f"🔥 Притяжение и инициатива (Марс) — {_rub_price('planet_mars', 50)}",
                     callback_data="p:mars",
                 )
             ],
             [
                 base.InlineKeyboardButton(
-                    f"🪐 Рост пары — {_rub_price('planet_jupiter', 50)}",
+                    f"🪐 Рост пары (Юпитер) — {_rub_price('planet_jupiter', 50)}",
                     callback_data="p:jupiter",
                 )
             ],
@@ -95,15 +95,7 @@ async def show_other_topics(update: Any, context: Any) -> None:
     await base._tracked_reply_text(
         update,
         context,
-        (
-            "🧭 Другие темы\n\n"
-            "Выберите один раздел:\n\n"
-            "💗 Секреты любви — Венера пары\n"
-            "🗣 Стиль общения — Меркурий пары\n"
-            "🔥 Притяжение и инициатива — Марс пары\n"
-            "🪐 Рост пары — Юпитер пары\n"
-            "📖 Полная карта отношений — все темы вместе"
-        ),
+        "🧭 Основное меню",
         reply_markup=other_topics_keyboard(),
     )
 
