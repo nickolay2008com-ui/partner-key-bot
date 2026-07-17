@@ -84,15 +84,16 @@ FREE_PREVIEW_COPY: dict[str, dict[str, str]] = {
 }
 
 
-def menu() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("🔑 Получить первый ключ бесплатно", callback_data="start_man")],
-            [InlineKeyboardButton("🗂 Мои разборы", callback_data="history")],
-            [InlineKeyboardButton("🛟 Мои покупки", callback_data="purchases")],
-            [base.profile_button()],
-        ]
-    )
+def menu(user_id: int | None = None) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton("🔑 Получить первый ключ бесплатно", callback_data="start_man")],
+        [InlineKeyboardButton("🗂 Мои разборы", callback_data="history")],
+        [InlineKeyboardButton("🛟 Мои покупки", callback_data="purchases")],
+        [base.profile_button()],
+    ]
+    if base._is_content_admin_id(user_id):
+        rows.append([InlineKeyboardButton("🧪 Админ-просмотр", callback_data="admin:preview")])
+    return InlineKeyboardMarkup(rows)
 
 
 def after_free_deep_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
