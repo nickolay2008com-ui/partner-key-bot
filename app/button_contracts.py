@@ -257,6 +257,8 @@ def _has_block_access(
     report_id: int,
     product_key: str,
 ) -> bool:
+    if base._is_content_admin_id(user_id):
+        return True
     if store.has_entitlement(user_id, product_key, report_id):
         return True
     return product_key in _PLANET_PRODUCT_BY_BLOCK.values() and store.has_entitlement(
@@ -275,6 +277,8 @@ async def has_premium_access_with_full_map(
     user_id = base._user_id(update)
     if user_id is None or report_id <= 0:
         return False
+    if base._is_content_admin_id(user_id):
+        return True
     return await asyncio.to_thread(
         _has_block_access,
         base.get_store(),
