@@ -8,6 +8,7 @@ import app.entertaining_flow as entertaining_flow
 import app.woman_flow as base
 
 _INSTALLED = False
+_ORIGINAL_PREMIUM_OFFER = base.premium_offer
 
 
 def _rub_price(product_key: str, fallback: int) -> str:
@@ -87,17 +88,32 @@ async def send_bridge_with_two_actions(update: Any, context: Any, text: str) -> 
 
 async def show_other_topics(update: Any, context: Any) -> None:
     query = update.callback_query
+    callback_data = str(getattr(query, "data", "") or "")
     if query:
         await query.answer()
 
     await base._remember_user(update)
-    await base._track_event(update, "bridge_other_topics_opened")
+    await base._track_event(
+        update,
+        "bridge_other_topics_opened",
+        source="premium_planets" if callback_data == "premium:planets" else "bridge",
+    )
     await base._tracked_reply_text(
         update,
         context,
         "🧭 Основное меню",
         reply_markup=other_topics_keyboard(),
     )
+
+
+async def premium_offer_with_main_menu(update: Any, context: Any) -> None:
+    """Route legacy “К планетам” buttons to the single current main menu."""
+    query = update.callback_query
+    callback_data = str(getattr(query, "data", "") or "")
+    if callback_data == "premium:planets":
+        await show_other_topics(update, context)
+        return
+    await _ORIGINAL_PREMIUM_OFFER(update, context)
 
 
 def install() -> None:
@@ -118,7 +134,10 @@ def install() -> None:
     base.bridge_summary_keyboard = bridge_actions_keyboard
     base._send_bridge_teaser_with_menu = send_bridge_with_two_actions
     entertaining_flow._send_bridge_teaser_with_menu = send_bridge_with_two_actions
+    base.premium_offer = premium_offer_with_main_menu
     base.build_application = build_application_with_bridge_topics
 
     _INSTALLED = True
-    base.logger.info("BRIDGE_NAVIGATION: two focused bridge actions and full topics menu installed")
+    base.logger.info(
+        "BRIDGE_NAVIGATION: two bridge actions and one main topics menu installed"
+    )
