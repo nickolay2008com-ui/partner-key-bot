@@ -85,7 +85,7 @@ def test_full_couple_moon_bridge_has_emotional_copywriting_and_practical_24h_pla
     text = format_couple_moon_bridge(man, woman)
 
     assert "эмоциональная карта входа друг к другу" in text
-    assert "переводчик между двумя нервными системами" in text
+    assert "способ сравнить два привычных ритма близости" in text
     assert "Как пользоваться этим мостом ближайшие 24 часа" in text
     assert "Хороший мост держится на двух берегах" in text
 
@@ -181,10 +181,10 @@ def test_bridge_summary_keyboard_separates_full_bridge_cta_from_menu() -> None:
 
     assert bridge_buttons == ["💞 Открыть полный эмоциональный мост"]
     assert "💞 Открыть полный эмоциональный мост" not in menu_buttons
-    assert "1️⃣ Венера: как включить его нежность" in menu_buttons
-    assert "2️⃣ Меркурий: слова, которые он слышит" in menu_buttons
-    assert "3️⃣ Марс: как дать ему силу действовать" in menu_buttons
-    assert "4️⃣ Юпитер: куда вести вашу пару" in menu_buttons
+    assert "1️⃣ Венера: его язык симпатии" in menu_buttons
+    assert "2️⃣ Меркурий: как ему легче воспринимать разговор" in menu_buttons
+    assert "3️⃣ Марс: как он проявляет инициативу" in menu_buttons
+    assert "4️⃣ Юпитер: смысл и направление роста" in menu_buttons
 
 
 def test_detail_card_keyboard_keeps_content_cta_separate_from_full_menu() -> None:
@@ -195,8 +195,8 @@ def test_detail_card_keyboard_keeps_content_cta_separate_from_full_menu() -> Non
 
     assert button_texts == ["🌙 Луна (глубже)", "📖 Меню"]
     assert "⬅️ Назад к карте" not in button_texts
-    assert "1️⃣ Венера: как включить его нежность" not in button_texts
-    assert "4️⃣ Юпитер: куда вести вашу пару" not in button_texts
+    assert "1️⃣ Венера: его язык симпатии" not in button_texts
+    assert "4️⃣ Юпитер: смысл и направление роста" not in button_texts
     assert "💞 Новый разбор" not in button_texts
 
 
@@ -212,12 +212,13 @@ def test_after_free_actions_can_be_sent_as_separate_button_blocks() -> None:
     assert "💞 Новый разбор" not in deep_buttons
 
 
-def test_premium_keyboard_uses_read_menu_label() -> None:
+def test_premium_keyboard_returns_to_product_choice() -> None:
     from app.woman_flow import premium_keyboard
 
     button_texts = [button.text for row in premium_keyboard("details").inline_keyboard for button in row]
 
-    assert "📖 Меню" in button_texts
+    assert "← Вернуться к выбору" in button_texts
+    assert "🪐 Выбрать одну тему за 50 ₽" in button_texts
     assert "⬅️ Назад к карте" not in button_texts
 
 
@@ -240,7 +241,7 @@ def test_planet_paywall_is_packaged_as_50_rub_with_free_woman_planet(monkeypatch
     assert locked_buttons == ["🔓 Открыть Венеру за 50 ₽", "👀 Что внутри", "⬅️ К планетам"]
 
     paywall = premium_paywall_text("planet_venus")
-    assert "за 50 ₽" in paywall
+    assert "Стоимость: 50 ₽" in paywall
     assert "женская Венера" in paywall
     assert "Разбор останется в этом чате" in paywall
 
@@ -310,3 +311,55 @@ def test_detail_webapp_urls_use_separate_fast_pages() -> None:
 
     assert detail_webapp_info("venus").url.endswith("/webapp/detail/venus")
     assert detail_webapp_info("bridge").url.endswith("/webapp/detail/bridge")
+
+
+def test_sales_free_preview_discloses_stable_moon_basis() -> None:
+    from app.partner_flow import format_free_preview
+
+    text = format_free_preview(_report("Андрей", "taurus", "Телец", "earth", "Земля", status="stable"))
+
+    assert "(Он: Луна в Тельце, Земля)" in text
+    assert "только один ориентир" in text
+    assert "сравнить два равноправных ритма" in text
+
+
+def test_sales_free_preview_discloses_both_moon_signs_on_transition_day() -> None:
+    from app.partner_flow import format_free_preview
+
+    variants = [
+        {"sign_key": "taurus", "sign_ru": "Телец", "element": "earth", "element_ru": "Земля"},
+        {"sign_key": "gemini", "sign_ru": "Близнецы", "element": "air", "element_ru": "Воздух"},
+    ]
+    report = _report("Андрей", "taurus", "Телец", "earth", "Земля", status="changed_during_day", variants=variants)
+
+    text = format_free_preview(report)
+
+    assert "В эту дату Луна меняла знак" in text
+    assert "Луна в Тельце, Земля" in text
+    assert "Луна в Близнецах, Воздух" in text
+
+
+def test_relationship_menu_uses_task_based_product_hierarchy() -> None:
+    from app.entertaining_flow import _relationship_menu_keyboard
+
+    buttons = [button.text for row in _relationship_menu_keyboard().inline_keyboard for button in row]
+
+    assert buttons == [
+        "💞 Открыть полный эмоциональный мост",
+        "✍️ 2 варианта сообщения — 149 ₽",
+        "📖 Полная карта отношений — 199 ₽",
+        "🪐 Выбрать отдельную тему — 50 ₽",
+        "🔄 Новый разбор",
+    ]
+
+
+def test_message_paywall_matches_two_existing_templates() -> None:
+    from app.woman_flow import premium_paywall_text
+
+    text = premium_paywall_text("message")
+
+    assert "2 варианта сообщения" in text
+    assert "два черновика" in text
+    assert "Стоимость: 149 ₽" in text
+    assert "гарантия ответа" in text
+    assert "3 готовых" not in text

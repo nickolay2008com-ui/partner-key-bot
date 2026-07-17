@@ -58,24 +58,20 @@ def _relationship_menu_keyboard():
     message_price = f" — {message_product.rubles} ₽" if message_product else ""
     return base.InlineKeyboardMarkup(
         [
-            [base.InlineKeyboardButton("💞 Эмоциональный мост", callback_data="p:bridge")],
+            [base.InlineKeyboardButton("💞 Открыть полный эмоциональный мост", callback_data="p:bridge")],
             [
                 base.InlineKeyboardButton(
-                    f"🔓 Полная карта отношений{details_price}",
-                    callback_data="p:full",
-                )
-            ],
-            [base.InlineKeyboardButton("1️⃣ Язык любви по Венере", callback_data="p:venus")],
-            [base.InlineKeyboardButton("2️⃣ Стиль общения по Меркурию", callback_data="p:mercury")],
-            [base.InlineKeyboardButton("3️⃣ Притяжение и инициатива по Марсу", callback_data="p:mars")],
-            [base.InlineKeyboardButton("4️⃣ Рост пары по Юпитеру", callback_data="p:jupiter")],
-            [
-                base.InlineKeyboardButton(
-                    f"✍️ 3 сообщения для вашей ситуации{message_price}",
+                    f"✍️ 2 варианта сообщения{message_price}",
                     callback_data="message",
                 )
             ],
-            [base.InlineKeyboardButton("👤 Сильные места и уязвимости пары", callback_data="p:portrait")],
+            [
+                base.InlineKeyboardButton(
+                    f"📖 Полная карта отношений{details_price}",
+                    callback_data="p:full",
+                )
+            ],
+            [base.InlineKeyboardButton("🪐 Выбрать отдельную тему — 50 ₽", callback_data="premium:planets")],
             [base.InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
         ]
     )
@@ -100,8 +96,13 @@ async def _relationship_menu_text(update, context) -> str:
         except Exception:
             base.logger.exception("RELATIONSHIP_MENU_SELF_REPORT_FAILED")
     if man_report is None or woman_report is None:
-        return "📖 Меню разбора"
-    return bridge.format_relationship_menu_summary(man_report, woman_report)
+        return "🧭 Что сейчас будет полезнее?"
+    return (
+        f"{bridge.format_relationship_menu_summary(man_report, woman_report)}\n\n"
+        "🧭 Что сейчас будет полезнее?\n\n"
+        "Мост покажет ваш базовый ритм. Дальше можно выбрать прикладной шаг, "
+        "связную карту пяти уровней или одну отдельную тему."
+    )
 
 
 async def _send_bridge_teaser_with_menu(update, context, text: str) -> None:

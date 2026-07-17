@@ -8,6 +8,7 @@ from telegram.constants import ChatAction
 from telegram.ext import ConversationHandler, ContextTypes
 
 import app.woman_flow as base
+from app.astro.sign_bridge import SIGN_PREPOSITIONAL
 
 
 WELCOME_TEXT = """
@@ -87,25 +88,23 @@ def menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("🔑 Получить первый ключ бесплатно", callback_data="start_man")],
-            [InlineKeyboardButton("🧭 Практика для отношений на сегодня", callback_data="daily_key")],
-            [InlineKeyboardButton("⭐️ Фокус пары на сегодня", callback_data="star_goal")],
-            [base.profile_button()],
             [InlineKeyboardButton("🗂 Мои разборы", callback_data="history")],
+            [base.profile_button()],
         ]
     )
 
 
 def after_free_deep_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🌙 Почему он так реагирует", web_app=base.detail_webapp_info("moon_deep"))]]
+        [[InlineKeyboardButton("🌙 Подробнее о его Луне", web_app=base.detail_webapp_info("moon_deep"))]]
     )
 
 
 def after_free_followup_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("💞 Сравнить нас и найти мост", callback_data="add_me")],
-            [InlineKeyboardButton("🔄 Разобрать другого человека", callback_data="start_man")],
+            [InlineKeyboardButton("💞 Сравнить наши ритмы", callback_data="add_me")],
+            [InlineKeyboardButton("🔄 Другой разбор", callback_data="start_man")],
         ]
     )
 
@@ -113,16 +112,29 @@ def after_free_followup_keyboard() -> InlineKeyboardMarkup:
 def read_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("1️⃣ Что он воспринимает как любовь", callback_data="p:venus")],
-            [InlineKeyboardButton("2️⃣ Как говорить, чтобы услышал", callback_data="p:mercury")],
-            [InlineKeyboardButton("3️⃣ Как он действует в напряжении", callback_data="p:mars")],
-            [InlineKeyboardButton("4️⃣ Что помогает отношениям расти", callback_data="p:jupiter")],
+            [InlineKeyboardButton("1️⃣ Венера: его язык симпатии", callback_data="p:venus")],
+            [InlineKeyboardButton("2️⃣ Меркурий: как ему легче воспринимать разговор", callback_data="p:mercury")],
+            [InlineKeyboardButton("3️⃣ Марс: как он проявляет инициативу", callback_data="p:mars")],
+            [InlineKeyboardButton("4️⃣ Юпитер: смысл и направление роста", callback_data="p:jupiter")],
             [InlineKeyboardButton("🔓 Полная карта отношений", callback_data="p:full")],
             [InlineKeyboardButton("👤 Сильные места и уязвимости пары", callback_data="p:portrait")],
-            [InlineKeyboardButton("✍️ 3 сообщения для вашей ситуации", callback_data="message")],
+            [InlineKeyboardButton("✍️ 2 варианта сообщения — 149 ₽", callback_data="message")],
             [InlineKeyboardButton("🔄 Новый разбор", callback_data="start_man")],
         ]
     )
+
+
+def _moon_basis(variant: dict[str, object]) -> str:
+    sign = str(variant.get("sign_ru", "знак не определён"))
+    element = str(variant.get("element_ru", "стихия не определена"))
+    prepositional = SIGN_PREPOSITIONAL.get(sign, sign)
+    return f"Луна в {prepositional}, {element}"
+
+
+def _moon_variant_summary(variant: dict[str, object]) -> str:
+    element = str(variant.get("element", "earth"))
+    copy = FREE_PREVIEW_COPY.get(element, FREE_PREVIEW_COPY["earth"])
+    return f"{_moon_basis(variant)} — {copy['insight']}"
 
 
 def format_free_preview(report: base.PartnerReport) -> str:
@@ -130,10 +142,29 @@ def format_free_preview(report: base.PartnerReport) -> str:
     moon = report.placements.get("moon", {})
     element = str(moon.get("element_ru", copy["element"])) if isinstance(moon, dict) else copy["element"]
 
-    return f"""
-💞 Первый ключ к {report.partner_name}
+    if report.moon_status == "changed_during_day" and len(report.moon_variants) >= 2:
+        variants = "\n\n".join(f"• {_moon_variant_summary(item)}" for item in report.moon_variants[:2])
+        return f"""
+🔑 Первый ключ к {report.partner_name}
 
-🌙 Его эмоциональный ритм — {element}
+⚠️ В эту дату Луна меняла знак
+
+Без точного времени рождения возможны два эмоциональных сценария:
+
+{variants}
+
+Не выбирайте вариант только потому, что один текст звучит красивее. Вспомните, что чаще помогает {report.partner_name} после тяжёлого дня, как он принимает заботу и как возвращается в контакт.
+
+💞 Добавьте свою дату, чтобы сравнить оба варианта с вашим ритмом.
+""".strip()
+
+    basis = _moon_basis(moon) if isinstance(moon, dict) else f"Луна, {element}"
+
+    return f"""
+🔑 Первый ключ к {report.partner_name}
+
+🌙 Его вероятный эмоциональный ритм — {element}
+(Он: {basis})
 
 {copy["insight"]}
 
@@ -147,14 +178,12 @@ def format_free_preview(report: base.PartnerReport) -> str:
 «{copy["phrase"]}»
 
 🔎 Как проверить подсказку
-Посмотрите на реакцию: {copy["signal"]}
+Смотрите не на мгновенное согласие, а на повторяющуюся реакцию: {copy["signal"]}
 
-Это не инструкция, как стать удобной. Подсказка полезна только тогда, когда узнаётся в реальном человеке и делает контакт яснее.
+Это не описание всей его личности. Луна даёт только один ориентир — привычный эмоциональный ритм.
 
 💞 Следующий шаг
-Добавьте свою дату рождения. Я покажу {copy["bridge"]}
-
-Основа этого ключа — положение Луны. Полный разбор учитывает и другие планеты.
+Добавьте свою дату, чтобы сравнить два равноправных ритма и найти шаг, который учитывает обоих.
 """.strip()
 
 
@@ -241,7 +270,9 @@ async def _build_man_report_from_date(
         return base.ASK_MAN_DATE
 
     context.user_data["man_name"] = name[:60] or "мужчина"
-    wait = await base._tracked_reply_text(update, context, "Собираю первый ключ: что открывает контакт, а что включает защиту…")
+    wait = await base._tracked_reply_text(
+        update, context, "Собираю первый ключ: что открывает контакт, а что включает защиту…"
+    )
 
     if message:
         await context.bot.send_chat_action(chat_id=message.chat_id, action=ChatAction.TYPING)
@@ -283,9 +314,9 @@ async def _build_man_report_from_date(
             update,
             context,
             (
-                "Следующий уровень — не ещё больше текста о нём, а сравнение вас двоих.\n\n"
-                "Добавьте свою дату, чтобы увидеть, где ваши эмоциональные ожидания совпадают, "
-                "где вы можете случайно задевать друг друга и какой мост попробовать сейчас."
+                "Следующий шаг — не ещё больше текста о нём, а сравнение вас двоих.\n\n"
+                "Добавьте свою дату, чтобы увидеть, что помогает каждому оставаться в контакте, "
+                "где вы можете ждать друг от друга разного и какой небольшой шаг может учесть обоих."
             ),
             reply_markup=after_free_followup_keyboard(),
         )
@@ -331,9 +362,9 @@ async def start_self(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             update,
             context,
             (
-                "Теперь самое полезное: добавим вас.\n\n"
-                "Бот сравнит не «кто прав», а два способа чувствовать: что успокаивает его, "
-                "что необходимо вам и где вы можете ожидать друг от друга разного.\n\n"
+                "💞 Теперь добавим вас.\n\n"
+                "Бот сравнит два равноправных ритма: что помогает ему оставаться в контакте, "
+                "что помогает вам чувствовать тепло и ясность, и где вы можете ожидать друг от друга разного.\n\n"
                 "Как назвать вас в разборе? Например: я, Анна, любимая."
             ),
             reply_markup=base.cancel_keyboard(),

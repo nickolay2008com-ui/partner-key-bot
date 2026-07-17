@@ -135,12 +135,30 @@ SIGNALS = {
 
 
 PAIR_DYNAMICS = {
-    ("air", "earth"): "Один приносит варианты, другой спрашивает, где смета и кто отвечает за реализацию. Вместе это может стать умным планом, если идеи не высмеивают, а план не превращают в клетку.",
-    ("air", "fire"): "Искра получает кислород: разговор быстро становится идеей, идея приключением, а приключение иногда сообщением в три часа ночи. Нужен хотя бы один тормоз на двоих.",
-    ("air", "water"): "Один объясняет, другой чувствует между строк. Прекрасный союз переводчика и радара, пока слова не обесценивают чувства, а чувства не объявляют слова бессердечными.",
-    ("earth", "fire"): "Один нажимает на газ, другой проверяет колёса. Это не враги, а ускоритель и система устойчивости, если скорость не считают безответственностью, а осторожность равнодушием.",
-    ("earth", "water"): "Здесь легко построить тихую гавань: забота получает форму, а надёжность — душу. Риск один: слишком долго беречь покой и не говорить о том, что уже болит.",
-    ("fire", "water"): "Огонь хочет реакции, Вода хочет безопасности. Они могут согреть друг друга или устроить паровую тревогу. Секрет в мягком тоне и живом, но не резком шаге.",
+    (
+        "air",
+        "earth",
+    ): "Один приносит варианты, другой спрашивает, где смета и кто отвечает за реализацию. Вместе это может стать умным планом, если идеи не высмеивают, а план не превращают в клетку.",
+    (
+        "air",
+        "fire",
+    ): "Искра получает кислород: разговор быстро становится идеей, идея приключением, а приключение иногда сообщением в три часа ночи. Нужен хотя бы один тормоз на двоих.",
+    (
+        "air",
+        "water",
+    ): "Один объясняет, другой чувствует между строк. Прекрасный союз переводчика и радара, пока слова не обесценивают чувства, а чувства не объявляют слова бессердечными.",
+    (
+        "earth",
+        "fire",
+    ): "Один нажимает на газ, другой проверяет колёса. Это не враги, а ускоритель и система устойчивости, если скорость не считают безответственностью, а осторожность равнодушием.",
+    (
+        "earth",
+        "water",
+    ): "Здесь легко построить тихую гавань: забота получает форму, а надёжность — душу. Риск один: слишком долго беречь покой и не говорить о том, что уже болит.",
+    (
+        "fire",
+        "water",
+    ): "Огонь хочет реакции, Вода хочет безопасности. Они могут согреть друг друга или устроить паровую тревогу. Секрет в мягком тоне и живом, но не резком шаге.",
 }
 
 
@@ -167,7 +185,7 @@ def _action(report: PartnerReport, key: str) -> str:
 
 def _planet_line(report: PartnerReport, key: str) -> str:
     return (
-        f"{PLANET_META[key]['title']} в {legacy._sign_ru(report, key)}, "
+        f"{PLANET_META[key]['title']} в {legacy._sign_ru_prepositional(report, key)}, "
         f"стихия {legacy._element_ru(report, key)}, {legacy._retrograde_label(report, key)}"
     )
 
@@ -195,15 +213,15 @@ def _planet_detail(report: PartnerReport, key: str, *, deep: bool = False) -> st
             "когда чувствует давление. Повторяющаяся реакция важнее самой красивой трактовки."
         )
     return f"""
-{meta['emoji']} {meta['title']}: {meta['role']}
+{meta["emoji"]} {meta["title"]}: {meta["role"]}
 
 Главный герой этого блока — {report.partner_name}.
-{meta['hook']}
+{meta["hook"]}
 
 🎬 Его версия сюжета
 {_planet_line(report, key)}.
 
-{_story(report, key)}{_precision_block(report) if key == 'moon' else ''}{moon_extra}
+{_story(report, key)}{_precision_block(report) if key == "moon" else ""}{moon_extra}
 
 🔍 Точный характер знака
 {exact_detail}{retrograde}
@@ -212,7 +230,7 @@ def _planet_detail(report: PartnerReport, key: str, *, deep: bool = False) -> st
 {legacy._element_text(report, key)}
 
 🚨 Когда сценарий ломается
-{meta['danger']}
+{meta["danger"]}
 
 🧪 Эксперимент на 24 часа
 {_action(report, key)}
@@ -251,7 +269,7 @@ def format_jupiter_detail(report: PartnerReport) -> str:
 def format_planet_short_card(report: PartnerReport, key: str) -> str:
     meta = PLANET_META.get(key, PLANET_META["moon"])
     return f"""
-{meta['emoji']} Новая серия: {meta['title']}
+{meta["emoji"]} Новая серия: {meta["title"]}
 
 Сегодня в главной роли — {report.partner_name}.
 {_story(report, key)}
@@ -274,7 +292,10 @@ def _pair_dynamic(man_element: str, woman_element: str) -> str:
             "water": "Вы тонко чувствуете друг друга, иногда даже то, чего другой ещё не чувствовал. Нужны ясные слова, чтобы глубина не превратилась в океан догадок.",
         }
         return same.get(man_element, same["earth"])
-    return PAIR_DYNAMICS.get(tuple(sorted((man_element, woman_element))), "Вы приносите в отношения разные способы чувствовать и действовать. Разница становится силой, когда её переводят, а не объявляют неправильной.")
+    return PAIR_DYNAMICS.get(
+        tuple(sorted((man_element, woman_element))),
+        "Вы приносите в отношения разные способы чувствовать и действовать. Разница становится силой, когда её переводят, а не объявляют неправильной.",
+    )
 
 
 def _pair_cast(man_report: PartnerReport, woman_report: PartnerReport, key: str) -> str:
@@ -297,7 +318,7 @@ def _pair_planet_section(man_report: PartnerReport, woman_report: PartnerReport,
     man_element = _element(man_report, key)
     woman_element = _element(woman_report, key)
     return f"""
-{meta['emoji']} Эпизод {number}. {meta['title']}: {meta['role']}
+{meta["emoji"]} Эпизод {number}. {meta["title"]}: {meta["role"]}
 
 {PAIR_PLANET_PLOTS[key]}
 
@@ -327,19 +348,18 @@ def format_couple_moon_bridge_short_card(man_report: PartnerReport, woman_report
     return f"""
 💞 Трейлер вашего эмоционального моста
 
-Он: Луна в {legacy._sign_ru(man_report, 'moon')}.
-Вы: Луна в {legacy._sign_ru(woman_report, 'moon')}.
+(Он: Луна в {legacy._sign_ru_prepositional(man_report, "moon")}, {legacy._element_ru(man_report, "moon")} · Вы: Луна в {legacy._sign_ru_prepositional(woman_report, "moon")}, {legacy._element_ru(woman_report, "moon")})
 
 🎞 Завязка
 {dynamic}
 
 🧪 Сцена на сегодня
-Сначала создайте его формат спокойствия, затем одной ясной фразой назовите, что нужно вам. Не пытайтесь за один вечер выпустить финал всех сезонов отношений.
+Выберите одну небольшую ситуацию. Каждый называет, что помогает ему оставаться в контакте. Затем договоритесь об одном действии, которое учитывает оба ритма.
 
 ✅ Хороший знак
-После разговора стало больше ясности, тепла или хотя бы меньше желания читать мысли по времени последнего посещения.
+Обоим стало немного яснее, спокойнее или теплее — и никому не пришлось отказываться от важной потребности.
 
-👇 Полная версия покажет механику пары, возможные точки столкновения и готовый мост на ближайшие 24 часа.
+👇 Полная версия покажет ритм каждого, возможные недопонимания, подходящую фразу и один совместный ритуал.
 """.strip()
 
 
@@ -360,8 +380,7 @@ def format_couple_moon_bridge(
     return f"""
 💞 Когда две внутренние погоды встретились в одной паре
 
-Он: Луна в {legacy._sign_ru(man_report, 'moon')}, {legacy._element_ru(man_report, 'moon')}.
-Вы: Луна в {legacy._sign_ru(woman_report, 'moon')}, {legacy._element_ru(woman_report, 'moon')}.{precision_text}
+(Он: Луна в {legacy._sign_ru_prepositional(man_report, "moon")}, {legacy._element_ru(man_report, "moon")} · Вы: Луна в {legacy._sign_ru_prepositional(woman_report, "moon")}, {legacy._element_ru(woman_report, "moon")}){precision_text}
 
 🎬 Главная интрига
 {_pair_dynamic(man_report.emotional_language, woman_report.emotional_language)}
@@ -370,22 +389,22 @@ def format_couple_moon_bridge(
 {mechanic}
 
 🌦 Его климат
-{_story(man_report, 'moon')}
+{_story(man_report, "moon")}
 
 🌦 Ваш климат
-{_story(woman_report, 'moon')}
+{_story(woman_report, "moon")}
 
 🚨 Типичная комедия ошибок
 Каждый предлагает другому тот способ успокоиться, который помог бы ему самому. Намерение доброе, доставка неверная. Так человечество и изобрело фразу «я же старалась».{alternate_text}
 
 🧪 Мост на ближайшие 24 часа
 1. Выберите одну небольшую ситуацию, а не весь архив отношений.
-2. Дайте ему безопасный вход: {_action(man_report, 'moon')}
-3. Назовите свою потребность коротко и без проверки любви.
-4. Завершите конкретикой: встреча, пауза, звонок, объятие или договорённость.
+2. Назовите два условия контакта: что может помочь ему и что необходимо вам.
+3. Сверьте, может ли каждый сделать один небольшой шаг навстречу, не отказываясь от своих границ.
+4. Завершите конкретикой: встреча, пауза, звонок, объятие или время следующего контакта.
 
 ✅ Мост работает, если
-стало немного спокойнее, яснее или теплее. Не требуется хор ангелов и немедленное обновление семейного статуса.
+обоим стало немного спокойнее, яснее или теплее и никому не пришлось отказываться от важной потребности.
 """.strip()
 
 
@@ -394,19 +413,19 @@ def _person_story(report: PartnerReport, title: str) -> str:
 {title}
 
 🌙 Внутренняя погода
-{_story(report, 'moon')}
+{_story(report, "moon")}
 
 💗 Что для него выглядит как любовь
-{_story(report, 'venus')}
+{_story(report, "venus")}
 
 🗣 Как устроен его переводчик
-{_story(report, 'mercury')}
+{_story(report, "mercury")}
 
 🔥 Что происходит, когда нужно действовать
-{_story(report, 'mars')}
+{_story(report, "mars")}
 
 🪐 Ради какого будущего он оживает
-{_story(report, 'jupiter')}
+{_story(report, "jupiter")}
 
 🎬 В одной фразе
 {legacy._profile_integral(report)}
@@ -417,7 +436,7 @@ def format_person_full_story(report: PartnerReport) -> str:
     return f"""
 ✨ {report.partner_name}: инструкция без ощущения, что вы читаете руководство к холодильнику
 
-{_person_story(report, 'Главный герой')}
+{_person_story(report, "Главный герой")}
 
 🧪 Как пользоваться портретом
 Выберите один блок, проверьте его в реальной сцене и смотрите на повторяющуюся реакцию. Не пытайтесь за один вечер применить все планеты: даже у космоса есть чувство меры.
@@ -428,9 +447,9 @@ def format_couple_portraits_short_card(man_report: PartnerReport, woman_report: 
     return f"""
 🎭 Два героя одной истории
 
-Он приносит в отношения: {_story(man_report, 'moon')}
+Он приносит в отношения: {_story(man_report, "moon")}
 
-Вы приносите: {_story(woman_report, 'moon')}
+Вы приносите: {_story(woman_report, "moon")}
 
 Главный сюжет не в том, кто сложнее. Сложные здесь оба, поздравляем. Важно, какие условия помогают каждому становиться теплее и яснее.
 
@@ -442,9 +461,9 @@ def format_couple_portraits(man_report: PartnerReport, woman_report: PartnerRepo
     return f"""
 🎭 Два героя, один сериал
 
-{_person_story(man_report, f'👤 {man_report.partner_name}: его роль в отношениях')}
+{_person_story(man_report, f"👤 {man_report.partner_name}: его роль в отношениях")}
 
-{_person_story(woman_report, f'👤 {woman_report.partner_name}: ваша роль в отношениях')}
+{_person_story(woman_report, f"👤 {woman_report.partner_name}: ваша роль в отношениях")}
 
 🎞 Почему эта пара вообще интересна
 {_pair_dynamic(man_report.emotional_language, woman_report.emotional_language)}
@@ -462,15 +481,15 @@ def format_couple_full_report(man_report: PartnerReport, woman_report: PartnerRe
 
 Главная идея сезона: различие не обязано быть конфликтом. Оно становится конфликтом, когда каждый принимает свой способ любить, говорить и действовать за единственно нормальный.
 
-{_pair_planet_section(man_report, woman_report, 'moon', 1)}
+{_pair_planet_section(man_report, woman_report, "moon", 1)}
 
-{_pair_planet_section(man_report, woman_report, 'venus', 2)}
+{_pair_planet_section(man_report, woman_report, "venus", 2)}
 
-{_pair_planet_section(man_report, woman_report, 'mercury', 3)}
+{_pair_planet_section(man_report, woman_report, "mercury", 3)}
 
-{_pair_planet_section(man_report, woman_report, 'mars', 4)}
+{_pair_planet_section(man_report, woman_report, "mars", 4)}
 
-{_pair_planet_section(man_report, woman_report, 'jupiter', 5)}
+{_pair_planet_section(man_report, woman_report, "jupiter", 5)}
 
 🏁 Финал сезона без фальшивой мудрости
 Вам не нужно становиться одинаковыми. Нужен один рабочий перевод между вашими ритмами: что даёт ему спокойствие, что даёт вам тепло, какими словами это назвать и какое действие подтвердит намерение.
