@@ -95,6 +95,16 @@ def menu() -> InlineKeyboardMarkup:
     )
 
 
+def welcome_menu(has_saved_reports: bool) -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton("🔑 Получить первый ключ бесплатно", callback_data="start_man")]]
+    if has_saved_reports:
+        rows = [
+            [InlineKeyboardButton("🔑 Начать новый разбор", callback_data="start_man")],
+            [InlineKeyboardButton("🗂 Мои разборы", callback_data="history")],
+        ]
+    return InlineKeyboardMarkup(rows)
+
+
 def after_free_deep_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [[InlineKeyboardButton("🌙 Подробнее о его Луне", web_app=base.detail_webapp_info("moon_deep", report_id))]]
@@ -427,6 +437,7 @@ async def ask_woman_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # инфраструктура остаются в проверенном основном модуле.
 base.WELCOME_TEXT = WELCOME_TEXT
 base.menu = menu
+base.welcome_menu = welcome_menu
 base.after_free_deep_keyboard = after_free_deep_keyboard
 base.after_free_followup_keyboard = after_free_followup_keyboard
 base.read_menu_keyboard = read_menu_keyboard

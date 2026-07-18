@@ -278,6 +278,15 @@ def menu() -> InlineKeyboardMarkup:
     )
 
 
+def welcome_menu(has_saved_reports: bool) -> InlineKeyboardMarkup:
+    """Return the entry menu shown under the welcome message.
+
+    Product-specific flows can replace this function while the regular ``menu``
+    remains available to recovery, profile and purchase routes.
+    """
+    return menu()
+
+
 def cancel_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("Отмена", callback_data="cancel")]])
 
@@ -1120,7 +1129,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await _set_chat_menu_button(update, context)
     _clear_flow_state(context)
     await _track_event(update, "menu_opened", source="start")
-    await update.effective_message.reply_text(WELCOME_TEXT, reply_markup=menu())
+    user_id = _user_id(update)
+    has_saved_reports = (
+        await asyncio.to_thread(get_store().has_saved_reports, user_id) if user_id is not None else False
+    )
+    await update.effective_message.reply_text(
+        WELCOME_TEXT,
+        reply_markup=welcome_menu(has_saved_reports=has_saved_reports),
+    )
     return ConversationHandler.END
 
 

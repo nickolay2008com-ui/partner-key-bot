@@ -363,6 +363,32 @@ class ReportsStore:
                 ).fetchone()
         return row is not None
 
+    def has_saved_reports(self, user_id: int) -> bool:
+        """Return whether the user has at least one completed stored report."""
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                row = conn.execute(
+                    """
+                    SELECT 1
+                    FROM partner_reports
+                    WHERE user_id = %s
+                    LIMIT 1
+                    """,
+                    (user_id,),
+                ).fetchone()
+        else:
+            with self._connect_sqlite() as conn:
+                row = conn.execute(
+                    """
+                    SELECT 1
+                    FROM partner_reports
+                    WHERE user_id = ?
+                    LIMIT 1
+                    """,
+                    (user_id,),
+                ).fetchone()
+        return row is not None
+
     def recent(self, user_id: int, limit: int = 10) -> list[SavedReport]:
         if self.database_url:
             with self._connect_postgres() as conn:
