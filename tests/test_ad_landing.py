@@ -16,7 +16,7 @@ def test_ad_landing_has_manual_telegram_transition() -> None:
     assert "нужны имя и дата рождения" in html
     assert "demo_transformed" in html
     assert "Как сохранить смысл и снизить напряжение" in html
-    assert "Продолжение по желанию: 50–199 ₽" in html
+    assert "Дополнительные главы" in html
 
 
 def test_unattributed_landing_keeps_direct_telegram_link() -> None:
@@ -58,7 +58,7 @@ def test_five_trigger_landings_have_distinct_promises_and_tracking() -> None:
         html = build_landing_html("https://t.me/example_bot", False, variant=variant)
         assert promise in html
         assert f'data-landing-variant="{variant}"' in html
-        assert "Первый вариант бесплатно" in html
+        assert "Первая персональная подсказка бесплатно" in html
         assert "version: 'mini_v1'" in html
 
 
@@ -83,9 +83,9 @@ def test_instruction_landing_has_four_interactive_chapters() -> None:
 
 def test_instruction_focus_variants_have_distinct_offers() -> None:
     expected = {
-        "instruction_care": "Как любить его так, чтобы он это чувствовал",
-        "instruction_growth": "Как поддержать его успех без давления",
-        "instruction_today": "Что написать или сказать ему прямо сейчас",
+        "instruction_care": "Какая забота действительно доходит до вашего мужчины",
+        "instruction_growth": "Как стать командой в целях и деньгах",
+        "instruction_today": "Что написать ему сейчас, не усиливая дистанцию",
     }
 
     for variant, headline in expected.items():
@@ -97,7 +97,15 @@ def test_instruction_focus_variants_have_distinct_offers() -> None:
 def test_success_landing_promises_support_not_control() -> None:
     html = build_landing_html("https://t.me/example_bot", False, variant="make_successful")
 
-    assert "Как помочь любимому мужчине стать успешнее" in html
-    assert "добиваться целей" in html
-    assert "Вы не можете создать успех за другого" in html
+    assert "Какая поддержка помогает ему действовать самостоятельно" in html
+    assert "реакцию на советы" in html
+    assert "Вы не отвечаете за его успех" in html
     assert 'data-landing-variant="make_successful"' in html
+
+
+def test_intent_landings_leave_a_personal_question_for_telegram() -> None:
+    for variant in ("instruction_care", "instruction_growth", "instruction_today", "make_successful"):
+        html = build_landing_html("https://t.me/example_bot", True, "token123", variant=variant)
+        assert "landing_choice_selected" in html
+        assert "setLandingChoice" in html
+        assert "важно уточнить именно про него" in html

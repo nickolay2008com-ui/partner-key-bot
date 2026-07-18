@@ -46,6 +46,21 @@ LANDING_PATH_VARIANTS = {
     "/go/make-successful": "make_successful",
 }
 LANDING_VARIANTS = {"relationship", *LANDING_PATH_VARIANTS.values()}
+LANDING_VARIANT_CODES = {
+    "instruction": "i",
+    "instruction_care": "c",
+    "instruction_growth": "g",
+    "instruction_today": "t",
+    "make_successful": "s",
+}
+LANDING_CODE_VARIANTS = {code: variant for variant, code in LANDING_VARIANT_CODES.items()}
+LANDING_START_COPY = {
+    "instruction": "💞 Откроем первую главу инструкции к вашему мужчине. Сначала нужны его имя и дата рождения — затем вы получите бесплатную персональную подсказку для выбранной темы.",
+    "instruction_care": "🤍 Продолжим с темы заботы. Узнаем, какие слова и действия он легче замечает как поддержку, а затем дадим фразу для проверки в жизни.",
+    "instruction_growth": "📈 Продолжим с вашей цели. Подберём начало разговора о развитии и деньгах без сравнения и давления.",
+    "instruction_today": "💬 Соберём персональную фразу для вашей ситуации. Общую основу вы уже увидели — теперь учтём его эмоциональный ритм.",
+    "make_successful": "↗️ Найдём поддержку, которая сохраняет его самостоятельность и помогает перейти к собственному следующему шагу.",
+}
 UPLOAD_URL = "https://api-metrika.yandex.net/management/v1/counter/{counter_id}/offline_conversions/upload"
 
 EVENT_TARGETS = {
@@ -60,6 +75,7 @@ EVENT_TARGETS = {
 
 _TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{6,48}$")
 _YCLID_RE = re.compile(r"^[A-Za-z0-9._~-]{1,512}$")
+_LANDING_CHOICE_RE = re.compile(r"^[a-z0-9_-]{1,24}$")
 _SEND_LOCK = threading.Lock()
 _STORE: AttributionStore | None = None
 _INSTALLED = False
@@ -515,11 +531,19 @@ def _render_landing_out(handler: webapp.WebAppHandler) -> None:
     token = _query_value(query, "token")
     variant = _query_value(query, "variant")
     variant = variant if variant in LANDING_VARIANTS else "relationship"
+    choice = _query_value(query, "choice").lower()
+    choice = choice if _LANDING_CHOICE_RE.fullmatch(choice) else ""
     if _TOKEN_RE.fullmatch(token):
         _record_landing_click(token, variant)
     bot_link = f"https://t.me/{quote(username, safe='')}"
     if _TOKEN_RE.fullmatch(token):
-        bot_link += "?" + urlencode({"start": f"{ATTRIBUTION_PREFIX}{token}"})
+        payload = f"{ATTRIBUTION_PREFIX}{token}"
+        variant_code = LANDING_VARIANT_CODES.get(variant)
+        if variant_code:
+            payload += f".{variant_code}"
+            if choice:
+                payload += f".{choice}"
+        bot_link += "?" + urlencode({"start": payload})
     handler.send_response(302)
     handler.send_header("Location", bot_link)
     handler.send_header("Cache-Control", "no-store")
@@ -697,11 +721,20 @@ def install(base: Any) -> None:
         args = list(getattr(context, "args", None) or [])
         payload = str(args[0]) if args else ""
         user_id = base._user_id(update)
+        landing_variant = ""
+        landing_choice = ""
         if user_id is not None and payload.startswith(ATTRIBUTION_PREFIX):
-            token = payload[len(ATTRIBUTION_PREFIX) :]
+            payload_parts = payload[len(ATTRIBUTION_PREFIX) :].split(".", 2)
+            token = payload_parts[0]
+            if len(payload_parts) > 1:
+                landing_variant = LANDING_CODE_VARIANTS.get(payload_parts[1], "")
+            if len(payload_parts) > 2 and _LANDING_CHOICE_RE.fullmatch(payload_parts[2]):
+                landing_choice = payload_parts[2]
             if _TOKEN_RE.fullmatch(token):
                 attribution = await asyncio.to_thread(get_store().bind, token, user_id)
                 if attribution:
+                    context.user_data["ad_landing_variant"] = landing_variant
+                    context.user_data["ad_landing_choice"] = landing_choice
                     await asyncio.to_thread(
                         enqueue_conversion,
                         base,
@@ -715,7 +748,12 @@ def install(base: Any) -> None:
                         source="yandex_direct",
                         utm_campaign=str(attribution.get("utm_campaign") or ""),
                         utm_content=str(attribution.get("utm_content") or ""),
+                        landing_variant=landing_variant,
+                        landing_choice=landing_choice,
                     )
+                    if landing_variant in LANDING_START_COPY and hasattr(base, "start_man"):
+                        await update.effective_message.reply_text(LANDING_START_COPY[landing_variant])
+                        return await base.start_man(update, context)
         return await original_start(update, context)
 
     async def post_init_with_retry(application: Any) -> None:

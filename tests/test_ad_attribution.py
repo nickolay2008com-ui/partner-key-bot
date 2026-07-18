@@ -113,3 +113,16 @@ def test_landing_click_is_recorded_once_on_server(tmp_path: Path, monkeypatch) -
     assert rows[0]["yclid"] == "test-yclid-cta"
     assert rows[0]["target"] == "landing_to_bot"
     assert rows[0]["user_id"] == 0
+
+
+def test_landing_variant_codes_fit_telegram_start_payload() -> None:
+    for variant, code in ad_attribution.LANDING_VARIANT_CODES.items():
+        assert ad_attribution.LANDING_CODE_VARIANTS[code] == variant
+        payload = f"ad_token123.{code}.important_choice"
+        assert len(payload) <= 64
+
+
+def test_ad_landing_variants_have_matching_telegram_start_copy() -> None:
+    assert set(ad_attribution.LANDING_VARIANT_CODES) == set(ad_attribution.LANDING_START_COPY)
+    assert "первую главу" in ad_attribution.LANDING_START_COPY["instruction"]
+    assert "персональную фразу" in ad_attribution.LANDING_START_COPY["instruction_today"]
