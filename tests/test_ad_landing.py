@@ -43,3 +43,26 @@ def test_message_landing_promises_concrete_free_result() -> None:
     assert "Получить бесплатную подсказку и фразу" in html
     assert "Фраза не управляет человеком" in html
     assert 'data-landing-variant="message"' in html
+
+
+def test_five_trigger_landings_have_distinct_promises_and_tracking() -> None:
+    expected = {
+        "after_conflict": "Что написать мужчине после ссоры",
+        "care": "А он точно считывает это как заботу?",
+        "mistake": "Одна привычная фраза может закрыть разговор",
+        "contribution": "каждому кажется, что он отдаёт больше",
+        "growth": "не задеть достоинство",
+    }
+
+    for variant, promise in expected.items():
+        html = build_landing_html("https://t.me/example_bot", False, variant=variant)
+        assert promise in html
+        assert f'data-landing-variant="{variant}"' in html
+        assert "Первый результат действительно бесплатный" in html
+
+
+def test_growth_landing_does_not_promise_income() -> None:
+    html = build_landing_html("https://t.me/example_bot", False, variant="growth")
+
+    assert "не обещание увеличить доход" in html
+    assert "финансовые решения требуют реальных цифр и действий" in html
