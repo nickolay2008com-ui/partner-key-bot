@@ -67,3 +67,37 @@ def test_growth_landing_does_not_promise_income() -> None:
 
     assert "Подсказка не увеличивает доход сама" in html
     assert "нужны решения и реальные действия" in html
+
+
+def test_instruction_landing_has_four_interactive_chapters() -> None:
+    html = build_landing_html("https://t.me/example_bot", False, variant="instruction")
+
+    assert "Инструкция к любимому мужчине" in html
+    assert "Спокойствие" in html
+    assert "Любовь" in html
+    assert "Цели" in html
+    assert "Рост" in html
+    assert "instruction_chapter_opened" in html
+    assert 'data-landing-variant="instruction"' in html
+
+
+def test_instruction_focus_variants_have_distinct_offers() -> None:
+    expected = {
+        "instruction_care": "Как любить его так, чтобы он это чувствовал",
+        "instruction_growth": "Как поддержать его успех без давления",
+        "instruction_today": "Что написать или сказать ему прямо сейчас",
+    }
+
+    for variant, headline in expected.items():
+        html = build_landing_html("https://t.me/example_bot", False, variant=variant)
+        assert headline in html
+        assert f'data-landing-variant="{variant}"' in html
+
+
+def test_success_landing_promises_support_not_control() -> None:
+    html = build_landing_html("https://t.me/example_bot", False, variant="make_successful")
+
+    assert "Как помочь любимому мужчине стать успешнее" in html
+    assert "добиваться целей" in html
+    assert "Вы не можете создать успех за другого" in html
+    assert 'data-landing-variant="make_successful"' in html

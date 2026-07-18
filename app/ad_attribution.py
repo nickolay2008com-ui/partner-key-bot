@@ -39,6 +39,11 @@ LANDING_PATH_VARIANTS = {
     "/go/mistake": "mistake",
     "/go/contribution": "contribution",
     "/go/growth": "growth",
+    "/go/instruction": "instruction",
+    "/go/instruction-care": "instruction_care",
+    "/go/instruction-growth": "instruction_growth",
+    "/go/instruction-today": "instruction_today",
+    "/go/make-successful": "make_successful",
 }
 LANDING_VARIANTS = {"relationship", *LANDING_PATH_VARIANTS.values()}
 UPLOAD_URL = "https://api-metrika.yandex.net/management/v1/counter/{counter_id}/offline_conversions/upload"
