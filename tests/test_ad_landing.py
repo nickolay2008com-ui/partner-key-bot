@@ -92,3 +92,12 @@ def test_instruction_focus_variants_have_distinct_offers() -> None:
         html = build_landing_html("https://t.me/example_bot", False, variant=variant)
         assert headline in html
         assert f'data-landing-variant="{variant}"' in html
+
+
+def test_success_landing_promises_support_not_control() -> None:
+    html = build_landing_html("https://t.me/example_bot", False, variant="make_successful")
+
+    assert "Как помочь любимому мужчине стать успешнее" in html
+    assert "добиваться целей" in html
+    assert "Вы не можете создать успех за другого" in html
+    assert 'data-landing-variant="make_successful"' in html
