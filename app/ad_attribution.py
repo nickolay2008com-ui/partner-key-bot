@@ -55,7 +55,7 @@ LANDING_VARIANT_CODES = {
 }
 LANDING_CODE_VARIANTS = {code: variant for variant, code in LANDING_VARIANT_CODES.items()}
 LANDING_START_COPY = {
-    "instruction": "💞 Откроем первую главу инструкции к вашему мужчине. Сначала нужны его имя и дата рождения — затем вы получите бесплатную персональную подсказку для выбранной темы.",
+    "instruction": "💞 Откроем первую главу инструкции к вашему мужчине. Нужна только дата рождения — затем вы получите бесплатную персональную подсказку для выбранной темы.",
     "instruction_care": "🤍 Продолжим с темы заботы. Узнаем, какие слова и действия он легче замечает как поддержку, а затем дадим фразу для проверки в жизни.",
     "instruction_growth": "📈 Продолжим с вашей цели. Подберём начало разговора о развитии и деньгах без сравнения и давления.",
     "instruction_today": "💬 Соберём персональную фразу для вашей ситуации. Общую основу вы уже увидели — теперь учтём его эмоциональный ритм.",
@@ -64,7 +64,7 @@ LANDING_START_COPY = {
 UPLOAD_URL = "https://api-metrika.yandex.net/management/v1/counter/{counter_id}/offline_conversions/upload"
 
 EVENT_TARGETS = {
-    "man_free_report_generated": "free_key_received",
+    "free_report_sent": "free_key_received",
     "couple_bridge_generated": "bridge_received",
     "premium_gate_hit": "paywall_viewed",
     "premium_paywall_viewed": "paywall_viewed",
