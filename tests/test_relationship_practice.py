@@ -205,7 +205,7 @@ def test_after_free_actions_can_be_sent_as_separate_button_blocks() -> None:
     followup_buttons = [button.text for row in after_free_followup_keyboard().inline_keyboard for button in row]
 
     assert deep_buttons == ["🌙 Подробнее о его Луне"]
-    assert followup_buttons == ["💞 Сравнить наши ритмы", "🔄 Другой разбор"]
+    assert followup_buttons == ["💞 Сравнить наши ритмы", "🔄 Другой разбор", "🗂 Мои разборы"]
     assert "💞 Сравнить наши ритмы" not in deep_buttons
     assert "🔄 Другой разбор" not in deep_buttons
 

@@ -158,6 +158,7 @@ WEBAPP_HTML = r"""<!doctype html>
     }
     .title { font-weight: 700; margin-bottom: 12px; }
     label { display: block; font-size: 14px; color: var(--hint); margin: 12px 0 6px; }
+    .optional { opacity: .72; font-weight: 500; }
     input {
       width: 100%;
       border: 1px solid var(--border);
@@ -222,7 +223,7 @@ WEBAPP_HTML = r"""<!doctype html>
     </ul>
   </section>
 
-  <div class="hint-box">Заполните минимум имя и дату партнёра. Добавьте свою дату, если хотите сразу видеть общий эмоциональный мост, а не только его портрет.</div>
+  <div class="hint-box">Для разбора мужчины достаточно даты рождения. Имя можно добавить по желанию. Добавьте свою дату, если хотите сразу видеть общий эмоциональный мост, а не только его портрет.</div>
 
   <div class="card">
     <div class="title">Ваши данные</div>
@@ -234,8 +235,8 @@ WEBAPP_HTML = r"""<!doctype html>
 
   <div class="card">
     <div class="title">Партнёр</div>
-    <label for="partner_name">Имя партнёра</label>
-    <input id="partner_name" placeholder="Например: Андрей" />
+    <label for="partner_name">Имя партнёра <span class="optional">(необязательно)</span></label>
+    <input id="partner_name" placeholder="Например: Андрей — можно оставить пустым" />
     <label for="partner_birth_date">Дата рождения партнёра</label>
     <input id="partner_birth_date" inputmode="numeric" maxlength="10" placeholder="06.11.1995" />
   </div>

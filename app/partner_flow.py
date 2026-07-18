@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import asyncio
 import platform
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.constants import ChatAction
 from telegram.ext import ConversationHandler, ContextTypes
 
 import app.woman_flow as base
@@ -105,10 +103,15 @@ def welcome_menu(has_saved_reports: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def after_free_deep_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🌙 Подробнее о его Луне", web_app=base.detail_webapp_info("moon_deep", report_id))]]
-    )
+def after_free_deep_keyboard(report_id: int = 0, offer_name: bool = False) -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton("🌙 Подробнее о его Луне", web_app=base.detail_webapp_info("moon_deep", report_id))]]
+    if offer_name and report_id > 0:
+        rows.append(
+            [InlineKeyboardButton("✍️ Добавить имя к этому разбору", callback_data=f"report:name:{report_id}")]
+        )
+    if report_id > 0:
+        rows.append([InlineKeyboardButton("🗂 Мои разборы", callback_data="history")])
+    return InlineKeyboardMarkup(rows)
 
 
 def after_free_followup_keyboard() -> InlineKeyboardMarkup:
@@ -116,6 +119,7 @@ def after_free_followup_keyboard() -> InlineKeyboardMarkup:
         [
             [InlineKeyboardButton("💞 Сравнить наши ритмы", callback_data="add_me")],
             [InlineKeyboardButton("🔄 Другой разбор", callback_data="start_man")],
+            [InlineKeyboardButton("🗂 Мои разборы", callback_data="history")],
         ]
     )
 
@@ -179,11 +183,14 @@ def format_free_preview(report: base.PartnerReport) -> str:
     copy = FREE_PREVIEW_COPY.get(report.emotional_language, FREE_PREVIEW_COPY["earth"])
     moon = report.placements.get("moon", {})
     element = str(moon.get("element_ru", copy["element"])) if isinstance(moon, dict) else copy["element"]
+    unnamed = report.partner_name == base.DEFAULT_MAN_NAME
+    title_target = "вашему мужчине" if unnamed else report.partner_name
 
     if report.moon_status == "changed_during_day" and len(report.moon_variants) >= 2:
         variants = "\n\n".join(f"• {_moon_variant_summary(item)}" for item in report.moon_variants[:2])
+        behavior_subject = "ему" if unnamed else report.partner_name
         return f"""
-🔑 Первый ключ к {report.partner_name}
+🔑 Первый ключ к {title_target}
 
 ⚠️ В эту дату Луна меняла знак
 
@@ -191,7 +198,7 @@ def format_free_preview(report: base.PartnerReport) -> str:
 
 {variants}
 
-Не выбирайте вариант только потому, что один текст звучит красивее. Вспомните, что чаще помогает {report.partner_name} после тяжёлого дня, как он принимает заботу и как возвращается в контакт.
+Не выбирайте вариант только потому, что один текст звучит красивее. Вспомните, что чаще помогает {behavior_subject} после тяжёлого дня, как он принимает заботу и как возвращается в контакт.
 
 💞 Добавьте свою дату, чтобы сравнить оба варианта с вашим ритмом.
 """.strip()
@@ -199,7 +206,7 @@ def format_free_preview(report: base.PartnerReport) -> str:
     basis = _moon_basis(moon) if isinstance(moon, dict) else f"Луна, {element}"
 
     return f"""
-🔑 Первый ключ к {report.partner_name}
+🔑 Первый ключ к {title_target}
 
 🌙 Его вероятный эмоциональный ритм — {element}
 (Он: {basis})
@@ -223,151 +230,6 @@ def format_free_preview(report: base.PartnerReport) -> str:
 💞 Следующий шаг
 Добавьте свою дату, чтобы сравнить два равноправных ритма и найти шаг, который учитывает обоих.
 """.strip()
-
-
-async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.callback_query:
-        await update.callback_query.answer()
-    if not base._is_authorized(update):
-        await base._deny(update)
-        return ConversationHandler.END
-
-    await base._remember_user(update)
-    await base._track_event(update, "partner_flow_started")
-    await base._set_chat_menu_button(update, context)
-    await base._clear_active_bot_messages(update, context)
-
-    if update.callback_query:
-        try:
-            await update.callback_query.edit_message_reply_markup(reply_markup=None)
-        except Exception:
-            pass
-
-    base._clear_flow_state(context)
-    profile_data = await base._get_profile(update)
-    partner_name = profile_data.get("partner_name", "").strip()
-    partner_birth_date = profile_data.get("partner_birth_date", "").strip()
-
-    if partner_name and partner_birth_date:
-        await base._tracked_reply_text(
-            update,
-            context,
-            (
-                f"У вас уже сохранён {partner_name}, дата рождения {partner_birth_date}.\n\n"
-                "Можно сразу получить новый ключ по этим данным или написать имя другого мужчины."
-            ),
-            reply_markup=base.profile_partner_keyboard(),
-        )
-    else:
-        await base._tracked_reply_text(
-            update,
-            context,
-            (
-                "Кого вы хотите понять лучше?\n\n"
-                "Напишите имя или понятное обозначение: Андрей, муж, парень, партнёр.\n\n"
-                "Имя нужно только для того, чтобы разбор звучал живо и лично."
-            ),
-            reply_markup=base.cancel_keyboard(),
-        )
-
-    return base.ASK_MAN_NAME
-
-
-async def ask_man_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await base._remember_user(update)
-    name = (update.effective_message.text or "").strip()
-    if not name:
-        await base._tracked_reply_text(update, context, "Напишите имя текстом. Например: Андрей")
-        return base.ASK_MAN_NAME
-
-    context.user_data["man_name"] = name[:60]
-    await base._tracked_reply_text(
-        update,
-        context,
-        (
-            f"Теперь дата рождения {name}. Формат: 12.04.1993\n\n"
-            "Точное время не обязательно. Сначала я покажу главный эмоциональный ключ: "
-            "в какой атмосфере он легче идёт на контакт, что может его закрывать и какую фразу стоит попробовать."
-        ),
-        reply_markup=base.cancel_keyboard(),
-    )
-    return base.ASK_MAN_DATE
-
-
-async def _build_man_report_from_date(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    name: str,
-    birth_date_text: str,
-) -> int:
-    message = update.effective_message
-    try:
-        birth_date = base.parse_birth_date(birth_date_text)
-    except ValueError as exc:
-        await base._tracked_reply_text(update, context, str(exc))
-        return base.ASK_MAN_DATE
-
-    context.user_data["man_name"] = name[:60] or "мужчина"
-    wait = await base._tracked_reply_text(
-        update, context, "Собираю первый ключ: что открывает контакт, а что включает защиту…"
-    )
-
-    if message:
-        await context.bot.send_chat_action(chat_id=message.chat_id, action=ChatAction.TYPING)
-
-    try:
-        chart = await asyncio.to_thread(base.calculate_partner_chart, birth_date)
-        report = await asyncio.to_thread(
-            base.build_partner_report,
-            chart,
-            context.user_data.get("man_name", "мужчина"),
-        )
-        base._save_report(context, base.LAST_MAN_REPORT, report)
-        context.user_data["last_partner_report"] = report.to_dict()
-
-        user_id = base._user_id(update)
-        report_id = 0
-        if user_id is not None:
-            report_id = await asyncio.to_thread(base.get_store().add, user_id, report)
-            context.user_data[base.LAST_MAN_REPORT_ID] = report_id
-            await base._save_profile_fields(
-                update,
-                partner_name=context.user_data.get("man_name", ""),
-                partner_birth_date=birth_date_text,
-            )
-
-        try:
-            await wait.delete()
-            base._forget_bot_message(context, wait)
-        except Exception:
-            pass
-
-        await base._track_event(update, "man_free_report_generated")
-        await base._send_long(
-            update,
-            context,
-            format_free_preview(report),
-            reply_markup=after_free_deep_keyboard(report_id),
-        )
-        await base._tracked_reply_text(
-            update,
-            context,
-            (
-                "Следующий шаг — не ещё больше текста о нём, а сравнение вас двоих.\n\n"
-                "Добавьте свою дату, чтобы увидеть, что помогает каждому оставаться в контакте, "
-                "где вы можете ждать друг от друга разного и какой небольшой шаг может учесть обоих."
-            ),
-            reply_markup=after_free_followup_keyboard(),
-        )
-    except Exception:
-        base.logger.exception("Failed to build man report")
-        error_text = "Не получилось собрать разбор. Проверьте дату в формате 12.04.1993 и попробуйте ещё раз."
-        try:
-            await wait.edit_text(error_text)
-        except Exception:
-            await base._tracked_reply_text(update, context, error_text)
-
-    return ConversationHandler.END
 
 
 async def start_self(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -442,9 +304,6 @@ base.after_free_deep_keyboard = after_free_deep_keyboard
 base.after_free_followup_keyboard = after_free_followup_keyboard
 base.read_menu_keyboard = read_menu_keyboard
 base.format_free_preview = format_free_preview
-base.start_man = start_man
-base.ask_man_date = ask_man_date
-base._build_man_report_from_date = _build_man_report_from_date
 base.start_self = start_self
 base.ask_woman_date = ask_woman_date
 
