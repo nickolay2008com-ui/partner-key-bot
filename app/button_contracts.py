@@ -14,6 +14,7 @@ from app.astro import entertaining_blocks as fun
 _INSTALLED = False
 
 _ORIGINAL_STORE_ADD = storage.ReportsStore.add
+_ORIGINAL_STORE_ADD_IDEMPOTENT = storage.ReportsStore.add_idempotent
 _ORIGINAL_STORE_LATEST = storage.ReportsStore.latest_report_payload
 _ORIGINAL_OPEN_HISTORY_REPORT = base.open_history_report
 _ORIGINAL_PRODUCT_DETAIL = base.product_detail
@@ -153,6 +154,18 @@ def store_add_with_active(store: storage.ReportsStore, user_id: int, report: obj
     if report_id > 0:
         _write_active_report(store, user_id, report_id)
     return report_id
+
+
+def store_add_idempotent_with_active(
+    store: storage.ReportsStore,
+    user_id: int,
+    report: object,
+    launch_token: str,
+) -> tuple[int, bool]:
+    report_id, created = _ORIGINAL_STORE_ADD_IDEMPOTENT(store, user_id, report, launch_token)
+    if report_id > 0:
+        _write_active_report(store, user_id, report_id)
+    return report_id, created
 
 
 def latest_report_payload_with_active(
@@ -481,6 +494,7 @@ def install() -> None:
         return
 
     storage.ReportsStore.add = store_add_with_active
+    storage.ReportsStore.add_idempotent = store_add_idempotent_with_active
     storage.ReportsStore.latest_report_payload = latest_report_payload_with_active
 
     base.open_history_report = open_history_report_with_active
