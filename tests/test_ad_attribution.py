@@ -83,6 +83,10 @@ def test_root_and_go_paths_open_landing() -> None:
     assert _is_landing_path("/go/mistake") is True
     assert _is_landing_path("/go/contribution") is True
     assert _is_landing_path("/go/growth?utm_source=yandex") is True
+    assert _is_landing_path("/go/instruction") is True
+    assert _is_landing_path("/go/instruction-care") is True
+    assert _is_landing_path("/go/instruction-growth") is True
+    assert _is_landing_path("/go/instruction-today") is True
     assert _is_landing_path("/healthz") is False
     assert _is_landing_path("/webapp") is False
 
