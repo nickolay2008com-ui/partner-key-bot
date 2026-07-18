@@ -68,6 +68,17 @@ class ReportsStore:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_partner_reports_user_id ON partner_reports(user_id)")
             conn.execute(
                 """
+                CREATE TABLE IF NOT EXISTS report_generation_requests (
+                    user_id INTEGER NOT NULL,
+                    launch_token TEXT NOT NULL,
+                    report_id INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (user_id, launch_token)
+                )
+                """
+            )
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS bot_users (
                     user_id INTEGER PRIMARY KEY,
                     first_seen_at TEXT NOT NULL,
@@ -142,6 +153,17 @@ class ReportsStore:
                 """
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_partner_reports_user_id ON partner_reports(user_id)")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS report_generation_requests (
+                    user_id BIGINT NOT NULL,
+                    launch_token TEXT NOT NULL,
+                    report_id BIGINT NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (user_id, launch_token)
+                )
+                """
+            )
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS bot_users (
@@ -270,6 +292,171 @@ class ReportsStore:
             )
             return int(cursor.lastrowid)
 
+    def add_idempotent(self, user_id: int, report: object, launch_token: str) -> tuple[int, bool]:
+        """Store one report for a concrete launch token.
+
+        A repeated, intentional launch receives a new token and may create another
+        report for the same date. Retries and concurrent handlers for one launch
+        reuse the first stored report instead of duplicating it.
+        """
+        safe_token = str(launch_token or "").strip()[:80]
+        if not safe_token:
+            raise ValueError("launch_token is required")
+
+        self.register_user(user_id)
+        payload = report.to_dict()
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                reservation = conn.execute(
+                    """
+                    INSERT INTO report_generation_requests (user_id, launch_token, report_id, created_at)
+                    VALUES (%s, %s, 0, %s)
+                    ON CONFLICT(user_id, launch_token) DO NOTHING
+                    RETURNING launch_token
+                    """,
+                    (user_id, safe_token, now),
+                ).fetchone()
+                if reservation is None:
+                    existing = conn.execute(
+                        """
+                        SELECT report_id
+                        FROM report_generation_requests
+                        WHERE user_id = %s AND launch_token = %s
+                        """,
+                        (user_id, safe_token),
+                    ).fetchone()
+                    report_id = int(existing["report_id"] if existing else 0)
+                    if report_id <= 0:
+                        raise RuntimeError("report generation reservation is incomplete")
+                    return report_id, False
+
+                cursor = conn.execute(
+                    """
+                    INSERT INTO partner_reports (
+                        user_id, partner_name, birth_date, emotional_language,
+                        emotional_language_title, report_json, created_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)
+                    RETURNING id
+                    """,
+                    (
+                        user_id,
+                        payload["partner_name"],
+                        payload["birth_date"],
+                        payload["emotional_language"],
+                        payload["emotional_language_title"],
+                        json.dumps(payload, ensure_ascii=False),
+                        now,
+                    ),
+                )
+                row = cursor.fetchone()
+                report_id = int(row["id"] if row else 0)
+                if report_id <= 0:
+                    raise RuntimeError("stored report did not return an id")
+                conn.execute(
+                    """
+                    UPDATE report_generation_requests
+                    SET report_id = %s
+                    WHERE user_id = %s AND launch_token = %s
+                    """,
+                    (report_id, user_id, safe_token),
+                )
+                return report_id, True
+
+        with self._connect_sqlite() as conn:
+            reservation = conn.execute(
+                """
+                INSERT OR IGNORE INTO report_generation_requests (user_id, launch_token, report_id, created_at)
+                VALUES (?, ?, 0, ?)
+                """,
+                (user_id, safe_token, now),
+            )
+            if reservation.rowcount == 0:
+                existing = conn.execute(
+                    """
+                    SELECT report_id
+                    FROM report_generation_requests
+                    WHERE user_id = ? AND launch_token = ?
+                    """,
+                    (user_id, safe_token),
+                ).fetchone()
+                report_id = int(existing["report_id"] if existing else 0)
+                if report_id <= 0:
+                    raise RuntimeError("report generation reservation is incomplete")
+                return report_id, False
+
+            cursor = conn.execute(
+                """
+                INSERT INTO partner_reports (
+                    user_id, partner_name, birth_date, emotional_language,
+                    emotional_language_title, report_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    payload["partner_name"],
+                    payload["birth_date"],
+                    payload["emotional_language"],
+                    payload["emotional_language_title"],
+                    json.dumps(payload, ensure_ascii=False),
+                    now,
+                ),
+            )
+            report_id = int(cursor.lastrowid)
+            conn.execute(
+                """
+                UPDATE report_generation_requests
+                SET report_id = ?
+                WHERE user_id = ? AND launch_token = ?
+                """,
+                (report_id, user_id, safe_token),
+            )
+            return report_id, True
+
+    def replace_report(self, user_id: int, report_id: int, report: object) -> bool:
+        """Replace one stored report after verifying ownership."""
+        payload = report.to_dict()
+        serialized = json.dumps(payload, ensure_ascii=False)
+        values = (
+            payload["partner_name"],
+            payload["birth_date"],
+            payload["emotional_language"],
+            payload["emotional_language_title"],
+            serialized,
+            user_id,
+            report_id,
+        )
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                cursor = conn.execute(
+                    """
+                    UPDATE partner_reports
+                    SET partner_name = %s,
+                        birth_date = %s,
+                        emotional_language = %s,
+                        emotional_language_title = %s,
+                        report_json = %s::jsonb
+                    WHERE user_id = %s AND id = %s
+                    """,
+                    values,
+                )
+                return cursor.rowcount == 1
+        with self._connect_sqlite() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE partner_reports
+                SET partner_name = ?,
+                    birth_date = ?,
+                    emotional_language = ?,
+                    emotional_language_title = ?,
+                    report_json = ?
+                WHERE user_id = ? AND id = ?
+                """,
+                values,
+            )
+            return cursor.rowcount == 1
+
     def latest_report_payload(self, user_id: int) -> dict[str, Any] | None:
         self.register_user(user_id)
         if self.database_url:
@@ -388,6 +575,22 @@ class ReportsStore:
                     (user_id,),
                 ).fetchone()
         return row is not None
+
+    def is_latest_report(self, user_id: int, report_id: int) -> bool:
+        """Return whether report_id is the newest durable report for the user."""
+        if self.database_url:
+            with self._connect_postgres() as conn:
+                row = conn.execute(
+                    "SELECT id FROM partner_reports WHERE user_id = %s ORDER BY id DESC LIMIT 1",
+                    (user_id,),
+                ).fetchone()
+        else:
+            with self._connect_sqlite() as conn:
+                row = conn.execute(
+                    "SELECT id FROM partner_reports WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+                    (user_id,),
+                ).fetchone()
+        return bool(row and int(row["id"]) == report_id)
 
     def recent(self, user_id: int, limit: int = 10) -> list[SavedReport]:
         if self.database_url:
