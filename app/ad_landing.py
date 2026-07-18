@@ -184,6 +184,30 @@ _LANDINGS = {
 }
 
 
+@dataclass(frozen=True)
+class MiniCopy:
+    eyebrow: str
+    headline: str
+    outcome: str
+    before: str
+    after: str
+    transform: str
+    cta: str
+    trust: str
+
+
+_MINI_COPY = {
+    "relationship": MiniCopy("Он рядом, но будто не с вами", "Почему мужчина отдаляется в важные моменты", "По дате рождения бот подскажет, что может помочь ему снова идти на контакт.", "Почему ты опять от меня закрываешься?", "Я рядом. Когда будешь готов, скажи, как мне сейчас лучше тебя поддержать.", "Смягчить мою фразу", "Получить первый вариант бесплатно", "Не чтение мыслей, а гипотеза и спокойный следующий шаг."),
+    "money": MiniCopy("Деньги без взаимных упрёков", "Как говорить о деньгах, не задевая мужчину", "Начните финансовый разговор с решения, а не с взаимной вины.", "Тебе вообще не важно, на что мы будем жить?", "Давай вместе выберем один финансовый вопрос, который решим в этом месяце.", "Перевести упрёк в договорённость", "Подобрать начало разговора", "Бот не обещает доход — он помогает договориться о действиях."),
+    "message": MiniCopy("Когда трудно подобрать слова", "Сообщение, которое можно отправить ему сегодня", "Бот предложит более бережную фразу с учётом его эмоционального ритма.", "Раз ты молчишь, значит, тебе всё равно.", "Мне важен наш контакт. Напиши, когда сможешь спокойно поговорить.", "Переделать это сообщение", "Получить мой вариант сообщения", "Первый вариант бесплатный. Отправлять его или нет — решаете вы."),
+    "after_conflict": MiniCopy("Первые слова после конфликта", "Что написать мужчине после ссоры", "Получите начало разговора без унижения, давления и нового витка конфликта.", "Ну что, будешь дальше делать вид, что ничего не случилось?", "Я не хочу продолжать ссору. Давай вернёмся к разговору, когда оба немного успокоимся.", "Убрать давление из фразы", "Получить фразу после ссоры", "При угрозах и насилии важнее безопасность и профессиональная помощь."),
+    "care": MiniCopy("Вы стараетесь, но он этого не чувствует", "Какую заботу мужчина действительно замечает", "Проверьте, что для него может звучать как поддержка, а что — как контроль.", "Я же всё делаю ради тебя, почему ты не ценишь?", "Что сейчас будет для тебя поддержкой: помощь, разговор или немного пространства?", "Превратить контроль в заботу", "Узнать его язык заботы", "Это ориентир для разговора, а не диагноз отношений."),
+    "mistake": MiniCopy("Одна фраза может закрыть разговор", "Проверьте слова до сложного разговора", "Сохраните свой смысл, убрав обвинение, давление или неясность.", "С тобой невозможно нормально разговаривать.", "Мне важно решить это вместе. Когда обсудим один конкретный вопрос спокойно?", "Проверить и переписать фразу", "Проверить мою первую фразу", "Бот не гарантирует реакцию — он помогает яснее выразить вашу позицию."),
+    "contribution": MiniCopy("Когда каждому кажется, что он делает больше", "Почему ваш вклад в семью остаётся незамеченным", "Переведите спор о деньгах и обязанностях в разговор о вкладе каждого.", "Я всё тяну одна, а ты ничего не замечаешь.", "Давай назовём, что каждый сейчас берёт на себя и что нам нужно изменить.", "Перевести спор в честный разговор", "Разобрать наш вклад", "Различия характеров не оправдывают неравенство."),
+    "growth": MiniCopy("Поддержка без критики", "Как говорить о росте дохода без давления", "Обсудите развитие и общую цель, не обесценивая партнёра.", "Когда ты уже начнёшь нормально зарабатывать?", "Я верю в твои силы. Какой следующий шаг к росту мы можем поддержать вместе?", "Заменить давление поддержкой", "Найти слова для разговора", "Подсказка не увеличивает доход сама — нужны решения и реальные действия."),
+}
+
+
 def build_landing_html(
     bot_link: str,
     attributed: bool,
@@ -192,6 +216,7 @@ def build_landing_html(
 ) -> str:
     variant = variant if variant in _LANDINGS else "relationship"
     copy = _LANDINGS[variant]
+    mini = _MINI_COPY[variant]
     out_query = urlencode({"token": token, "variant": variant})
     click_link = f"/go/out?{out_query}" if attributed and token else bot_link
     safe_link = html.escape(click_link, quote=True)
@@ -205,107 +230,75 @@ def build_landing_html(
   <title>{copy.title}</title>
   {_client_script(counter_id)}
   <style>
-    :root {{ --ink:#241b2b; --muted:#6f6375; --plum:#6936a8; --plum-dark:#522582; --lilac:#f2eafa; --card:#fffdfd; --line:#e9dfe9; }}
+    :root {{ --bg:#100d18; --card:#1d1728; --card2:#272033; --text:#fffafd; --muted:#bdb3c7; --accent:#a768ff; --accent2:#7a4cff; --line:rgba(255,255,255,.12); }}
     * {{ box-sizing:border-box; }}
-    html {{ scroll-behavior:smooth; }}
-    body {{ margin:0; background:linear-gradient(180deg,#fff7f6 0,#fbf7ff 45%,#fff 100%); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }}
-    main {{ width:min(680px,100%); margin:0 auto; padding:18px 18px 42px; }}
-    .hero {{ position:relative; overflow:hidden; padding:clamp(25px,6vw,44px); border:1px solid var(--line); border-radius:30px; background:rgba(255,253,253,.96); box-shadow:0 22px 60px rgba(74,43,91,.11); }}
-    .hero::after {{ content:""; position:absolute; width:250px; height:250px; right:-130px; top:-120px; border-radius:50%; background:radial-gradient(circle,rgba(162,105,214,.21),transparent 70%); pointer-events:none; }}
-    .eyebrow {{ display:inline-flex; gap:7px; align-items:center; padding:7px 11px; border-radius:999px; background:var(--lilac); color:#623391; font-size:13px; font-weight:750; }}
-    h1 {{ position:relative; margin:17px 0 13px; max-width:590px; font-size:clamp(32px,7.5vw,50px); line-height:1.02; letter-spacing:-.035em; }}
-    .lead {{ margin:0 0 20px; color:var(--muted); font-size:clamp(17px,3.5vw,19px); line-height:1.5; }}
-    .promise {{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin:0 0 20px; }}
-    .promise div {{ padding:13px 12px; border-radius:15px; background:#faf6fc; color:#4d4052; font-size:13px; line-height:1.35; }}
-    .promise strong {{ display:block; margin-bottom:3px; color:var(--ink); font-size:14px; }}
-    a.cta {{ display:block; position:relative; z-index:1; padding:17px 20px; border-radius:17px; background:linear-gradient(135deg,#7842bc,var(--plum-dark)); color:white; font-size:17px; font-weight:850; line-height:1.25; text-align:center; text-decoration:none; box-shadow:0 12px 27px rgba(105,54,168,.24); transition:transform .15s ease,filter .15s ease; }}
-    a.cta:hover {{ filter:brightness(1.05); transform:translateY(-1px); }}
-    a.cta:focus-visible {{ outline:3px solid rgba(105,54,168,.3); outline-offset:3px; }}
-    .micro {{ margin:10px 0 0; color:var(--muted); font-size:12.5px; line-height:1.45; text-align:center; }}
-    section.content {{ margin:18px 0 0; padding:clamp(22px,5vw,32px); border:1px solid var(--line); border-radius:26px; background:var(--card); }}
-    h2 {{ margin:0 0 15px; font-size:clamp(24px,5vw,31px); line-height:1.13; letter-spacing:-.025em; }}
-    .sample {{ padding:19px; border:1px solid #e1d2ed; border-radius:20px; background:linear-gradient(145deg,#f8f1fc,#fffafa); }}
-    .sample-label {{ display:block; margin-bottom:10px; color:#75439b; font-size:12px; font-weight:850; letter-spacing:.055em; text-transform:uppercase; }}
-    .sample p {{ margin:0; color:#514455; line-height:1.53; }}
-    blockquote {{ margin:15px 0; padding:13px 14px; border-left:4px solid #8651bb; border-radius:0 13px 13px 0; background:white; color:var(--ink); font-weight:750; line-height:1.45; }}
-    .watch {{ padding-top:13px; border-top:1px solid #e8ddec; }}
-    .steps {{ display:grid; gap:11px; margin:0 0 20px; padding:0; list-style:none; counter-reset:step; }}
-    .steps li {{ display:grid; grid-template-columns:34px 1fr; gap:10px; align-items:center; color:#514655; line-height:1.42; counter-increment:step; }}
-    .steps li::before {{ content:counter(step); display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:var(--lilac); color:#643394; font-weight:850; }}
-    .free {{ margin:16px 0 0; padding:16px; border-radius:17px; background:#f4fbf7; color:#395d4d; font-size:14px; line-height:1.48; }}
-    .free strong {{ color:#1f6548; }}
-    .trust {{ margin:16px 2px 0; color:#827586; font-size:12px; line-height:1.5; text-align:center; }}
-    .sticky {{ display:none; }}
-    @media (max-width:560px) {{
-      main {{ padding:10px 10px 90px; }}
-      .hero {{ padding:24px 20px; border-radius:24px; }}
-      h1 {{ font-size:34px; }}
-      .lead {{ font-size:16px; line-height:1.44; }}
-      .promise {{ grid-template-columns:1fr; gap:7px; }}
-      .promise div {{ padding:10px 12px; }}
-      section.content {{ padding:21px 18px; border-radius:22px; }}
-      .sticky.visible {{ display:block; position:fixed; left:10px; right:10px; bottom:10px; z-index:10; padding:14px 16px; border-radius:15px; background:linear-gradient(135deg,#7842bc,var(--plum-dark)); color:white; font-weight:850; text-align:center; text-decoration:none; box-shadow:0 12px 35px rgba(51,24,68,.35); }}
-    }}
+    body {{ margin:0; background:radial-gradient(circle at 50% -10%,#39224e 0,var(--bg) 43%); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }}
+    main {{ width:min(480px,100%); min-height:100svh; margin:auto; padding:18px 16px 24px; display:flex; flex-direction:column; justify-content:center; }}
+    .brand {{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; color:#d8cce1; font-size:12px; font-weight:750; }}
+    .brand strong {{ color:white; font-size:14px; }}
+    .eyebrow {{ display:inline-flex; align-self:flex-start; padding:7px 10px; border:1px solid rgba(178,113,255,.32); border-radius:999px; background:rgba(167,104,255,.1); color:#dfc6ff; font-size:12px; font-weight:800; }}
+    h1 {{ margin:13px 0 8px; font-size:clamp(29px,8vw,40px); line-height:1.04; letter-spacing:-.035em; }}
+    .lead {{ margin:0 0 14px; color:var(--muted); font-size:15px; line-height:1.42; }}
+    .demo {{ padding:14px; border:1px solid var(--line); border-radius:19px; background:linear-gradient(145deg,var(--card2),var(--card)); box-shadow:0 17px 40px rgba(0,0,0,.24); }}
+    .label {{ display:block; margin-bottom:7px; color:#9e91a9; font-size:10px; font-weight:850; letter-spacing:.08em; text-transform:uppercase; }}
+    .phrase {{ margin:0; font-size:15px; line-height:1.4; transition:opacity .18s ease,transform .18s ease; }}
+    .demo.changing .phrase {{ opacity:0; transform:translateY(5px); }}
+    .demo.done {{ border-color:rgba(167,104,255,.55); background:linear-gradient(145deg,rgba(122,76,255,.22),var(--card)); }}
+    button {{ width:100%; min-height:48px; margin-top:10px; padding:10px 13px; border:1px solid rgba(255,255,255,.14); border-radius:14px; background:rgba(255,255,255,.075); color:white; font:inherit; font-size:14px; font-weight:800; cursor:pointer; }}
+    button:hover {{ background:rgba(255,255,255,.12); }}
+    a.cta {{ display:grid; min-height:56px; place-items:center; margin-top:12px; padding:12px 16px; border-radius:16px; background:linear-gradient(135deg,var(--accent2),var(--accent)); box-shadow:0 13px 32px rgba(122,76,255,.34); color:white; font-size:16px; font-weight:900; line-height:1.2; text-align:center; text-decoration:none; }}
+    .micro {{ margin:8px 0 0; color:#b7aebe; font-size:11.5px; line-height:1.35; text-align:center; }}
+    .price {{ margin:12px 0 0; padding-top:11px; border-top:1px solid var(--line); color:#a99fad; font-size:11px; line-height:1.4; text-align:center; }}
+    .price strong {{ color:#e9dff0; }}
+    .trust {{ margin:7px 5px 0; color:#887f90; font-size:10.5px; line-height:1.35; text-align:center; }}
+    @media (max-height:690px) {{ main {{ justify-content:flex-start; padding-top:10px; }} .brand {{ margin-bottom:9px; }} h1 {{ font-size:28px; }} }}
+    @media (prefers-reduced-motion:reduce) {{ * {{ scroll-behavior:auto!important; transition:none!important; }} }}
   </style>
 </head>
 <body data-landing-variant="{variant}">
   <main>
-    <section class="hero" aria-labelledby="page-title">
-      <div class="eyebrow">{copy.eyebrow}</div>
-      <h1 id="page-title">{copy.headline}</h1>
-      <p class="lead">{copy.lead}</p>
-      <div class="promise" aria-label="Что будет в результате">
-        <div><strong>{copy.benefits[0][0]}</strong>{copy.benefits[0][1]}</div>
-        <div><strong>{copy.benefits[1][0]}</strong>{copy.benefits[1][1]}</div>
-        <div><strong>{copy.benefits[2][0]}</strong>{copy.benefits[2][1]}</div>
-      </div>
-      <a class="cta" id="primary-cta" data-open-bot href="{safe_link}">{copy.primary_cta}</a>
-      <p class="micro">Откроется Telegram · около 2 минут · точное время рождения не нужно</p>
-    </section>
-
-    <section class="content" aria-labelledby="sample-title">
-      <h2 id="sample-title">Вот как выглядит подсказка</h2>
-      <div class="sample">
-        <span class="sample-label">{copy.sample_label}</span>
-        <p>{copy.sample_text}</p>
-        <blockquote>{copy.sample_quote}</blockquote>
-        <p class="watch"><strong>На что смотреть:</strong> {copy.sample_watch}</p>
-      </div>
-      <p class="micro">Это пример. Ваш результат будет рассчитан по его дате рождения.</p>
-    </section>
-
-    <section class="content" aria-labelledby="steps-title">
-      <h2 id="steps-title">Всего три шага</h2>
-      <ol class="steps">
-        <li>Откройте Telegram и нажмите «Запустить».</li>
-        <li>Напишите имя и дату рождения мужчины.</li>
-        <li>Получите первый эмоциональный ключ, фразу и способ проверить подсказку.</li>
-      </ol>
-      <a class="cta" data-open-bot href="{safe_link}">{copy.secondary_cta}</a>
-      <div class="free"><strong>Первый результат действительно бесплатный.</strong> Дополнительные тематические разделы — от 50 ₽, полная карта отношений — 199 ₽.</div>
-      <p class="trust">{copy.trust}</p>
-    </section>
+    <div class="brand"><strong>✦ Астро Партнёр</strong><span>Telegram-бот · 2 минуты</span></div>
+    <div class="eyebrow">{mini.eyebrow}</div>
+    <h1>{mini.headline}</h1>
+    <p class="lead">{mini.outcome}</p>
+    <div class="demo" id="phrase-demo" aria-live="polite">
+      <span class="label" id="phrase-label">Как хочется сказать</span>
+      <p class="phrase" id="phrase-text">«{mini.before}»</p>
+    </div>
+    <button id="transform-button" type="button">↗&nbsp; {mini.transform}</button>
+    <a class="cta" data-open-bot href="{safe_link}">{mini.cta} →</a>
+    <p class="micro">Бесплатно · нужны имя и дата рождения · откроется Telegram</p>
+    <p class="price"><strong>Первый вариант бесплатно.</strong> Продолжение по желанию: 50–199 ₽.</p>
+    <p class="trust">{mini.trust}</p>
   </main>
-  <a class="sticky" id="sticky-cta" data-open-bot href="{safe_link}">{copy.primary_cta}</a>
   <script>
     const metricaId = {json.dumps(counter_id)};
     const landingVariant = {json.dumps(variant)};
+    const transformedPhrase = {json.dumps(f"«{mini.after}»")};
     if (window.partnerMetricsTrack) window.partnerMetricsTrack('landing_viewed', {{ variant: landingVariant }});
+    document.getElementById('transform-button').addEventListener('click', (event) => {{
+      const demo = document.getElementById('phrase-demo');
+      const phrase = document.getElementById('phrase-text');
+      demo.classList.add('changing');
+      window.setTimeout(() => {{
+        phrase.textContent = transformedPhrase;
+        document.getElementById('phrase-label').textContent = 'Как сохранить смысл и снизить напряжение';
+        demo.classList.remove('changing');
+        demo.classList.add('done');
+        event.currentTarget.hidden = true;
+        if (window.partnerMetricsTrack) window.partnerMetricsTrack('demo_transformed', {{ variant: landingVariant, layout_version: 'mini_v1' }});
+      }}, 180);
+    }});
     document.querySelectorAll('[data-open-bot]').forEach((button) => {{
       button.addEventListener('click', () => {{
         button.textContent = 'Открываем Telegram…';
-        const payload = {{ attributed: {str(attributed).lower()}, variant: landingVariant, version: 'cro_v3' }};
+        const payload = {{ attributed: {str(attributed).lower()}, variant: landingVariant, version: 'mini_v1' }};
         if (window.partnerMetricsTrack) window.partnerMetricsTrack('landing_to_bot', payload);
         else if (metricaId && typeof window.ym === 'function') {{
           try {{ window.ym(metricaId, 'reachGoal', 'landing_to_bot', payload); }} catch (_error) {{}}
         }}
       }});
     }});
-    const primary = document.getElementById('primary-cta');
-    const sticky = document.getElementById('sticky-cta');
-    if ('IntersectionObserver' in window) {{
-      new IntersectionObserver(([entry]) => sticky.classList.toggle('visible', !entry.isIntersecting), {{ threshold: 0.1 }}).observe(primary);
-    }}
   </script>
 </body>
 </html>"""
