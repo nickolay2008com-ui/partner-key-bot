@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
+import secrets
 from datetime import datetime, time, timedelta
 from typing import Any
 from urllib.parse import quote
@@ -59,10 +60,16 @@ from app.webapp import start_webapp_server
 logging.basicConfig(format="%(asctime)s | %(levelname)s | %(name)s | %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-ASK_MAN_NAME, ASK_MAN_DATE, ASK_WOMAN_NAME, ASK_WOMAN_DATE = range(4)
+ASK_MAN_NAME, ASK_MAN_DATE, ASK_WOMAN_NAME, ASK_WOMAN_DATE, ASK_MAN_OPTIONAL_NAME = range(5)
 LAST_MAN_REPORT = "last_man_report"
 LAST_WOMAN_REPORT = "last_woman_report"
 LAST_MAN_REPORT_ID = "last_man_report_id"
+FREE_REPORT_LAUNCH_TOKEN = "free_report_launch_token"
+FREE_REPORT_BIRTH_DATE = "free_report_birth_date"
+FREE_REPORT_PROFILE_NAME = "free_report_profile_name"
+FREE_REPORT_INPUT_SOURCE = "free_report_input_source"
+PENDING_REPORT_NAME_ID = "pending_report_name_id"
+DEFAULT_MAN_NAME = "Партнёр"
 ACTIVE_BOT_MESSAGE_IDS = "active_bot_message_ids"
 PENDING_YOOKASSA_PAYMENT = "pending_yookassa_payment"
 DAILY_KEY_HOUR = 8
@@ -291,15 +298,18 @@ def cancel_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("Отмена", callback_data="cancel")]])
 
 
-def profile_partner_keyboard() -> InlineKeyboardMarkup:
+def profile_partner_keyboard(partner_name: str = "", birth_date: str = "") -> InlineKeyboardMarkup:
+    label = partner_name.strip() or "сохранённого мужчину"
+    suffix = f", {birth_date}" if birth_date else ""
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "✅ Использовать партнёра из профиля",
+                    f"✅ Использовать: {label}{suffix}"[:64],
                     callback_data="profile:use_partner",
                 )
             ],
+            [InlineKeyboardButton("Другой мужчина", callback_data="profile:new_partner")],
             [InlineKeyboardButton("Отмена", callback_data="cancel")],
         ]
     )
@@ -323,9 +333,20 @@ def profile_only_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="cancel")]])
 
 
-def after_free_deep_keyboard(report_id: int = 0) -> InlineKeyboardMarkup:
+def after_free_deep_keyboard(report_id: int = 0, offer_name: bool = False) -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton("🌙 Луна мужчины глубже", web_app=detail_webapp_info("moon_deep", report_id))]]
+    if offer_name and report_id > 0:
+        rows.append(
+            [InlineKeyboardButton("✍️ Добавить имя к этому разбору", callback_data=f"report:name:{report_id}")]
+        )
+    if report_id > 0:
+        rows.append([InlineKeyboardButton("🗂 Мои разборы", callback_data="history")])
+    return InlineKeyboardMarkup(rows)
+
+
+def retry_free_report_save_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🌙 Луна мужчины глубже", web_app=detail_webapp_info("moon_deep", report_id))]]
+        [[InlineKeyboardButton("🔄 Повторить сохранение", callback_data="report:retry_save")]]
     )
 
 
@@ -334,6 +355,7 @@ def after_free_followup_keyboard() -> InlineKeyboardMarkup:
         [
             [InlineKeyboardButton("💞 Добавить себя и увидеть мост", callback_data="add_me")],
             [InlineKeyboardButton("💞 Новый разбор", callback_data="start_man")],
+            [InlineKeyboardButton("🗂 Мои разборы", callback_data="history")],
         ]
     )
 
@@ -822,8 +844,55 @@ async def _save_profile_fields(update: Update, **fields: str) -> None:
     if user_id is None:
         return
     profile = await asyncio.to_thread(get_store().get_profile, user_id)
-    profile.update({key: value for key, value in fields.items() if value})
+    profile.update(fields)
     await asyncio.to_thread(get_store().save_profile, user_id, profile)
+
+
+def _new_free_report_launch(context: ContextTypes.DEFAULT_TYPE) -> str:
+    launch_token = secrets.token_urlsafe(18)
+    context.user_data[FREE_REPORT_LAUNCH_TOKEN] = launch_token
+    return launch_token
+
+
+async def _store_free_report_once(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    report: PartnerReport,
+) -> tuple[int, bool]:
+    user_id = _user_id(update)
+    if user_id is None:
+        return 0, False
+    launch_token = str(context.user_data.get(FREE_REPORT_LAUNCH_TOKEN) or "")
+    if not launch_token:
+        launch_token = _new_free_report_launch(context)
+    report_id, created = await asyncio.to_thread(
+        get_store().add_idempotent,
+        user_id,
+        report,
+        launch_token,
+    )
+    context.user_data[LAST_MAN_REPORT_ID] = report_id
+    return report_id, created
+
+
+async def _save_partner_profile_safely(
+    update: Update,
+    *,
+    partner_name: str,
+    partner_birth_date: str,
+) -> bool:
+    try:
+        await _save_profile_fields(
+            update,
+            partner_name=partner_name,
+            partner_birth_date=partner_birth_date,
+        )
+        await _track_event(update, "profile_updated")
+        return True
+    except Exception:
+        logger.exception("FREE_REPORT_PROFILE_SAVE_FAILED")
+        await _track_event(update, "profile_update_failed")
+        return False
 
 
 async def _deny(update: Update) -> None:
@@ -839,6 +908,11 @@ def _clear_flow_state(context: ContextTypes.DEFAULT_TYPE) -> None:
         LAST_WOMAN_REPORT,
         "last_partner_report",
         LAST_MAN_REPORT_ID,
+        FREE_REPORT_LAUNCH_TOKEN,
+        FREE_REPORT_BIRTH_DATE,
+        FREE_REPORT_PROFILE_NAME,
+        FREE_REPORT_INPUT_SOURCE,
+        PENDING_REPORT_NAME_ID,
     ):
         context.user_data.pop(key, None)
 
@@ -1017,45 +1091,29 @@ async def _build_man_report_from_date(
     update: Update, context: ContextTypes.DEFAULT_TYPE, name: str, birth_date_text: str
 ) -> int:
     message = update.effective_message
+    input_source = str(context.user_data.get(FREE_REPORT_INPUT_SOURCE) or "typed_birthdate")
+    await _track_event(update, "birthdate_submitted", input_source=input_source)
     try:
         birth_date = parse_birth_date(birth_date_text)
     except ValueError as exc:
+        await _track_event(update, "birthdate_invalid", input_source=input_source)
         await _tracked_reply_text(update, context, str(exc))
         return ASK_MAN_DATE
+    await _track_event(update, "birthdate_valid", input_source=input_source)
 
-    context.user_data["man_name"] = name[:60] or "мужчина"
+    profile_name = name.strip()[:60]
+    display_name = profile_name or DEFAULT_MAN_NAME
+    normalized_birth_date = birth_date.strftime("%d.%m.%Y")
+    context.user_data["man_name"] = display_name
+    context.user_data[FREE_REPORT_BIRTH_DATE] = normalized_birth_date
+    context.user_data[FREE_REPORT_PROFILE_NAME] = profile_name
     wait = await _tracked_reply_text(update, context, "Считаю его эмоциональный язык…")
     if message:
         await context.bot.send_chat_action(chat_id=message.chat_id, action=ChatAction.TYPING)
+
     try:
         chart = await asyncio.to_thread(calculate_partner_chart, birth_date)
-        report = await asyncio.to_thread(build_partner_report, chart, context.user_data.get("man_name", "мужчина"))
-        _save_report(context, LAST_MAN_REPORT, report)
-        context.user_data["last_partner_report"] = report.to_dict()
-        user_id = _user_id(update)
-        report_id = 0
-        if user_id is not None:
-            report_id = await asyncio.to_thread(get_store().add, user_id, report)
-            context.user_data[LAST_MAN_REPORT_ID] = report_id
-            await _save_profile_fields(
-                update,
-                partner_name=context.user_data.get("man_name", ""),
-                partner_birth_date=birth_date_text,
-            )
-        try:
-            await wait.delete()
-            _forget_bot_message(context, wait)
-        except Exception:
-            pass
-        text = format_free_preview(report)
-        await _track_event(update, "man_free_report_generated")
-        await _send_long(update, context, text, reply_markup=after_free_deep_keyboard(report_id))
-        await _tracked_reply_text(
-            update,
-            context,
-            "👇 Добавьте свою дату для моста пары или начните новый разбор.",
-            reply_markup=after_free_followup_keyboard(),
-        )
+        report = await asyncio.to_thread(build_partner_report, chart, display_name)
     except Exception:
         logger.exception("Failed to build man report")
         try:
@@ -1066,6 +1124,81 @@ async def _build_man_report_from_date(
                 context,
                 "Не получилось посчитать. Проверь дату в формате 12.04.1993 и попробуй ещё раз.",
             )
+        return ASK_MAN_DATE
+
+    _save_report(context, LAST_MAN_REPORT, report)
+    context.user_data["last_partner_report"] = report.to_dict()
+    await _track_event(update, "free_report_generated")
+
+    report_id = 0
+    report_saved = False
+    report_created = False
+    save_attempts = 0
+    for save_attempts in (1, 2):
+        try:
+            report_id, report_created = await _store_free_report_once(update, context, report)
+            report_saved = report_id > 0
+            break
+        except Exception:
+            logger.exception("FREE_REPORT_SAVE_ATTEMPT_FAILED: attempt=%s", save_attempts)
+    if report_saved:
+        await _track_event(
+            update,
+            "report_saved",
+            report_id=report_id,
+            report_created=report_created,
+            save_attempts=save_attempts,
+        )
+    else:
+        await _track_event(update, "report_save_failed", save_attempts=save_attempts)
+
+    profile_saved = await _save_partner_profile_safely(
+        update,
+        partner_name=profile_name,
+        partner_birth_date=normalized_birth_date,
+    )
+
+    try:
+        await wait.delete()
+        _forget_bot_message(context, wait)
+    except Exception:
+        pass
+
+    send_kwargs: dict[str, Any] = {}
+    if report_saved:
+        send_kwargs["reply_markup"] = after_free_deep_keyboard(report_id, offer_name=not bool(profile_name))
+    await _send_long(update, context, format_free_preview(report), **send_kwargs)
+    await _track_event(
+        update,
+        "free_report_sent",
+        report_id=report_id,
+        report_saved=report_saved,
+        report_created=report_created,
+        profile_saved=profile_saved,
+    )
+
+    if not report_saved:
+        profile_note = " Дата сохранена в «Мои данные»." if profile_saved else ""
+        await _tracked_reply_text(
+            update,
+            context,
+            "⚠️ Ключ готов и показан, но сохранить его в «Мои разборы» пока не удалось." + profile_note,
+            reply_markup=retry_free_report_save_keyboard(),
+        )
+        return ConversationHandler.END
+
+    save_lines = ["✅ Разбор сохранён в «Мои разборы»."]
+    if profile_saved:
+        save_lines.append("✅ Дата сохранена в «Мои данные».")
+    else:
+        save_lines.append("⚠️ Разбор сохранён, но «Мои данные» сейчас не обновились.")
+    save_lines.append("\n👇 Добавьте свою дату для моста пары или начните новый разбор.")
+    await _tracked_reply_text(
+        update,
+        context,
+        "\n".join(save_lines),
+        reply_markup=after_free_followup_keyboard(),
+    )
     return ConversationHandler.END
 
 
@@ -1237,6 +1370,7 @@ async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
     await _remember_user(update)
     await _track_event(update, "partner_flow_started")
+    await _track_event(update, "first_key_clicked")
     await _set_chat_menu_button(update, context)
     await _clear_active_bot_messages(update, context)
     if update.callback_query:
@@ -1245,24 +1379,32 @@ async def start_man(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         except Exception:
             pass
     _clear_flow_state(context)
+    _new_free_report_launch(context)
     profile_data = await _get_profile(update)
     partner_name = profile_data.get("partner_name", "").strip()
     partner_birth_date = profile_data.get("partner_birth_date", "").strip()
-    if partner_name and partner_birth_date:
+    if partner_birth_date:
+        context.user_data[FREE_REPORT_INPUT_SOURCE] = "saved_partner"
+        await _track_event(update, "saved_partner_choice_shown")
         await _tracked_reply_text(
             update,
             context,
-            f"В профиле сохранён партнёр: {partner_name}, {partner_birth_date}.\n\nМожно использовать эти данные или написать новое имя мужчины.",
-            reply_markup=profile_partner_keyboard(),
+            "В «Моих данных» уже есть дата мужчины. Выберите её или начните разбор другого человека.",
+            reply_markup=profile_partner_keyboard(partner_name, partner_birth_date),
         )
     else:
+        context.user_data[FREE_REPORT_INPUT_SOURCE] = "typed_birthdate"
+        await _track_event(update, "birthdate_prompt_shown")
         await _tracked_reply_text(
             update,
             context,
-            "С кого начнём инструкцию? Напишите имя или понятное обозначение: Андрей, муж, парень, партнёр.\n\nТак разбор будет звучать живее. Данные можно заранее сохранить через «Мои данные», чтобы потом не вводить заново.",
+            "Введите дату рождения мужчины. Формат: 12.04.1993\n\n"
+            "Этого достаточно для первого ключа. После результата можно будет добавить имя — по желанию.\n\n"
+            "Готовый ключ сохранится в «Мои разборы», а последняя дата — в «Мои данные». "
+            "Там её можно изменить перед следующим разбором.",
             reply_markup=cancel_keyboard(),
         )
-    return ASK_MAN_NAME
+    return ASK_MAN_DATE
 
 
 async def use_partner_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1271,30 +1413,35 @@ async def use_partner_profile(update: Update, context: ContextTypes.DEFAULT_TYPE
     profile_data = await _get_profile(update)
     name = profile_data.get("partner_name", "").strip()
     birth_date = profile_data.get("partner_birth_date", "").strip()
-    if not name or not birth_date:
+    if not birth_date:
         await _tracked_reply_text(
             update,
             context,
-            "В профиле пока нет полных данных партнёра. Откройте «Мои данные» и заполните имя и дату рождения.",
+            "В «Моих данных» пока нет даты мужчины. Введите её в формате 12.04.1993.",
             reply_markup=profile_only_keyboard(),
         )
-        return ConversationHandler.END
+        return ASK_MAN_DATE
+    context.user_data[FREE_REPORT_INPUT_SOURCE] = "saved_partner"
+    await _track_event(update, "saved_partner_selected")
     return await _build_man_report_from_date(update, context, name, birth_date)
 
 
 async def ask_man_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await _remember_user(update)
-    name = (update.effective_message.text or "").strip()
-    if not name:
-        await _tracked_reply_text(update, context, "Напиши имя текстом. Например: Андрей")
-        return ASK_MAN_NAME
-    context.user_data["man_name"] = name[:60]
+    if update.callback_query:
+        await update.callback_query.answer()
+        try:
+            await update.callback_query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+    context.user_data[FREE_REPORT_PROFILE_NAME] = ""
+    context.user_data[FREE_REPORT_INPUT_SOURCE] = "typed_birthdate"
+    await _track_event(update, "new_partner_selected")
+    await _track_event(update, "birthdate_prompt_shown")
     await _tracked_reply_text(
         update,
         context,
-        """Теперь дата рождения мужчины. Формат: 12.04.1993
-
-Если точного времени рождения нет — ничего страшного: первый ключ всё равно будет полезным, а спорные места я отмечу аккуратно.""",
+        "Введите дату рождения другого мужчины. Формат: 12.04.1993\n\n"
+        "Имя необязательно — его можно добавить после готового результата.",
         reply_markup=cancel_keyboard(),
     )
     return ASK_MAN_DATE
@@ -1305,9 +1452,159 @@ async def build_man_free(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return await _build_man_report_from_date(
         update,
         context,
-        context.user_data.get("man_name", "мужчина"),
+        str(context.user_data.get(FREE_REPORT_PROFILE_NAME) or ""),
         (update.effective_message.text or "").strip(),
     )
+
+
+async def retry_free_report_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.callback_query:
+        await update.callback_query.answer()
+    report = _load_report(context, LAST_MAN_REPORT)
+    if report is None:
+        await _tracked_reply_text(
+            update,
+            context,
+            "Готовый ключ уже не найден в текущем сеансе. Запустите новый разбор — сохранение снова будет доступно.",
+            reply_markup=menu(),
+        )
+        return
+
+    try:
+        report_id, created = await _store_free_report_once(update, context, report)
+    except Exception:
+        logger.exception("FREE_REPORT_SAVE_RETRY_FAILED")
+        await _track_event(update, "report_save_failed", source="manual_retry")
+        await _tracked_replace_callback_text(
+            update,
+            context,
+            "Сохранение пока недоступно. Сам ключ уже показан — можно повторить ещё раз позже.",
+            reply_markup=retry_free_report_save_keyboard(),
+        )
+        return
+
+    profile_name = str(context.user_data.get(FREE_REPORT_PROFILE_NAME) or "")
+    birth_date = str(context.user_data.get(FREE_REPORT_BIRTH_DATE) or "")
+    profile_saved = await _save_partner_profile_safely(
+        update,
+        partner_name=profile_name,
+        partner_birth_date=birth_date,
+    )
+    await _track_event(
+        update,
+        "report_saved",
+        report_id=report_id,
+        report_created=created,
+        profile_saved=profile_saved,
+        source="manual_retry",
+    )
+    profile_note = " Дата также сохранена в «Мои данные»." if profile_saved else ""
+    await _tracked_replace_callback_text(
+        update,
+        context,
+        "✅ Разбор сохранён в «Мои разборы»." + profile_note,
+        reply_markup=after_free_deep_keyboard(report_id, offer_name=not bool(profile_name)),
+    )
+    await _tracked_reply_text(
+        update,
+        context,
+        "👇 Теперь можно добавить свою дату для моста пары или начать новый разбор.",
+        reply_markup=after_free_followup_keyboard(),
+    )
+
+
+async def begin_optional_man_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if update.callback_query:
+        await update.callback_query.answer()
+    raw_data = update.callback_query.data if update.callback_query else ""
+    try:
+        report_id = int(raw_data.rsplit(":", 1)[-1])
+    except (TypeError, ValueError):
+        report_id = 0
+    user_id = _user_id(update)
+    payload = None
+    if user_id is not None and report_id > 0:
+        payload = await asyncio.to_thread(get_store().report_payload, user_id, report_id)
+    if _report_from_payload(payload) is None:
+        await _tracked_reply_text(update, context, "Этот разбор не найден. Откройте его снова через «Мои разборы».")
+        return ConversationHandler.END
+
+    context.user_data[PENDING_REPORT_NAME_ID] = report_id
+    if update.callback_query:
+        try:
+            await update.callback_query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+    await _tracked_reply_text(
+        update,
+        context,
+        "Как его зовут? Напишите только имя или понятное вам обозначение, например: Андрей или муж.",
+        reply_markup=cancel_keyboard(),
+    )
+    return ASK_MAN_OPTIONAL_NAME
+
+
+async def save_optional_man_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    name = (update.effective_message.text or "").strip()[:60]
+    if not name:
+        await _tracked_reply_text(update, context, "Напишите имя текстом. Например: Андрей")
+        return ASK_MAN_OPTIONAL_NAME
+    report_id = int(context.user_data.get(PENDING_REPORT_NAME_ID) or 0)
+    user_id = _user_id(update)
+    if user_id is None or report_id <= 0:
+        await _tracked_reply_text(update, context, "Не удалось определить разбор. Откройте его снова через «Мои разборы».")
+        return ConversationHandler.END
+
+    payload = await asyncio.to_thread(get_store().report_payload, user_id, report_id)
+    old_report = _report_from_payload(payload)
+    if old_report is None:
+        await _tracked_reply_text(update, context, "Этот разбор не найден или принадлежит другому пользователю.")
+        return ConversationHandler.END
+
+    try:
+        birth_date = parse_birth_date(old_report.birth_date)
+        chart = await asyncio.to_thread(calculate_partner_chart, birth_date)
+        renamed_report = await asyncio.to_thread(build_partner_report, chart, name)
+        replaced = await asyncio.to_thread(get_store().replace_report, user_id, report_id, renamed_report)
+    except Exception:
+        logger.exception("FREE_REPORT_NAME_SAVE_FAILED: report_id=%s", report_id)
+        await _tracked_reply_text(update, context, "Не удалось добавить имя к разбору. Попробуйте ещё раз.")
+        return ASK_MAN_OPTIONAL_NAME
+    if not replaced:
+        await _tracked_reply_text(update, context, "Этот разбор не найден или принадлежит другому пользователю.")
+        return ConversationHandler.END
+
+    _save_report(context, LAST_MAN_REPORT, renamed_report)
+    context.user_data["last_partner_report"] = renamed_report.to_dict()
+    context.user_data[FREE_REPORT_PROFILE_NAME] = name
+    context.user_data.pop(PENDING_REPORT_NAME_ID, None)
+    profile_saved = False
+    profile_data = await _get_profile(update)
+    try:
+        profile_birth_date = parse_birth_date(str(profile_data.get("partner_birth_date") or ""))
+    except ValueError:
+        profile_birth_date = None
+    is_latest = await asyncio.to_thread(get_store().is_latest_report, user_id, report_id)
+    if is_latest and profile_birth_date == birth_date:
+        profile_saved = await _save_partner_profile_safely(
+            update,
+            partner_name=name,
+            partner_birth_date=birth_date.strftime("%d.%m.%Y"),
+        )
+    await _track_event(
+        update,
+        "optional_name_added",
+        report_id=report_id,
+        profile_saved=profile_saved,
+    )
+    profile_note = " Имя также обновлено в «Моих данных»." if profile_saved else ""
+    await _tracked_reply_text(
+        update,
+        context,
+        f"✅ Теперь этот разбор сохранён с именем «{name}»." + profile_note,
+        reply_markup=after_free_followup_keyboard(),
+    )
+    return ConversationHandler.END
 
 
 async def start_self(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1949,13 +2246,15 @@ def build_application() -> Application:
             CommandHandler("man", start_man),
             CommandHandler("partner", start_man),
             CallbackQueryHandler(start_man, pattern=r"^(start_man|partner:start|v2:man:start)$"),
+            CallbackQueryHandler(begin_optional_man_name, pattern=r"^report:name:\d+$"),
         ],
         states={
-            ASK_MAN_NAME: [
+            ASK_MAN_DATE: [
                 CallbackQueryHandler(use_partner_profile, pattern=r"^profile:use_partner$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_man_date),
+                CallbackQueryHandler(ask_man_date, pattern=r"^profile:new_partner$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, build_man_free),
             ],
-            ASK_MAN_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, build_man_free)],
+            ASK_MAN_OPTIONAL_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_optional_man_name)],
         },
         fallbacks=[
             *reset_handlers,
@@ -1992,6 +2291,7 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("broadcast_mercury", broadcast_mercury))
     app.add_handler(CallbackQueryHandler(history, pattern=r"^(history|history:show)$"))
     app.add_handler(CallbackQueryHandler(open_history_report, pattern=r"^history:open:\d+$"))
+    app.add_handler(CallbackQueryHandler(retry_free_report_save, pattern=r"^report:retry_save$"))
     app.add_handler(CallbackQueryHandler(daily_key, pattern=r"^daily_key$"))
     app.add_handler(CallbackQueryHandler(about, pattern=r"^help:about$"))
     app.add_handler(CallbackQueryHandler(star_goal, pattern=r"^star_goal$"))
