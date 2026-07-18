@@ -205,6 +205,10 @@ _MINI_COPY = {
     "mistake": MiniCopy("Одна фраза может закрыть разговор", "Проверьте слова до сложного разговора", "Сохраните свой смысл, убрав обвинение, давление или неясность.", "С тобой невозможно нормально разговаривать.", "Мне важно решить это вместе. Когда обсудим один конкретный вопрос спокойно?", "Проверить и переписать фразу", "Проверить мою первую фразу", "Бот не гарантирует реакцию — он помогает яснее выразить вашу позицию."),
     "contribution": MiniCopy("Когда каждому кажется, что он делает больше", "Почему ваш вклад в семью остаётся незамеченным", "Переведите спор о деньгах и обязанностях в разговор о вкладе каждого.", "Я всё тяну одна, а ты ничего не замечаешь.", "Давай назовём, что каждый сейчас берёт на себя и что нам нужно изменить.", "Перевести спор в честный разговор", "Разобрать наш вклад", "Различия характеров не оправдывают неравенство."),
     "growth": MiniCopy("Поддержка без критики", "Как говорить о росте дохода без давления", "Обсудите развитие и общую цель, не обесценивая партнёра.", "Когда ты уже начнёшь нормально зарабатывать?", "Я верю в твои силы. Какой следующий шаг к росту мы можем поддержать вместе?", "Заменить давление поддержкой", "Найти слова для разговора", "Подсказка не увеличивает доход сама — нужны решения и реальные действия."),
+    "instruction": MiniCopy("Персональная инструкция по дате рождения", "Инструкция к любимому мужчине", "Четыре практические главы: что его успокаивает, как он чувствует любовь, действует и идёт к общему росту.", "Почему ты не можешь просто сказать, что чувствуешь?", "Мне важно понять тебя. Скажи, когда будешь готов говорить.", "Показать, как сказать иначе", "Открыть первую главу бесплатно", "Не способ управлять человеком — подсказка, которую проверяют по его реакции."),
+    "instruction_care": MiniCopy("Раздел инструкции: любовь и забота", "Как любить его так, чтобы он это чувствовал", "Посмотрите, какую поддержку он замечает, а что может принимать за контроль.", "Я же стараюсь ради тебя. Почему ты не ценишь?", "Что сейчас поможет тебе больше: разговор, помощь или немного пространства?", "Перевести контроль в заботу", "Узнать его язык заботы", "Инструкция не учит быть удобной. Важны взаимность и встречная забота."),
+    "instruction_growth": MiniCopy("Раздел инструкции: цели и общий рост", "Как поддержать его успех без давления", "Обсудите деньги, развитие и следующий шаг, не задевая достоинство.", "Когда ты уже начнёшь зарабатывать больше?", "Какую цель ты считаешь главной и чем я могу поддержать твой следующий шаг?", "Заменить давление поддержкой", "Открыть главу о целях", "Без денежных прогнозов: результат зависит от решений и реальных действий."),
+    "instruction_today": MiniCopy("Одна страница инструкции на сегодня", "Что написать или сказать ему прямо сейчас", "Получите короткий первый шаг без давления, манипуляций и длинного выяснения отношений.", "Раз ты молчишь, значит, тебе всё равно.", "Мне важен наш контакт. Напиши, когда сможешь спокойно поговорить.", "Преобразить мою фразу", "Получить практический ключ", "Фраза не гарантирует ответ и не заменяет личные границы."),
 }
 
 
@@ -214,20 +218,69 @@ def build_landing_html(
     token: str = "",
     variant: str = "relationship",
 ) -> str:
-    variant = variant if variant in _LANDINGS else "relationship"
-    copy = _LANDINGS[variant]
+    variant = variant if variant in _MINI_COPY else "relationship"
     mini = _MINI_COPY[variant]
     out_query = urlencode({"token": token, "variant": variant})
     click_link = f"/go/out?{out_query}" if attributed and token else bot_link
     safe_link = html.escape(click_link, quote=True)
     counter_id = _counter_id()
+    if variant == "instruction":
+        demo_markup = """
+    <nav class="compass" aria-label="Главы персональной инструкции">
+      <button type="button" class="chapter active" data-chapter="calm">◡<span>Спокойствие</span></button>
+      <button type="button" class="chapter" data-chapter="love">♡<span>Любовь</span></button>
+      <button type="button" class="chapter" data-chapter="action">↗<span>Цели</span></button>
+      <button type="button" class="chapter" data-chapter="growth">◎<span>Рост</span></button>
+      <div class="compass-center"><strong>4</strong><small>главы</small></div>
+    </nav>
+    <div class="chapter-preview" aria-live="polite"><b id="chapter-title">Что помогает ему успокоиться</b><span id="chapter-text">Как говорить в напряжённый момент, чтобы забота не звучала как давление.</span></div>
+    """
+        interaction_script = """
+    const chapters = {
+      calm: ['Что помогает ему успокоиться', 'Как говорить в напряжённый момент, чтобы забота не звучала как давление.'],
+      love: ['Как он распознаёт любовь', 'Какие слова и поступки он воспринимает как близость и внимание.'],
+      action: ['Как он действует и достигает целей', 'Когда поддержать, а когда оставить пространство для собственного решения.'],
+      growth: ['Как обсуждать рост и деньги', 'Как соединить планы, ответственность и общий финансовый горизонт.']
+    };
+    document.querySelectorAll('.chapter').forEach((button) => button.addEventListener('click', () => {
+      document.querySelectorAll('.chapter').forEach((item) => item.classList.toggle('active', item === button));
+      const chapter = chapters[button.dataset.chapter];
+      document.getElementById('chapter-title').textContent = chapter[0];
+      document.getElementById('chapter-text').textContent = chapter[1];
+      if (window.partnerMetricsTrack) window.partnerMetricsTrack('instruction_chapter_opened', { variant: landingVariant, chapter: button.dataset.chapter, layout_version: 'instruction_v1' });
+    }));
+    """
+    else:
+        demo_markup = f"""
+    <div class="demo" id="phrase-demo" aria-live="polite">
+      <span class="label" id="phrase-label">Как хочется сказать</span>
+      <p class="phrase" id="phrase-text">«{mini.before}»</p>
+    </div>
+    <button id="transform-button" type="button">↗&nbsp; {mini.transform}</button>
+    """
+        interaction_script = f"""
+    const transformedPhrase = {json.dumps(f'«{mini.after}»')};
+    document.getElementById('transform-button').addEventListener('click', (event) => {{
+      const demo = document.getElementById('phrase-demo');
+      const phrase = document.getElementById('phrase-text');
+      demo.classList.add('changing');
+      window.setTimeout(() => {{
+        phrase.textContent = transformedPhrase;
+        document.getElementById('phrase-label').textContent = 'Как сохранить смысл и снизить напряжение';
+        demo.classList.remove('changing');
+        demo.classList.add('done');
+        event.currentTarget.hidden = true;
+        if (window.partnerMetricsTrack) window.partnerMetricsTrack('demo_transformed', {{ variant: landingVariant, layout_version: 'mini_v1' }});
+      }}, 180);
+    }});
+    """
     return f"""<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="{copy.description}" />
-  <title>{copy.title}</title>
+  <meta name="description" content="{mini.outcome}" />
+  <title>{mini.headline}</title>
   {_client_script(counter_id)}
   <style>
     :root {{ --bg:#100d18; --card:#1d1728; --card2:#272033; --text:#fffafd; --muted:#bdb3c7; --accent:#a768ff; --accent2:#7a4cff; --line:rgba(255,255,255,.12); }}
@@ -251,6 +304,14 @@ def build_landing_html(
     .price {{ margin:12px 0 0; padding-top:11px; border-top:1px solid var(--line); color:#a99fad; font-size:11px; line-height:1.4; text-align:center; }}
     .price strong {{ color:#e9dff0; }}
     .trust {{ margin:7px 5px 0; color:#887f90; font-size:10.5px; line-height:1.35; text-align:center; }}
+    .compass {{ position:relative; width:238px; height:238px; margin:5px auto 10px; display:grid; grid-template-columns:1fr 1fr; gap:6px; }}
+    .chapter {{ min-height:0; margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:#9d92aa; font-size:24px; transition:.2s ease; }}
+    .chapter span {{ font-size:11px; }} .chapter:nth-child(1) {{ border-radius:100% 13px 13px 13px; }} .chapter:nth-child(2) {{ border-radius:13px 100% 13px 13px; }} .chapter:nth-child(3) {{ border-radius:13px 13px 13px 100%; }} .chapter:nth-child(4) {{ border-radius:13px 13px 100% 13px; }}
+    .chapter.active {{ color:white; border-color:rgba(167,104,255,.7); background:rgba(167,104,255,.2); }}
+    .compass-center {{ position:absolute; left:50%; top:50%; width:66px; height:66px; transform:translate(-50%,-50%); display:grid; place-content:center; border:1px solid var(--line); border-radius:50%; background:#15111e; text-align:center; pointer-events:none; }}
+    .compass-center strong {{ font-size:20px; }} .compass-center small {{ font-size:9px; color:var(--muted); }}
+    .chapter-preview {{ min-height:73px; padding:11px 13px; border:1px solid var(--line); border-radius:14px; background:var(--card); }}
+    .chapter-preview b,.chapter-preview span {{ display:block; }} .chapter-preview b {{ font-size:13px; }} .chapter-preview span {{ margin-top:3px; color:var(--muted); font-size:11px; line-height:1.35; }}
     @media (max-height:690px) {{ main {{ justify-content:flex-start; padding-top:10px; }} .brand {{ margin-bottom:9px; }} h1 {{ font-size:28px; }} }}
     @media (prefers-reduced-motion:reduce) {{ * {{ scroll-behavior:auto!important; transition:none!important; }} }}
   </style>
@@ -261,11 +322,7 @@ def build_landing_html(
     <div class="eyebrow">{mini.eyebrow}</div>
     <h1>{mini.headline}</h1>
     <p class="lead">{mini.outcome}</p>
-    <div class="demo" id="phrase-demo" aria-live="polite">
-      <span class="label" id="phrase-label">Как хочется сказать</span>
-      <p class="phrase" id="phrase-text">«{mini.before}»</p>
-    </div>
-    <button id="transform-button" type="button">↗&nbsp; {mini.transform}</button>
+    {demo_markup}
     <a class="cta" data-open-bot href="{safe_link}">{mini.cta} →</a>
     <p class="micro">Бесплатно · нужны имя и дата рождения · откроется Telegram</p>
     <p class="price"><strong>Первый вариант бесплатно.</strong> Продолжение по желанию: 50–199 ₽.</p>
@@ -274,21 +331,8 @@ def build_landing_html(
   <script>
     const metricaId = {json.dumps(counter_id)};
     const landingVariant = {json.dumps(variant)};
-    const transformedPhrase = {json.dumps(f"«{mini.after}»")};
     if (window.partnerMetricsTrack) window.partnerMetricsTrack('landing_viewed', {{ variant: landingVariant }});
-    document.getElementById('transform-button').addEventListener('click', (event) => {{
-      const demo = document.getElementById('phrase-demo');
-      const phrase = document.getElementById('phrase-text');
-      demo.classList.add('changing');
-      window.setTimeout(() => {{
-        phrase.textContent = transformedPhrase;
-        document.getElementById('phrase-label').textContent = 'Как сохранить смысл и снизить напряжение';
-        demo.classList.remove('changing');
-        demo.classList.add('done');
-        event.currentTarget.hidden = true;
-        if (window.partnerMetricsTrack) window.partnerMetricsTrack('demo_transformed', {{ variant: landingVariant, layout_version: 'mini_v1' }});
-      }}, 180);
-    }});
+    {interaction_script}
     document.querySelectorAll('[data-open-bot]').forEach((button) => {{
       button.addEventListener('click', () => {{
         button.textContent = 'Открываем Telegram…';
