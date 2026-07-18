@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app import ad_attribution
 from app.ad_attribution import AttributionStore, _is_landing_path, build_landing_html, conversion_csv
 
 
@@ -77,3 +78,26 @@ def test_root_and_go_paths_open_landing() -> None:
     assert _is_landing_path("/go/") is True
     assert _is_landing_path("/healthz") is False
     assert _is_landing_path("/webapp") is False
+
+
+def test_landing_click_is_recorded_once_on_server(tmp_path: Path, monkeypatch) -> None:
+    store = AttributionStore(tmp_path / "landing-click.sqlite3")
+    token = store.create_click("test-yclid-cta", {"utm_source": "yandex"})
+
+    class NoopThread:
+        def __init__(self, **_kwargs):
+            pass
+
+        def start(self) -> None:
+            pass
+
+    monkeypatch.setattr(ad_attribution, "get_store", lambda: store)
+    monkeypatch.setattr(ad_attribution.threading, "Thread", NoopThread)
+
+    assert ad_attribution._record_landing_click(token) is True
+    assert ad_attribution._record_landing_click(token) is False
+    rows = store.pending()
+    assert len(rows) == 1
+    assert rows[0]["yclid"] == "test-yclid-cta"
+    assert rows[0]["target"] == "landing_to_bot"
+    assert rows[0]["user_id"] == 0
