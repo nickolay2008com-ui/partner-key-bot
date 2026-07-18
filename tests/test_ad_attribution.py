@@ -76,6 +76,8 @@ def test_root_and_go_paths_open_landing() -> None:
     assert _is_landing_path("/?utm_source=direct") is True
     assert _is_landing_path("/go") is True
     assert _is_landing_path("/go/") is True
+    assert _is_landing_path("/go/money") is True
+    assert _is_landing_path("/go/message?utm_source=yandex") is True
     assert _is_landing_path("/healthz") is False
     assert _is_landing_path("/webapp") is False
 

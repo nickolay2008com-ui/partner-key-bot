@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import json
+from dataclasses import dataclass
 from urllib.parse import urlencode
 
 from app import ad_attribution
@@ -10,8 +11,94 @@ from app.metrica_layer import _client_script, _counter_id
 _INSTALLED = False
 
 
-def build_landing_html(bot_link: str, attributed: bool, token: str = "") -> str:
-    click_link = f"/go/out?{urlencode({'token': token})}" if attributed and token else bot_link
+@dataclass(frozen=True)
+class LandingCopy:
+    title: str
+    description: str
+    eyebrow: str
+    headline: str
+    lead: str
+    benefits: tuple[tuple[str, str], tuple[str, str], tuple[str, str]]
+    primary_cta: str
+    sample_label: str
+    sample_text: str
+    sample_quote: str
+    sample_watch: str
+    secondary_cta: str
+    trust: str
+
+
+_LANDINGS = {
+    "relationship": LandingCopy(
+        title="Как найти подход к вашему мужчине",
+        description="Бесплатная персональная подсказка: как мужчина воспринимает заботу, почему закрывается и какую фразу попробовать без давления.",
+        eyebrow="💞 Астро Партнёр · первый разбор бесплатно",
+        headline="Как он чувствует заботу — и почему иногда закрывается",
+        lead="По имени и дате рождения мужчины вы получите персональную подсказку: что помогает ему идти на контакт и какую фразу попробовать без давления.",
+        benefits=(
+            ("Его язык близости", "Какие слова и действия он легче принимает как заботу."),
+            ("Причина дистанции", "Что может прозвучать для него как давление."),
+            ("Проверяемый шаг", "Готовая фраза и реакция, на которую смотреть."),
+        ),
+        primary_cta="Получить первый разбор бесплатно",
+        sample_label="Пример одного из сценариев",
+        sample_text="Ему легче открываться, когда разговор ясный, спокойный и оставляет пространство для ответа. Намёки и молчаливые проверки могут заставлять его дистанцироваться.",
+        sample_quote="«Хочу спокойно понять тебя, а не спорить. Как ты сам видишь нашу ситуацию?»",
+        sample_watch="он начинает объяснять, задаёт встречный вопрос или предлагает продолжить разговор.",
+        secondary_cta="Узнать, как найти к нему подход",
+        trust="Это не тест на совместимость и не предсказание судьбы. Вы получите ориентир, который можно сравнить с реальным поведением человека.",
+    ),
+    "money": LandingCopy(
+        title="Как спокойно говорить с ним о деньгах",
+        description="Первый бесплатный ключ подскажет, как начать разговор о деньгах без давления и не усилить защитную реакцию мужчины.",
+        eyebrow="💳 Деньги в паре · первый ключ бесплатно",
+        headline="Почему разговор о деньгах с ним быстро становится напряжённым?",
+        lead="По дате рождения мужчины вы узнаете, что помогает ему оставаться в контакте, какой тон включает защиту и как начать сложный разговор спокойнее.",
+        benefits=(
+            ("Понять реакцию", "Что ему важнее: ясность, свобода или эмоциональная безопасность."),
+            ("Не усилить защиту", "Какие слова и интонации могут восприниматься как давление."),
+            ("Начать с фразы", "Первый шаг к разговору о расходах, планах или общих решениях."),
+        ),
+        primary_cta="Получить его эмоциональный ключ бесплатно",
+        sample_label="Пример применения к теме денег",
+        sample_text="Если он слышит в вопросе контроль или обвинение, то может защищаться ещё до обсуждения цифр. Начните с общей задачи и одного конкретного вопроса.",
+        sample_quote="«Мне важно не спорить, кто прав, а понять, как нам обоим удобнее обращаться с деньгами. Обсудим сначала наши общие расходы?»",
+        sample_watch="он остаётся в разговоре, называет свои приоритеты или предлагает свой вариант договорённости.",
+        secondary_cta="Начать разговор о деньгах спокойнее",
+        trust="Это не финансовый прогноз и не расчёт денежной совместимости. Бот помогает найти эмоциональные условия для спокойного разговора, а не борьбы.",
+    ),
+    "message": LandingCopy(
+        title="Что написать ему без давления",
+        description="Бесплатная персональная подсказка и фраза, которая поможет начать разговор бережнее и проверить реакцию мужчины.",
+        eyebrow="💬 Персональная подсказка для разговора",
+        headline="Не знаете, что ему написать, чтобы не усилить дистанцию?",
+        lead="По имени и дате рождения мужчины вы узнаете, что помогает ему идти на контакт, что заставляет закрываться и какую фразу проверить по его реакции.",
+        benefits=(
+            ("Фраза без давления", "Не общий шаблон, а вариант по его эмоциональному ритму."),
+            ("Что не усиливать", "Напор, холод или неопределённость действуют на мужчин по-разному."),
+            ("Признак ответа", "Смотрите, стал ли он объяснять, смягчился или сам продолжил контакт."),
+        ),
+        primary_cta="Получить бесплатную подсказку и фразу",
+        sample_label="Пример одной из подсказок",
+        sample_text="Когда человек отдаляется, длинное объяснение может восприниматься как дополнительное давление. Иногда лучше обозначить ценность контакта и оставить пространство для ответа.",
+        sample_quote="«Мне важен наш контакт. Я хочу понять, что ты чувствуешь, и не хочу на тебя давить.»",
+        sample_watch="он отвечает содержательно, объясняет своё состояние или сам предлагает продолжить разговор.",
+        secondary_cta="Получить свою фразу бесплатно",
+        trust="Фраза не управляет человеком и не гарантирует ответ. Она помогает начать разговор бережнее и проверить подсказку по реальной реакции.",
+    ),
+}
+
+
+def build_landing_html(
+    bot_link: str,
+    attributed: bool,
+    token: str = "",
+    variant: str = "relationship",
+) -> str:
+    variant = variant if variant in _LANDINGS else "relationship"
+    copy = _LANDINGS[variant]
+    out_query = urlencode({"token": token, "variant": variant})
+    click_link = f"/go/out?{out_query}" if attributed and token else bot_link
     safe_link = html.escape(click_link, quote=True)
     counter_id = _counter_id()
     return f"""<!doctype html>
@@ -19,11 +106,11 @@ def build_landing_html(bot_link: str, attributed: bool, token: str = "") -> str:
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Бесплатная персональная подсказка: как мужчина воспринимает заботу, почему закрывается и какую фразу попробовать без давления." />
-  <title>Как найти подход к вашему мужчине</title>
+  <meta name="description" content="{copy.description}" />
+  <title>{copy.title}</title>
   {_client_script(counter_id)}
   <style>
-    :root {{ --ink:#241b2b; --muted:#6f6375; --plum:#6936a8; --plum-dark:#522582; --lilac:#f2eafa; --rose:#fff5f4; --card:#fffdfd; --line:#e9dfe9; --green:#23805a; }}
+    :root {{ --ink:#241b2b; --muted:#6f6375; --plum:#6936a8; --plum-dark:#522582; --lilac:#f2eafa; --card:#fffdfd; --line:#e9dfe9; }}
     * {{ box-sizing:border-box; }}
     html {{ scroll-behavior:smooth; }}
     body {{ margin:0; background:linear-gradient(180deg,#fff7f6 0,#fbf7ff 45%,#fff 100%); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }}
@@ -66,28 +153,28 @@ def build_landing_html(bot_link: str, attributed: bool, token: str = "") -> str:
     }}
   </style>
 </head>
-<body>
+<body data-landing-variant="{variant}">
   <main>
     <section class="hero" aria-labelledby="page-title">
-      <div class="eyebrow">💞 Астро Партнёр · первый разбор бесплатно</div>
-      <h1 id="page-title">Как он чувствует заботу — и почему иногда закрывается</h1>
-      <p class="lead">По имени и дате рождения мужчины вы получите персональную подсказку: что помогает ему идти на контакт и какую фразу попробовать без давления.</p>
+      <div class="eyebrow">{copy.eyebrow}</div>
+      <h1 id="page-title">{copy.headline}</h1>
+      <p class="lead">{copy.lead}</p>
       <div class="promise" aria-label="Что будет в результате">
-        <div><strong>Его язык близости</strong>Какие слова и действия он легче принимает как заботу.</div>
-        <div><strong>Причина дистанции</strong>Что может прозвучать для него как давление.</div>
-        <div><strong>Проверяемый шаг</strong>Готовая фраза и реакция, на которую смотреть.</div>
+        <div><strong>{copy.benefits[0][0]}</strong>{copy.benefits[0][1]}</div>
+        <div><strong>{copy.benefits[1][0]}</strong>{copy.benefits[1][1]}</div>
+        <div><strong>{copy.benefits[2][0]}</strong>{copy.benefits[2][1]}</div>
       </div>
-      <a class="cta" id="primary-cta" data-open-bot href="{safe_link}">Получить первый разбор бесплатно</a>
+      <a class="cta" id="primary-cta" data-open-bot href="{safe_link}">{copy.primary_cta}</a>
       <p class="micro">Откроется Telegram · около 2 минут · точное время рождения не нужно</p>
     </section>
 
     <section class="content" aria-labelledby="sample-title">
       <h2 id="sample-title">Вот как выглядит подсказка</h2>
       <div class="sample">
-        <span class="sample-label">Пример одного из сценариев</span>
-        <p>Ему легче открываться, когда разговор ясный, спокойный и оставляет пространство для ответа. Намёки и молчаливые проверки могут заставлять его дистанцироваться.</p>
-        <blockquote>«Хочу спокойно понять тебя, а не спорить. Как ты сам видишь нашу ситуацию?»</blockquote>
-        <p class="watch"><strong>На что смотреть:</strong> он начинает объяснять, задаёт встречный вопрос или предлагает продолжить разговор.</p>
+        <span class="sample-label">{copy.sample_label}</span>
+        <p>{copy.sample_text}</p>
+        <blockquote>{copy.sample_quote}</blockquote>
+        <p class="watch"><strong>На что смотреть:</strong> {copy.sample_watch}</p>
       </div>
       <p class="micro">Это пример. Ваш результат будет рассчитан по его дате рождения.</p>
     </section>
@@ -97,20 +184,22 @@ def build_landing_html(bot_link: str, attributed: bool, token: str = "") -> str:
       <ol class="steps">
         <li>Откройте Telegram и нажмите «Запустить».</li>
         <li>Напишите имя и дату рождения мужчины.</li>
-        <li>Получите его эмоциональный ключ, готовую фразу и способ проверить подсказку.</li>
+        <li>Получите первый эмоциональный ключ, фразу и способ проверить подсказку.</li>
       </ol>
-      <a class="cta" data-open-bot href="{safe_link}">Узнать, как найти к нему подход</a>
-      <div class="free"><strong>Первый результат действительно бесплатный.</strong> Для него ничего покупать не нужно. Если захотите продолжить: подробный раздел — от 50 ₽, полная карта отношений — 199 ₽.</div>
-      <p class="trust">Это не тест на совместимость и не предсказание судьбы. Вы получите ориентир, который можно сравнить с реальным поведением человека.</p>
+      <a class="cta" data-open-bot href="{safe_link}">{copy.secondary_cta}</a>
+      <div class="free"><strong>Первый результат действительно бесплатный.</strong> Дополнительные тематические разделы — от 50 ₽, полная карта отношений — 199 ₽.</div>
+      <p class="trust">{copy.trust}</p>
     </section>
   </main>
-  <a class="sticky" id="sticky-cta" data-open-bot href="{safe_link}">Получить бесплатный разбор</a>
+  <a class="sticky" id="sticky-cta" data-open-bot href="{safe_link}">{copy.primary_cta}</a>
   <script>
     const metricaId = {json.dumps(counter_id)};
+    const landingVariant = {json.dumps(variant)};
+    if (window.partnerMetricsTrack) window.partnerMetricsTrack('landing_viewed', {{ variant: landingVariant }});
     document.querySelectorAll('[data-open-bot]').forEach((button) => {{
       button.addEventListener('click', () => {{
         button.textContent = 'Открываем Telegram…';
-        const payload = {{ attributed: {str(attributed).lower()}, version: 'cro_v2' }};
+        const payload = {{ attributed: {str(attributed).lower()}, variant: landingVariant, version: 'cro_v3' }};
         if (window.partnerMetricsTrack) window.partnerMetricsTrack('landing_to_bot', payload);
         else if (metricaId && typeof window.ym === 'function') {{
           try {{ window.ym(metricaId, 'reachGoal', 'landing_to_bot', payload); }} catch (_error) {{}}
