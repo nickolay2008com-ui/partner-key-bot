@@ -31,7 +31,16 @@ logger = logging.getLogger(__name__)
 ATTRIBUTION_PREFIX = "ad_"
 ATTRIBUTION_TTL_DAYS = 21
 RETRY_INTERVAL_SECONDS = 60
-LANDING_VARIANTS = {"relationship", "money", "message"}
+LANDING_PATH_VARIANTS = {
+    "/go/money": "money",
+    "/go/message": "message",
+    "/go/after-conflict": "after_conflict",
+    "/go/care": "care",
+    "/go/mistake": "mistake",
+    "/go/contribution": "contribution",
+    "/go/growth": "growth",
+}
+LANDING_VARIANTS = {"relationship", *LANDING_PATH_VARIANTS.values()}
 UPLOAD_URL = "https://api-metrika.yandex.net/management/v1/counter/{counter_id}/offline_conversions/upload"
 
 EVENT_TARGETS = {
@@ -390,7 +399,7 @@ def _query_value(query: dict[str, list[str]], key: str) -> str:
 
 def _is_landing_path(raw_path: str) -> bool:
     path = urlparse(raw_path).path.rstrip("/") or "/"
-    return path in {"/", "/go", "/go/money", "/go/message"}
+    return path in {"/", "/go", *LANDING_PATH_VARIANTS}
 
 
 def build_landing_html(
@@ -453,7 +462,7 @@ def _render_landing(handler: webapp.WebAppHandler) -> None:
         return
     query = parse_qs(urlparse(handler.path).query, keep_blank_values=True)
     path = urlparse(handler.path).path.rstrip("/") or "/"
-    variant = {"/go/money": "money", "/go/message": "message"}.get(path, "relationship")
+    variant = LANDING_PATH_VARIANTS.get(path, "relationship")
     yclid = _query_value(query, "yclid")
     token = ""
     if yclid and _YCLID_RE.fullmatch(yclid):
