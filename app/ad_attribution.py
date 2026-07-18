@@ -213,6 +213,24 @@ class AttributionStore:
                 )
         return dict(row)
 
+    def by_token(self, token: str) -> dict[str, Any] | None:
+        if self.database_url:
+            with self._postgres() as conn:
+                row = conn.execute("SELECT * FROM ad_attributions WHERE token = %s", (token,)).fetchone()
+        else:
+            with self._sqlite() as conn:
+                row = conn.execute("SELECT * FROM ad_attributions WHERE token = ?", (token,)).fetchone()
+        if row is None:
+            return None
+        result = dict(row)
+        try:
+            created_at = datetime.fromisoformat(str(result["created_at"]))
+        except (TypeError, ValueError):
+            return None
+        if datetime.now(timezone.utc) - created_at > timedelta(days=ATTRIBUTION_TTL_DAYS):
+            return None
+        return result
+
     def latest_for_user(self, user_id: int) -> dict[str, Any] | None:
         query = (
             "SELECT * FROM ad_attributions WHERE user_id = {placeholder} "
@@ -374,7 +392,7 @@ def _is_landing_path(raw_path: str) -> bool:
     return path in {"/", "/go"}
 
 
-def build_landing_html(bot_link: str, attributed: bool) -> str:
+def build_landing_html(bot_link: str, attributed: bool, token: str = "") -> str:
     note = (
         "Рекламный переход сохранён. Дальше бот свяжет действия и оплату с объявлением."
         if attributed
@@ -438,7 +456,50 @@ def _render_landing(handler: webapp.WebAppHandler) -> None:
     bot_link = f"https://t.me/{quote(username, safe='')}"
     if token:
         bot_link += "?" + urlencode({"start": f"{ATTRIBUTION_PREFIX}{token}"})
-    handler._send_html(build_landing_html(bot_link, bool(token)))
+    handler._send_html(build_landing_html(bot_link, bool(token), token))
+
+
+def _record_landing_click(token: str) -> bool:
+    if not _TOKEN_RE.fullmatch(token):
+        return False
+    attribution = get_store().by_token(token)
+    if not attribution:
+        return False
+    inserted = get_store().enqueue(
+        event_key=f"landing_to_bot:{token}",
+        user_id=0,
+        yclid=str(attribution["yclid"]),
+        target="landing_to_bot",
+        event_time=int(time.time()),
+        price=None,
+        currency=None,
+    )
+    if inserted:
+        threading.Thread(target=flush_pending, name="metrica-landing-flush", daemon=True).start()
+    return inserted
+
+
+def _render_landing_out(handler: webapp.WebAppHandler) -> None:
+    username = _bot_username()
+    if not username:
+        handler._send_body(
+            b"<h1>TELEGRAM_BOT_USERNAME is not configured</h1>",
+            content_type="text/html; charset=utf-8",
+            status=503,
+        )
+        return
+    query = parse_qs(urlparse(handler.path).query, keep_blank_values=True)
+    token = _query_value(query, "token")
+    if _TOKEN_RE.fullmatch(token):
+        _record_landing_click(token)
+    bot_link = f"https://t.me/{quote(username, safe='')}"
+    if _TOKEN_RE.fullmatch(token):
+        bot_link += "?" + urlencode({"start": f"{ATTRIBUTION_PREFIX}{token}"})
+    handler.send_response(302)
+    handler.send_header("Location", bot_link)
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", "0")
+    handler.end_headers()
 
 
 def conversion_csv(row: dict[str, Any]) -> bytes:
@@ -586,6 +647,9 @@ def install(base: Any) -> None:
     original_post_init = base._post_init
 
     def do_get_with_landing(self: webapp.WebAppHandler) -> None:
+        if urlparse(self.path).path.rstrip("/") == "/go/out":
+            _render_landing_out(self)
+            return
         if _is_landing_path(self.path):
             _render_landing(self)
             return
