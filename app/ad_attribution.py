@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 ATTRIBUTION_PREFIX = "ad_"
 ATTRIBUTION_TTL_DAYS = 21
 RETRY_INTERVAL_SECONDS = 60
+LANDING_VARIANTS = {"relationship", "money", "message"}
 UPLOAD_URL = "https://api-metrika.yandex.net/management/v1/counter/{counter_id}/offline_conversions/upload"
 
 EVENT_TARGETS = {
@@ -389,10 +390,15 @@ def _query_value(query: dict[str, list[str]], key: str) -> str:
 
 def _is_landing_path(raw_path: str) -> bool:
     path = urlparse(raw_path).path.rstrip("/") or "/"
-    return path in {"/", "/go"}
+    return path in {"/", "/go", "/go/money", "/go/message"}
 
 
-def build_landing_html(bot_link: str, attributed: bool, token: str = "") -> str:
+def build_landing_html(
+    bot_link: str,
+    attributed: bool,
+    token: str = "",
+    variant: str = "relationship",
+) -> str:
     note = (
         "Рекламный переход сохранён. Дальше бот свяжет действия и оплату с объявлением."
         if attributed
@@ -446,6 +452,8 @@ def _render_landing(handler: webapp.WebAppHandler) -> None:
         handler._send_html("<h1>Не задан TELEGRAM_BOT_USERNAME</h1><p>Добавьте имя бота без @ в Railway.</p>")
         return
     query = parse_qs(urlparse(handler.path).query, keep_blank_values=True)
+    path = urlparse(handler.path).path.rstrip("/") or "/"
+    variant = {"/go/money": "money", "/go/message": "message"}.get(path, "relationship")
     yclid = _query_value(query, "yclid")
     token = ""
     if yclid and _YCLID_RE.fullmatch(yclid):
@@ -456,17 +464,18 @@ def _render_landing(handler: webapp.WebAppHandler) -> None:
     bot_link = f"https://t.me/{quote(username, safe='')}"
     if token:
         bot_link += "?" + urlencode({"start": f"{ATTRIBUTION_PREFIX}{token}"})
-    handler._send_html(build_landing_html(bot_link, bool(token), token))
+    handler._send_html(build_landing_html(bot_link, bool(token), token, variant))
 
 
-def _record_landing_click(token: str) -> bool:
+def _record_landing_click(token: str, variant: str = "relationship") -> bool:
     if not _TOKEN_RE.fullmatch(token):
         return False
     attribution = get_store().by_token(token)
     if not attribution:
         return False
+    variant = variant if variant in LANDING_VARIANTS else "relationship"
     inserted = get_store().enqueue(
-        event_key=f"landing_to_bot:{token}",
+        event_key=f"landing_to_bot:{variant}:{token}",
         user_id=0,
         yclid=str(attribution["yclid"]),
         target="landing_to_bot",
@@ -490,8 +499,10 @@ def _render_landing_out(handler: webapp.WebAppHandler) -> None:
         return
     query = parse_qs(urlparse(handler.path).query, keep_blank_values=True)
     token = _query_value(query, "token")
+    variant = _query_value(query, "variant")
+    variant = variant if variant in LANDING_VARIANTS else "relationship"
     if _TOKEN_RE.fullmatch(token):
-        _record_landing_click(token)
+        _record_landing_click(token, variant)
     bot_link = f"https://t.me/{quote(username, safe='')}"
     if _TOKEN_RE.fullmatch(token):
         bot_link += "?" + urlencode({"start": f"{ATTRIBUTION_PREFIX}{token}"})
