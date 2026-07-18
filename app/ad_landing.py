@@ -205,11 +205,11 @@ _MINI_COPY = {
     "mistake": MiniCopy("Одна фраза может закрыть разговор", "Проверьте слова до сложного разговора", "Сохраните свой смысл, убрав обвинение, давление или неясность.", "С тобой невозможно нормально разговаривать.", "Мне важно решить это вместе. Когда обсудим один конкретный вопрос спокойно?", "Проверить и переписать фразу", "Проверить мою первую фразу", "Бот не гарантирует реакцию — он помогает яснее выразить вашу позицию."),
     "contribution": MiniCopy("Когда каждому кажется, что он делает больше", "Почему ваш вклад в семью остаётся незамеченным", "Переведите спор о деньгах и обязанностях в разговор о вкладе каждого.", "Я всё тяну одна, а ты ничего не замечаешь.", "Давай назовём, что каждый сейчас берёт на себя и что нам нужно изменить.", "Перевести спор в честный разговор", "Разобрать наш вклад", "Различия характеров не оправдывают неравенство."),
     "growth": MiniCopy("Поддержка без критики", "Как говорить о росте дохода без давления", "Обсудите развитие и общую цель, не обесценивая партнёра.", "Когда ты уже начнёшь нормально зарабатывать?", "Я верю в твои силы. Какой следующий шаг к росту мы можем поддержать вместе?", "Заменить давление поддержкой", "Найти слова для разговора", "Подсказка не увеличивает доход сама — нужны решения и реальные действия."),
-    "instruction": MiniCopy("Персональная инструкция по дате рождения", "Инструкция к любимому мужчине", "Четыре практические главы: что его успокаивает, как он чувствует любовь, действует и идёт к общему росту.", "Почему ты не можешь просто сказать, что чувствуешь?", "Мне важно понять тебя. Скажи, когда будешь готов говорить.", "Показать, как сказать иначе", "Открыть первую главу бесплатно", "Не способ управлять человеком — подсказка, которую проверяют по его реакции."),
-    "instruction_care": MiniCopy("Раздел инструкции: любовь и забота", "Как любить его так, чтобы он это чувствовал", "Посмотрите, какую поддержку он замечает, а что может принимать за контроль.", "Я же стараюсь ради тебя. Почему ты не ценишь?", "Что сейчас поможет тебе больше: разговор, помощь или немного пространства?", "Перевести контроль в заботу", "Узнать его язык заботы", "Инструкция не учит быть удобной. Важны взаимность и встречная забота."),
-    "instruction_growth": MiniCopy("Раздел инструкции: цели и общий рост", "Как поддержать его успех без давления", "Обсудите деньги, развитие и следующий шаг, не задевая достоинство.", "Когда ты уже начнёшь зарабатывать больше?", "Какую цель ты считаешь главной и чем я могу поддержать твой следующий шаг?", "Заменить давление поддержкой", "Открыть главу о целях", "Без денежных прогнозов: результат зависит от решений и реальных действий."),
-    "instruction_today": MiniCopy("Одна страница инструкции на сегодня", "Что написать или сказать ему прямо сейчас", "Получите короткий первый шаг без давления, манипуляций и длинного выяснения отношений.", "Раз ты молчишь, значит, тебе всё равно.", "Мне важен наш контакт. Напиши, когда сможешь спокойно поговорить.", "Преобразить мою фразу", "Получить практический ключ", "Фраза не гарантирует ответ и не заменяет личные границы."),
-    "make_successful": MiniCopy("Инструкция: как поддержать его сильные стороны", "Как помочь любимому мужчине стать успешнее", "Узнайте, что помогает ему действовать, добиваться целей и принимать поддержку без ощущения контроля.", "Я же хочу как лучше. Почему ты не следуешь моим советам?", "Какой результат для тебя сейчас важнее всего и какая поддержка действительно поможет?", "Заменить совет сильным вопросом", "Открыть его ключ к действиям", "Вы не можете создать успех за другого. Подсказка помогает поддержать его собственные решения и действия."),
+    "instruction": MiniCopy("К каждому устройству есть инструкция. К любимому мужчине — почему-то нет", "Инструкция к любимому мужчине", "Четыре практические главы: как он успокаивается, чувствует любовь, принимает поддержку и идёт к общему росту.", "Почему ты не можешь просто сказать, что чувствуешь?", "Мне важно понять тебя. Скажи, когда будешь готов говорить.", "Показать, как сказать иначе", "Получить первую подсказку бесплатно", "Не способ управлять человеком — подсказка, которую проверяют по его реакции."),
+    "instruction_care": MiniCopy("Вы проявляете любовь. Мужчины замечают заботу по-разному", "Какая забота действительно доходит до вашего мужчины", "Выберите привычный способ поддержки — и узнайте, совпадает ли он с тем, что замечает именно ваш мужчина.", "Я же стараюсь ради тебя. Почему ты не ценишь?", "Что сейчас поможет тебе больше: разговор, помощь или немного пространства?", "Перевести контроль в заботу", "Показать, какую поддержку он замечает", "Не учит заслуживать любовь или быть удобной. Важны взаимность и встречная забота."),
+    "instruction_growth": MiniCopy("Разговор о деньгах без сравнения и упрёков", "Как стать командой в целях и деньгах", "Выберите тему — получите начало разговора и персональный способ перейти от напряжения к общей цели.", "Когда ты уже начнёшь зарабатывать больше?", "Какую цель ты считаешь главной и чем я могу поддержать твой следующий шаг?", "Заменить давление поддержкой", "Получить начало разговора о нашей цели", "Без денежных прогнозов: результат создают решения и реальные действия."),
+    "instruction_today": MiniCopy("Одна фраза для вашей ситуации", "Что написать ему сейчас, не усиливая дистанцию", "Выберите, что произошло. Покажем основу сообщения, а персональную формулировку подберём по его дате рождения.", "Раз ты молчишь, значит, тебе всё равно.", "Мне важен наш контакт. Напиши, когда сможешь спокойно поговорить.", "Преобразить мою фразу", "Получить мою фразу в Telegram", "Фраза не гарантирует ответ и не заменяет личные границы."),
+    "make_successful": MiniCopy("Поддерживать — не значит вести за руку", "Какая поддержка помогает ему действовать самостоятельно", "Выберите его обычную реакцию на советы — и увидите, какой вопрос может вернуть ему авторство решения.", "Я же хочу как лучше. Почему ты не следуешь моим советам?", "Какой результат для тебя сейчас важнее всего и какая поддержка действительно поможет?", "Заменить совет сильным вопросом", "Узнать, какая поддержка его усиливает", "Вы не отвечаете за его успех. Подсказка полезна там, где он сам готов действовать."),
 }
 
 
@@ -232,24 +232,102 @@ def build_landing_html(
       <button type="button" class="chapter" data-chapter="love">♡<span>Любовь</span></button>
       <button type="button" class="chapter" data-chapter="action">↗<span>Цели</span></button>
       <button type="button" class="chapter" data-chapter="growth">◎<span>Рост</span></button>
-      <div class="compass-center"><strong>4</strong><small>главы</small></div>
+      <div class="compass-center"><strong id="chapter-count">0 из 4</strong><small>открыто</small></div>
     </nav>
-    <div class="chapter-preview" aria-live="polite"><b id="chapter-title">Что помогает ему успокоиться</b><span id="chapter-text">Как говорить в напряжённый момент, чтобы забота не звучала как давление.</span></div>
+    <p class="interaction-hint">Нажмите на главу, чтобы увидеть пример</p>
+    <div class="chapter-preview" aria-live="polite"><b id="chapter-title">Первая подсказка: что помогает ему успокоиться</b><span id="chapter-text">Какой тон сохраняет контакт, а какой может прозвучать как давление.</span></div>
     """
         interaction_script = """
     const chapters = {
-      calm: ['Что помогает ему успокоиться', 'Как говорить в напряжённый момент, чтобы забота не звучала как давление.'],
-      love: ['Как он распознаёт любовь', 'Какие слова и поступки он воспринимает как близость и внимание.'],
-      action: ['Как он действует и достигает целей', 'Когда поддержать, а когда оставить пространство для собственного решения.'],
-      growth: ['Как обсуждать рост и деньги', 'Как соединить планы, ответственность и общий финансовый горизонт.']
+      calm: ['Что помогает ему успокоиться', 'Но что закрывает именно его: давление, критика или страх не справиться?'],
+      love: ['Как он распознаёт любовь', 'Что он принимает за любовь: слова, помощь, доверие или пространство?'],
+      action: ['Как он действует и достигает целей', 'Что усиливает его инициативу: вызов, признание, ясный план или свобода?'],
+      growth: ['Как обсуждать рост и деньги', 'Что он услышит лучше: общую цель, цифры или признание усилий?']
     };
+    const visitedChapters = new Set();
     document.querySelectorAll('.chapter').forEach((button) => button.addEventListener('click', () => {
       document.querySelectorAll('.chapter').forEach((item) => item.classList.toggle('active', item === button));
+      button.classList.add('visited');
+      visitedChapters.add(button.dataset.chapter);
       const chapter = chapters[button.dataset.chapter];
       document.getElementById('chapter-title').textContent = chapter[0];
       document.getElementById('chapter-text').textContent = chapter[1];
-      if (window.partnerMetricsTrack) window.partnerMetricsTrack('instruction_chapter_opened', { variant: landingVariant, chapter: button.dataset.chapter, layout_version: 'instruction_v1' });
+      document.getElementById('chapter-count').textContent = `${visitedChapters.size} из 4`;
+      document.querySelector('.cta').textContent = `Открыть главу «${button.querySelector('span').textContent}» бесплатно →`;
+      setLandingChoice(button.dataset.chapter);
+      if (window.partnerMetricsTrack) window.partnerMetricsTrack('instruction_chapter_opened', { variant: landingVariant, chapter: button.dataset.chapter, layout_version: 'instruction_v2' });
     }));
+    """
+    elif variant in {"instruction_care", "instruction_growth", "instruction_today", "make_successful"}:
+        configs = {
+            "instruction_care": (
+                "Что вы обычно делаете, когда ему трудно?",
+                {"words": "Говорю", "action": "Помогаю делом", "time": "Остаюсь рядом", "space": "Даю пространство"},
+                {
+                    "words": "Слова могут поддержать — или утомить. Что он слышит именно от вас: участие или готовое решение?",
+                    "action": "Помощь делом может быть любовью — или вторжением. Как он принимает участие именно от вас?",
+                    "time": "Присутствие создаёт опору не для всех одинаково. Что замечает именно он?",
+                    "space": "Пространство может успокоить — или усилить дистанцию. Где проходит его граница?",
+                },
+                "Узнать, какой сигнал замечает именно он →",
+            ),
+            "instruction_growth": (
+                "О чём вам важнее договориться?",
+                {"expenses": "Общие расходы", "income": "Рост дохода", "work": "Новая работа", "goal": "Цель семьи"},
+                {
+                    "expenses": "Начните с одной цифры и одного решения. Но какой тон не включит его защиту?",
+                    "income": "Общая цель слышится лучше оценки заработка. Что мотивирует именно его?",
+                    "work": "Совет легко звучит как недоверие. Когда ему нужен вопрос, а когда пространство?",
+                    "goal": "Одна цель объединяет сильнее разговора обо всём. Какой вход он услышит?",
+                },
+                "Получить персональное начало разговора →",
+            ),
+            "instruction_today": (
+                "Что происходит между вами?",
+                {"conflict": "После ссоры", "silence": "Не отвечает", "distance": "Стал холоднее", "talk": "Важный разговор"},
+                {
+                    "conflict": "«Я не хочу продолжать ссору. Мне важен наш контакт…» Какая следующая строка не усилит его защиту?",
+                    "silence": "«Я не хочу давить. Мне важно понять…» Ему нужен вопрос, тёплый знак или пауза?",
+                    "distance": "«Я чувствую расстояние между нами…» Как не превратить близость в требование?",
+                    "talk": "«Мне важно решить это вместе…» С чего начать с ним: с чувства, факта или предложения?",
+                },
+                "Получить персональную фразу для него →",
+            ),
+            "make_successful": (
+                "Как он обычно реагирует на ваши советы?",
+                {"argues": "Спорит", "silent": "Молчит", "delays": "Откладывает", "acts": "Делает по-своему"},
+                {
+                    "argues": "Спор может защищать самостоятельность. Какой вопрос сохранит его авторство решения?",
+                    "silent": "Молчание не всегда означает отсутствие цели. Что поможет ему назвать свой следующий шаг?",
+                    "delays": "Ему может не хватать не мотивации, а своего способа начать. Что сработает именно с ним?",
+                    "acts": "Самостоятельность — его ресурс. Как поддержать её, не превращая поддержку в управление?",
+                },
+                "Показать, какая поддержка помогает ему действовать →",
+            ),
+        }
+        question, options, results, selected_cta = configs[variant]
+        choices = "".join(
+            f'<button type="button" class="choice" data-choice="{key}">{html.escape(label)}</button>'
+            for key, label in options.items()
+        )
+        demo_markup = f"""
+    <div class="choice-card">
+      <b>{question}</b>
+      <div class="choice-grid">{choices}</div>
+      <div class="choice-result" id="choice-result" aria-live="polite">Выберите один вариант — покажем общий принцип и вопрос, который важно уточнить именно про него.</div>
+    </div>
+    """
+        interaction_script = f"""
+    const choiceResults = {json.dumps(results, ensure_ascii=False)};
+    document.querySelectorAll('.choice').forEach((button) => button.addEventListener('click', () => {{
+      document.querySelectorAll('.choice').forEach((item) => item.classList.toggle('selected', item === button));
+      document.getElementById('choice-result').textContent = choiceResults[button.dataset.choice];
+      document.getElementById('choice-result').classList.add('revealed');
+      document.querySelector('.cta').textContent = {json.dumps(selected_cta, ensure_ascii=False)};
+      document.querySelector('.cta').classList.add('ready');
+      setLandingChoice(button.dataset.choice);
+      if (window.partnerMetricsTrack) window.partnerMetricsTrack('landing_choice_selected', {{ variant: landingVariant, choice: button.dataset.choice, layout_version: 'intent_v1' }});
+    }}));
     """
     else:
         demo_markup = f"""
@@ -301,19 +379,30 @@ def build_landing_html(
     button {{ width:100%; min-height:48px; margin-top:10px; padding:10px 13px; border:1px solid rgba(255,255,255,.14); border-radius:14px; background:rgba(255,255,255,.075); color:white; font:inherit; font-size:14px; font-weight:800; cursor:pointer; }}
     button:hover {{ background:rgba(255,255,255,.12); }}
     a.cta {{ display:grid; min-height:56px; place-items:center; margin-top:12px; padding:12px 16px; border-radius:16px; background:linear-gradient(135deg,var(--accent2),var(--accent)); box-shadow:0 13px 32px rgba(122,76,255,.34); color:white; font-size:16px; font-weight:900; line-height:1.2; text-align:center; text-decoration:none; }}
+    a.cta.ready {{ animation:cta-ready .45s ease both; }}
     .micro {{ margin:8px 0 0; color:#b7aebe; font-size:11.5px; line-height:1.35; text-align:center; }}
     .price {{ margin:12px 0 0; padding-top:11px; border-top:1px solid var(--line); color:#a99fad; font-size:11px; line-height:1.4; text-align:center; }}
     .price strong {{ color:#e9dff0; }}
     .trust {{ margin:7px 5px 0; color:#887f90; font-size:10.5px; line-height:1.35; text-align:center; }}
     .compass {{ position:relative; width:238px; height:238px; margin:5px auto 10px; display:grid; grid-template-columns:1fr 1fr; gap:6px; }}
     .chapter {{ min-height:0; margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:#9d92aa; font-size:24px; transition:.2s ease; }}
+    .chapter.visited::after {{ content:""; position:absolute; width:7px; height:7px; margin:72px 0 0 55px; border-radius:50%; background:#c99aff; box-shadow:0 0 10px #a768ff; }}
     .chapter span {{ font-size:11px; }} .chapter:nth-child(1) {{ border-radius:100% 13px 13px 13px; }} .chapter:nth-child(2) {{ border-radius:13px 100% 13px 13px; }} .chapter:nth-child(3) {{ border-radius:13px 13px 13px 100%; }} .chapter:nth-child(4) {{ border-radius:13px 13px 100% 13px; }}
     .chapter.active {{ color:white; border-color:rgba(167,104,255,.7); background:rgba(167,104,255,.2); }}
     .compass-center {{ position:absolute; left:50%; top:50%; width:66px; height:66px; transform:translate(-50%,-50%); display:grid; place-content:center; border:1px solid var(--line); border-radius:50%; background:#15111e; text-align:center; pointer-events:none; }}
-    .compass-center strong {{ font-size:20px; }} .compass-center small {{ font-size:9px; color:var(--muted); }}
+    .compass-center strong {{ font-size:13px; }} .compass-center small {{ font-size:9px; color:var(--muted); }}
     .chapter-preview {{ min-height:73px; padding:11px 13px; border:1px solid var(--line); border-radius:14px; background:var(--card); }}
     .chapter-preview b,.chapter-preview span {{ display:block; }} .chapter-preview b {{ font-size:13px; }} .chapter-preview span {{ margin-top:3px; color:var(--muted); font-size:11px; line-height:1.35; }}
-    @media (max-height:690px) {{ main {{ justify-content:flex-start; padding-top:10px; }} .brand {{ margin-bottom:9px; }} h1 {{ font-size:28px; }} }}
+    .interaction-hint {{ margin:-6px 0 7px; color:#8f8499; font-size:10px; text-align:center; }}
+    .choice-card {{ padding:15px; border:1px solid var(--line); border-radius:19px; background:linear-gradient(145deg,var(--card2),var(--card)); }}
+    .choice-card>b {{ display:block; margin-bottom:10px; font-size:14px; }}
+    .choice-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:7px; }}
+    .choice-grid .choice {{ min-height:40px; margin:0; padding:8px; font-size:12px; }}
+    .choice-grid .choice.selected {{ border-color:#aa70ff; background:rgba(167,104,255,.23); color:white; }}
+    .choice-result {{ min-height:55px; margin-top:10px; padding:10px 11px; border-radius:12px; background:rgba(255,255,255,.045); color:#a99fad; font-size:11.5px; line-height:1.4; }}
+    .choice-result.revealed {{ color:#eee6f4; background:rgba(122,76,255,.13); }}
+    @keyframes cta-ready {{ 50% {{ transform:translateY(-2px); filter:brightness(1.13); }} }}
+    @media (max-height:690px) {{ main {{ justify-content:flex-start; padding-top:8px; }} .brand {{ margin-bottom:7px; }} h1 {{ font-size:27px; }} .compass {{ width:214px; height:214px; }} }}
     @media (prefers-reduced-motion:reduce) {{ * {{ scroll-behavior:auto!important; transition:none!important; }} }}
   </style>
 </head>
@@ -325,13 +414,22 @@ def build_landing_html(
     <p class="lead">{mini.outcome}</p>
     {demo_markup}
     <a class="cta" data-open-bot href="{safe_link}">{mini.cta} →</a>
-    <p class="micro">Бесплатно · нужны имя и дата рождения · откроется Telegram</p>
-    <p class="price"><strong>Первый вариант бесплатно.</strong> Продолжение по желанию: 50–199 ₽.</p>
+    <p class="micro">Первая персональная подсказка бесплатно · нужны имя и дата рождения мужчины</p>
+    <p class="price">Дополнительные главы — <strong>только если захотите</strong>.</p>
     <p class="trust">{mini.trust}</p>
   </main>
   <script>
     const metricaId = {json.dumps(counter_id)};
     const landingVariant = {json.dumps(variant)};
+    function setLandingChoice(choice) {{
+      document.querySelectorAll('[data-open-bot]').forEach((link) => {{
+        try {{
+          const url = new URL(link.href, window.location.origin);
+          if (url.pathname === '/go/out') url.searchParams.set('choice', choice);
+          link.href = url.pathname === '/go/out' ? `${{url.pathname}}?${{url.searchParams}}` : url.toString();
+        }} catch (_error) {{}}
+      }});
+    }}
     if (window.partnerMetricsTrack) window.partnerMetricsTrack('landing_viewed', {{ variant: landingVariant }});
     {interaction_script}
     document.querySelectorAll('[data-open-bot]').forEach((button) => {{
