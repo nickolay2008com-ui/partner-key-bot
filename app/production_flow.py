@@ -19,6 +19,7 @@ from app import (
     payment_reconciliation,
     topic_labels,
 )
+from app.webhook_runtime import run_webhook_application
 
 
 WELCOME_TEXT = """
@@ -64,7 +65,9 @@ content_admin_access.install()
 
 
 def main() -> None:
-    entertaining_flow.main()
+    base.logger.info("BOT_BOOT: starting production flow in Telegram webhook mode")
+    application = base.build_application()
+    run_webhook_application(application)
 
 
 if __name__ == "__main__":
